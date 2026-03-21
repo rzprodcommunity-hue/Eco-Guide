@@ -22,12 +22,15 @@ export class LocalEconomyService {
     paginationDto: PaginationDto,
     category?: ServiceCategory,
   ): Promise<PaginatedResult<LocalService>> {
-    const { page, limit } = paginationDto;
+    const { page, limit, includeInactive } = paginationDto;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.localServicesRepository
-      .createQueryBuilder('service')
-      .where('service.isActive = :isActive', { isActive: true });
+      .createQueryBuilder('service');
+
+    if (!includeInactive) {
+      queryBuilder.where('service.isActive = :isActive', { isActive: true });
+    }
 
     if (category) {
       queryBuilder.andWhere('service.category = :category', { category });

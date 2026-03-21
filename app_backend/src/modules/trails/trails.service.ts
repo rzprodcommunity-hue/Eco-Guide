@@ -20,13 +20,15 @@ export class TrailsService {
   }
 
   async findAll(queryDto: TrailQueryDto): Promise<PaginatedResult<Trail>> {
-    const { page, limit, difficulty, region, minDistance, maxDistance, sortBy, sortOrder } = queryDto;
+    const { page, limit, difficulty, region, minDistance, maxDistance, sortBy, sortOrder, includeInactive } = queryDto;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.trailsRepository.createQueryBuilder('trail');
 
     // Apply filters
-    queryBuilder.where('trail.isActive = :isActive', { isActive: true });
+    if (!includeInactive) {
+      queryBuilder.where('trail.isActive = :isActive', { isActive: true });
+    }
 
     if (difficulty) {
       queryBuilder.andWhere('trail.difficulty = :difficulty', { difficulty });

@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsArray,
   IsUUID,
+  IsBoolean,
   MaxLength,
 } from 'class-validator';
 import { PoiType } from '../entities/poi.entity';
@@ -52,4 +53,9 @@ export class CreatePoiDto {
   @IsOptional()
   @IsUUID()
   trailId?: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

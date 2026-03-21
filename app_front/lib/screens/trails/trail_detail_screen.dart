@@ -239,6 +239,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                             TileLayer(
                               urlTemplate:
                                   'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.ecoguide.app',
                             ),
                             if (trailCoords.isNotEmpty)
                               PolylineLayer(

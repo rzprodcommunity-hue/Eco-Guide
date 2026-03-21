@@ -163,6 +163,7 @@ class PoiDetailScreen extends StatelessWidget {
                           TileLayer(
                             urlTemplate:
                                 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.ecoguide.app',
                           ),
                           MarkerLayer(
                             markers: [

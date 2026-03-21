@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsEnum,
   IsUUID,
+  IsBoolean,
   Min,
   ArrayMinSize,
 } from 'class-validator';
@@ -57,4 +58,9 @@ export class CreateQuizDto {
   @IsInt()
   @Min(1)
   points?: number;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsArray,
   IsObject,
+  IsBoolean,
   Min,
   MaxLength,
 } from 'class-validator';
@@ -66,4 +67,9 @@ export class CreateTrailDto {
   @IsOptional()
   @IsNumber()
   startLongitude?: number;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

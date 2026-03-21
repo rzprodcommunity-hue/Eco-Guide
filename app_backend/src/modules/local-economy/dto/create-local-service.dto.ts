@@ -7,6 +7,7 @@ import {
   IsEmail,
   IsArray,
   IsUrl,
+  IsBoolean,
   MaxLength,
 } from 'class-validator';
 import { ServiceCategory } from '../entities/local-service.entity';
@@ -71,4 +72,9 @@ export class CreateLocalServiceDto {
   @IsArray()
   @IsString({ each: true })
   languages?: string[];
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

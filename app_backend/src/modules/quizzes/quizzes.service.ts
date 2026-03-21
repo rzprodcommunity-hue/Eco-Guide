@@ -19,11 +19,13 @@ export class QuizzesService {
   }
 
   async findAll(paginationDto: PaginationDto): Promise<PaginatedResult<Quiz>> {
-    const { page, limit } = paginationDto;
+    const { page, limit, includeInactive } = paginationDto;
     const skip = (page - 1) * limit;
 
+    const whereCondition = includeInactive ? {} : { isActive: true };
+
     const [data, total] = await this.quizzesRepository.findAndCount({
-      where: { isActive: true },
+      where: whereCondition,
       relations: ['trail', 'poi'],
       skip,
       take: limit,

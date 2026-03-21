@@ -90,8 +90,9 @@ export class OfflineService {
   }> {
     // Get all active trails for offline download
     const trailsResult = await this.trailsService.findAll({
-      page: 1,
+      page  : 1,
       limit: 100,
+      includeInactive: true
     });
 
     const trails = trailsResult.data.map((trail) => ({

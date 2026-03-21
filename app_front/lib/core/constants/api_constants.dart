@@ -1,12 +1,27 @@
-class ApiConstants {
-  // Override at runtime with --dart-define, for example:
-  // --dart-define=API_HOST=10.0.2.2 --dart-define=API_PORT=3000
-  static const String _host =
-      String.fromEnvironment('API_HOST', defaultValue: 'localhost');
-  static const String _port =
-      String.fromEnvironment('API_PORT', defaultValue: '3000');
+import 'package:flutter/foundation.dart';
 
-  static const String baseUrl = 'http://$_host:$_port/api';
+class ApiConstants {
+  // Optional runtime overrides:
+  // flutter run --dart-define=API_HOST=192.168.1.100 --dart-define=API_PORT=3000
+  static const String _configuredHost = String.fromEnvironment('API_HOST');
+  static const String _configuredPort = String.fromEnvironment('API_PORT');
+
+  static String get _host {
+    if (_configuredHost.isNotEmpty) {
+      return _configuredHost;
+    }
+
+    // Android emulator cannot access localhost of the host machine directly.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return '10.0.2.2';
+    }
+
+    return 'localhost';
+  }
+
+  static String get _port => _configuredPort.isNotEmpty ? _configuredPort : '3000';
+
+  static String get baseUrl => 'http://$_host:$_port/api';
 
   // Auth endpoints
   static const String login = '/auth/login';

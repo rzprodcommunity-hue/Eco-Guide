@@ -12,6 +12,7 @@ import { SosModule } from './modules/sos/sos.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { OfflineModule } from './modules/offline/offline.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -37,6 +38,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     // Mobile support modules
     OfflineModule,
     NotificationsModule,
+
+    // Backoffice module
+    AdminModule,
   ],
 })
 export class AppModule {}

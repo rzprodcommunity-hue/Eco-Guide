@@ -20,13 +20,16 @@ export class PoisService {
   }
 
   async findAll(queryDto: PoiQueryDto): Promise<PaginatedResult<Poi>> {
-    const { page, limit, type, trailId } = queryDto;
+    const { page, limit, type, trailId, includeInactive } = queryDto;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.poisRepository
       .createQueryBuilder('poi')
-      .leftJoinAndSelect('poi.trail', 'trail')
-      .where('poi.isActive = :isActive', { isActive: true });
+      .leftJoinAndSelect('poi.trail', 'trail');
+
+    if (!includeInactive) {
+      queryBuilder.where('poi.isActive = :isActive', { isActive: true });
+    }
 
     if (type) {
       queryBuilder.andWhere('poi.type = :type', { type });
