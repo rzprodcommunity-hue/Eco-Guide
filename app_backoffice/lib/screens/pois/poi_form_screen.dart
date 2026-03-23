@@ -19,6 +19,8 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _badgeController = TextEditingController();
+  final _learnMoreUrlController = TextEditingController();
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
   final _mediaUrlController = TextEditingController();
@@ -45,6 +47,8 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
       final poi = await PoiService.getPoi(widget.poiId!);
       _nameController.text = poi.name;
       _descriptionController.text = poi.description;
+      _badgeController.text = poi.badge ?? '';
+      _learnMoreUrlController.text = poi.learnMoreUrl ?? '';
       _latitudeController.text = poi.latitude.toString();
       _longitudeController.text = poi.longitude.toString();
       _mediaUrlController.text = poi.mediaUrl ?? '';
@@ -54,7 +58,10 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -65,6 +72,8 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _badgeController.dispose();
+    _learnMoreUrlController.dispose();
     _latitudeController.dispose();
     _longitudeController.dispose();
     _mediaUrlController.dispose();
@@ -80,6 +89,12 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
     final data = {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
+      'badge': _badgeController.text.trim().isNotEmpty
+          ? _badgeController.text.trim()
+          : null,
+      'learnMoreUrl': _learnMoreUrlController.text.trim().isNotEmpty
+          ? _learnMoreUrlController.text.trim()
+          : null,
       'type': _type.name,
       'latitude': double.parse(_latitudeController.text),
       'longitude': double.parse(_longitudeController.text),
@@ -113,7 +128,10 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
       context.go('/pois');
     } else if (provider.error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error!), backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text(provider.error!),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
@@ -138,7 +156,10 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
               const SizedBox(width: 8),
               Text(
                 isEditing ? 'Modifier le POI' : 'Nouveau POI',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -175,6 +196,26 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
                       validator: (v) => v?.isEmpty == true ? 'Requis' : null,
                     ),
                     const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _badgeController,
+                      label: 'Badge (ex: Protected species)',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _learnMoreUrlController,
+                      label: 'URL Learn more',
+                      validator: (v) {
+                        final value = v?.trim();
+                        if (value == null || value.isEmpty) return null;
+                        final uri = Uri.tryParse(value);
+                        final isHttp =
+                            uri != null &&
+                            (uri.scheme == 'http' || uri.scheme == 'https') &&
+                            uri.hasAuthority;
+                        return isHttp ? null : 'URL invalide (http/https)';
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     _buildTypeDropdown(),
                   ]),
                   const SizedBox(height: 24),
@@ -186,7 +227,8 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
                             controller: _latitudeController,
                             label: 'Latitude',
                             keyboardType: TextInputType.number,
-                            validator: (v) => v?.isEmpty == true ? 'Requis' : null,
+                            validator: (v) =>
+                                v?.isEmpty == true ? 'Requis' : null,
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -195,7 +237,8 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
                             controller: _longitudeController,
                             label: 'Longitude',
                             keyboardType: TextInputType.number,
-                            validator: (v) => v?.isEmpty == true ? 'Requis' : null,
+                            validator: (v) =>
+                                v?.isEmpty == true ? 'Requis' : null,
                           ),
                         ),
                       ],
@@ -217,7 +260,9 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
                   _buildSection('Statut', [
                     SwitchListTile(
                       title: const Text('POI actif'),
-                      subtitle: const Text('Les POI inactifs ne sont pas visibles'),
+                      subtitle: const Text(
+                        'Les POI inactifs ne sont pas visibles',
+                      ),
                       value: _isActive,
                       onChanged: (v) => setState(() => _isActive = v),
                       activeColor: AppColors.primary,
@@ -237,13 +282,19 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
                         ),
                         child: _isLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Text(isEditing ? 'Enregistrer' : 'Creer'),
                       ),

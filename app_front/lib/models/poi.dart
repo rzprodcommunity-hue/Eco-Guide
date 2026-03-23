@@ -3,6 +3,8 @@ class Poi {
   final String name;
   final String type;
   final String description;
+  final String? badge;
+  final String? learnMoreUrl;
   final double latitude;
   final double longitude;
   final String? mediaUrl;
@@ -17,6 +19,8 @@ class Poi {
     required this.name,
     required this.type,
     required this.description,
+    this.badge,
+    this.learnMoreUrl,
     required this.latitude,
     required this.longitude,
     this.mediaUrl,
@@ -76,6 +80,8 @@ class Poi {
       name: json['name'] as String,
       type: json['type'] as String,
       description: json['description'] as String,
+      badge: json['badge'] as String?,
+      learnMoreUrl: json['learnMoreUrl'] as String?,
       latitude: _parseDouble(json['latitude']),
       longitude: _parseDouble(json['longitude']),
       mediaUrl: json['mediaUrl'] as String?,
@@ -83,7 +89,9 @@ class Poi {
       audioGuideUrl: json['audioGuideUrl'] as String?,
       trailId: json['trailId'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
@@ -93,6 +101,8 @@ class Poi {
       'name': name,
       'type': type,
       'description': description,
+      'badge': badge,
+      'learnMoreUrl': learnMoreUrl,
       'latitude': latitude,
       'longitude': longitude,
       'mediaUrl': mediaUrl,

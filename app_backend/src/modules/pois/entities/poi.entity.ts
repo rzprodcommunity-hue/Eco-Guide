@@ -39,6 +39,12 @@ export class Poi {
   @Column('text')
   description: string;
 
+  @Column({ nullable: true })
+  badge: string;
+
+  @Column({ nullable: true })
+  learnMoreUrl: string;
+
   @Column('decimal', { precision: 10, scale: 7 })
   latitude: number;
 

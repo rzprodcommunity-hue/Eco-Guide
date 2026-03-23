@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,12 +18,484 @@ class LocalServicesScreen extends StatefulWidget {
 }
 
 class _LocalServicesScreenState extends State<LocalServicesScreen> {
+  String? _selectedCategory;
+  final TextEditingController _searchController = TextEditingController();
+
+  final List<Map<String, dynamic>> _categories = [
+    {'key': null, 'label': 'Tous', 'icon': Icons.apps},
+    {'key': 'accommodation', 'label': 'Hebergements', 'icon': Icons.hotel},
+    {'key': 'artisan', 'label': 'Artisans', 'icon': Icons.handyman},
+    {'key': 'guide', 'label': 'Guides', 'icon': Icons.person},
+    {'key': 'restaurant', 'label': 'Restaurants', 'icon': Icons.restaurant},
+    {'key': 'transport', 'label': 'Transport', 'icon': Icons.directions_car},
+    {'key': 'equipment', 'label': 'Equipement', 'icon': Icons.backpack},
+  ];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LocalServiceProvider>().loadServices();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onCategorySelected(String? category) {
+    setState(() {
+      _selectedCategory = category;
+    });
+    context.read<LocalServiceProvider>().setCategoryFilter(category);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<LocalServiceProvider>();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            if (provider.error != null && provider.error!.isNotEmpty)
+              ErrorBanner(
+                message: provider.error!,
+                onRetry: provider.loadServices,
+                onDismiss: provider.clearError,
+              ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await provider.loadServices();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildCategoryFilters(),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader(provider),
+                      const SizedBox(height: 16),
+                      _buildServicesList(provider),
+                      const SizedBox(height: 24),
+                      _buildMapSection(provider),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.store,
+                        color: AppTheme.primaryColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Annuaire Local',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 44),
+                  child: Text(
+                    'Soutenez l\'economie durable',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _showSearchDialog(),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.search,
+                color: Colors.grey[600],
+                size: 22,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSearchDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Rechercher un etablissement...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onSubmitted: (value) {
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryFilters() {
+    return SizedBox(
+      height: 44,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = _selectedCategory == category['key'];
+
+          return Padding(
+            padding: EdgeInsets.only(right: index < _categories.length - 1 ? 10 : 0),
+            child: GestureDetector(
+              onTap: () => _onCategorySelected(category['key']),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.primaryColor : Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: isSelected ? AppTheme.primaryColor : Colors.grey[300]!,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      category['icon'] as IconData,
+                      size: 18,
+                      color: isSelected ? Colors.white : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      category['label'] as String,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected ? Colors.white : Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(LocalServiceProvider provider) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Etablissements Eco-responsables',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${provider.services.length} resultats',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
+          TextButton(
+            onPressed: () {},
+            child: Text(
+              'Voir tout',
+              style: TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServicesList(LocalServiceProvider provider) {
+    if (provider.isLoading && provider.services.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (provider.services.isEmpty) {
+      return SizedBox(
+        height: 200,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.store, size: 48, color: Colors.grey[400]),
+              const SizedBox(height: 12),
+              Text(
+                'Aucun etablissement trouve',
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: provider.services.length,
+      itemBuilder: (context, index) {
+        return _ServiceCard(service: provider.services[index]);
+      },
+    );
+  }
+
+  Widget _buildMapSection(LocalServiceProvider provider) {
+    final servicesWithLocation = provider.services
+        .where((s) => s.latitude != null && s.longitude != null)
+        .toList();
+
+    final centerLat = servicesWithLocation.isNotEmpty
+        ? servicesWithLocation.map((s) => s.latitude!).reduce((a, b) => a + b) /
+            servicesWithLocation.length
+        : AppConstants.defaultLatitude;
+    final centerLng = servicesWithLocation.isNotEmpty
+        ? servicesWithLocation.map((s) => s.longitude!).reduce((a, b) => a + b) /
+            servicesWithLocation.length
+        : AppConstants.defaultLongitude;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.map,
+                      color: Colors.blue,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Autour de vous',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              height: 160,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(centerLat, centerLng),
+                    initialZoom: 12,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.none,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.ecoguide.app',
+                    ),
+                    MarkerLayer(
+                      markers: servicesWithLocation.map((service) {
+                        return Marker(
+                          point: LatLng(service.latitude!, service.longitude!),
+                          width: 36,
+                          height: 36,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              _getCategoryIcon(service.category),
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.fullscreen),
+                  label: const Text('Ouvrir la carte interactive'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: BorderSide(color: Colors.grey[300]!),
+                    foregroundColor: Colors.grey[700],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   IconData _getCategoryIcon(String category) {
@@ -41,98 +515,6 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       default:
         return Icons.store;
     }
-  }
-
-  String _getCategoryText(String category) {
-    switch (category) {
-      case 'guide':
-        return 'Guide';
-      case 'artisan':
-        return 'Artisan';
-      case 'accommodation':
-        return 'Hebergement';
-      case 'restaurant':
-        return 'Restaurant';
-      case 'transport':
-        return 'Transport';
-      case 'equipment':
-        return 'Equipement';
-      default:
-        return category;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<LocalServiceProvider>();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Annuaire Local'),
-        actions: [
-          PopupMenuButton<String?>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              provider.setCategoryFilter(value);
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: null,
-                child: Text('Tous'),
-              ),
-              ...AppConstants.serviceCategories.map((c) => PopupMenuItem(
-                value: c,
-                child: Row(
-                  children: [
-                    Icon(_getCategoryIcon(c), size: 20),
-                    const SizedBox(width: 8),
-                    Text(_getCategoryText(c)),
-                  ],
-                ),
-              )),
-            ],
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (provider.error != null && provider.error!.isNotEmpty)
-            ErrorBanner(
-              message: provider.error!,
-              onRetry: provider.loadServices,
-              onDismiss: provider.clearError,
-            ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                await provider.loadServices();
-              },
-              child: provider.isLoading && provider.services.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : provider.services.isEmpty
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.store, size: 64, color: Colors.grey),
-                              SizedBox(height: 16),
-                              Text('Aucun service trouve'),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: provider.services.length,
-                          itemBuilder: (context, index) {
-                            final service = provider.services[index];
-                            return _ServiceCard(service: service);
-                          },
-                        ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -148,13 +530,6 @@ class _ServiceCard extends StatelessWidget {
     }
   }
 
-  Future<void> _launchEmail(String email) async {
-    final uri = Uri.parse('mailto:$email');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-
   IconData _getCategoryIcon(String category) {
     switch (category) {
       case 'guide':
@@ -176,152 +551,247 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image or placeholder
-          if (service.imageUrl != null)
-            CachedNetworkImage(
-              imageUrl: service.imageUrl!,
-              height: 150,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Container(
-                height: 150,
-                color: Colors.grey[200],
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-              errorWidget: (_, __, ___) => Container(
-                height: 150,
-                color: Colors.grey[200],
-                child: Icon(_getCategoryIcon(service.category), size: 48),
-              ),
-            )
-          else
-            Container(
-              height: 100,
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
-              child: Center(
-                child: Icon(
-                  _getCategoryIcon(service.category),
-                  size: 48,
-                  color: AppTheme.primaryColor,
+          // Image with rating
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
                 ),
+                child: service.imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: service.imageUrl!,
+                        height: 160,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          height: 160,
+                          color: Colors.grey[200],
+                          child: const Center(child: CircularProgressIndicator()),
+                        ),
+                        errorWidget: (_, __, ___) => _buildPlaceholderImage(),
+                      )
+                    : _buildPlaceholderImage(),
               ),
-            ),
-
+              // Rating badge
+              if (service.rating != null)
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          size: 16,
+                          color: Color(0xFFFFB800),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          service.rating!.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              // Verified badge
+              if (service.isVerified)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.verified,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Verifie',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Content
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name and verified badge
+                // Title and price row
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
                         service.name,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: const TextStyle(
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
                         ),
                       ),
                     ),
-                    if (service.isVerified)
-                      const Icon(Icons.verified, color: Colors.blue, size: 20),
-                  ],
-                ),
-                const SizedBox(height: 4),
-
-                // Category
-                Row(
-                  children: [
-                    Icon(
-                      _getCategoryIcon(service.category),
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      service.categoryDisplayName,
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
-
-                // Rating
-                if (service.rating != null)
-                  Row(
-                    children: [
-                      ...List.generate(5, (index) {
-                        return Icon(
-                          index < service.rating!.round()
-                              ? Icons.star
-                              : Icons.star_border,
-                          size: 18,
-                          color: Colors.amber,
-                        );
-                      }),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${service.rating!.toStringAsFixed(1)} (${service.reviewCount})',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 8),
-
                 // Description
                 Text(
                   service.description,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 12),
-
-                // Languages
-                if (service.languages != null && service.languages!.isNotEmpty)
-                  Wrap(
-                    spacing: 8,
-                    children: service.languages!.map((lang) {
-                      return Chip(
-                        label: Text(lang, style: const TextStyle(fontSize: 10)),
-                        padding: EdgeInsets.zero,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      );
-                    }).toList(),
-                  ),
-                const SizedBox(height: 12),
-
-                // Action buttons
-                Row(
+                // Tags row
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    if (service.contact != null)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _launchPhone(service.contact!),
-                          icon: const Icon(Icons.phone, size: 18),
-                          label: const Text('Appeler'),
-                        ),
+                    // Location tag
+                    if (service.address != null)
+                      _buildTag(
+                        Icons.location_on_outlined,
+                        service.address!.length > 20
+                            ? '${service.address!.substring(0, 20)}...'
+                            : service.address!,
+                        Colors.blue,
                       ),
-                    if (service.contact != null && service.email != null)
-                      const SizedBox(width: 8),
-                    if (service.email != null)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _launchEmail(service.email!),
-                          icon: const Icon(Icons.email, size: 18),
-                          label: const Text('Email'),
-                        ),
+                    // Category tag
+                    _buildTag(
+                      _getCategoryIcon(service.category),
+                      service.categoryDisplayName,
+                      AppTheme.primaryColor,
+                    ),
+                    // Languages
+                    if (service.languages != null && service.languages!.isNotEmpty)
+                      _buildTag(
+                        Icons.language,
+                        service.languages!.take(2).join(', '),
+                        Colors.purple,
                       ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                // Action button
+                if (service.contact != null)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _launchPhone(service.contact!),
+                      icon: const Icon(Icons.phone, size: 18),
+                      label: const Text('Contacter'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Container(
+      height: 160,
+      width: double.infinity,
+      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+      child: Center(
+        child: Icon(
+          _getCategoryIcon(service.category),
+          size: 48,
+          color: AppTheme.primaryColor.withValues(alpha: 0.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTag(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
             ),
           ),
         ],

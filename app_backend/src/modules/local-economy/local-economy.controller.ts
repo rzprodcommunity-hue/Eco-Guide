@@ -15,13 +15,12 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { LocalEconomyService } from './local-economy.service';
 import { CreateLocalServiceDto } from './dto/create-local-service.dto';
 import { UpdateLocalServiceDto } from './dto/update-local-service.dto';
-import { ServiceCategory } from './entities/local-service.entity';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+import { LocalServiceQueryDto } from './dto/local-service-query.dto';
+import { NearbyServiceQueryDto } from './dto/nearby-service-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -43,29 +42,21 @@ export class LocalEconomyController {
 
   @Get()
   @ApiOperation({ summary: 'Get all local services' })
-  @ApiQuery({ name: 'category', required: false, enum: ServiceCategory })
   @ApiResponse({ status: 200, description: 'List of local services' })
-  findAll(
-    @Query() paginationDto: PaginationDto,
-    @Query('category') category?: ServiceCategory,
-  ) {
-    return this.localEconomyService.findAll(paginationDto, category);
+  findAll(@Query() queryDto: LocalServiceQueryDto) {
+    return this.localEconomyService.findAll(queryDto, queryDto.category);
   }
 
   @Get('nearby')
   @ApiOperation({ summary: 'Find local services near a location' })
-  @ApiQuery({ name: 'lat', required: true, type: Number })
-  @ApiQuery({ name: 'lng', required: true, type: Number })
-  @ApiQuery({ name: 'radius', required: false, type: Number, description: 'Radius in km (default: 50)' })
-  @ApiQuery({ name: 'category', required: false, enum: ServiceCategory })
   @ApiResponse({ status: 200, description: 'List of nearby services' })
-  findNearby(
-    @Query('lat') lat: number,
-    @Query('lng') lng: number,
-    @Query('radius') radius?: number,
-    @Query('category') category?: ServiceCategory,
-  ) {
-    return this.localEconomyService.findNearby(lat, lng, radius || 50, category);
+  findNearby(@Query() queryDto: NearbyServiceQueryDto) {
+    return this.localEconomyService.findNearby(
+      queryDto.lat,
+      queryDto.lng,
+      queryDto.radius || 50,
+      queryDto.category,
+    );
   }
 
   @Get(':id')

@@ -7,6 +7,7 @@ import {
   IsArray,
   IsUUID,
   IsBoolean,
+  IsUrl,
   MaxLength,
 } from 'class-validator';
 import { PoiType } from '../entities/poi.entity';
@@ -24,6 +25,17 @@ export class CreatePoiDto {
   @ApiProperty({ example: 'A beautiful viewpoint overlooking the valley' })
   @IsString()
   description: string;
+
+  @ApiPropertyOptional({ example: 'Protected species' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  badge?: string;
+
+  @ApiPropertyOptional({ example: 'https://example.com/pois/scenic-viewpoint' })
+  @IsOptional()
+  @IsUrl()
+  learnMoreUrl?: string;
 
   @ApiProperty({ example: 31.6295 })
   @IsNumber()

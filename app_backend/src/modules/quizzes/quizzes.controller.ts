@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +21,8 @@ import {
 import { QuizzesService } from './quizzes.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { SubmitQuizScoreDto } from './dto/submit-quiz-score.dto';
+import { QuizCategory } from './entities/quiz.entity';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -49,10 +52,38 @@ export class QuizzesController {
 
   @Get('random')
   @ApiOperation({ summary: 'Get random quizzes' })
-  @ApiQuery({ name: 'count', required: false, type: Number, description: 'Number of random quizzes (default: 5)' })
+  @ApiQuery({
+    name: 'count',
+    required: false,
+    type: Number,
+    description: 'Number of random quizzes (default: 5)',
+  })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    enum: QuizCategory,
+    description: 'Filter by category',
+  })
   @ApiResponse({ status: 200, description: 'Random quizzes' })
-  findRandom(@Query('count') count?: number) {
-    return this.quizzesService.findRandom(count || 5);
+  findRandom(
+    @Query('count') count?: number,
+    @Query('category') category?: QuizCategory,
+  ) {
+    return this.quizzesService.findRandom(count || 5, category);
+  }
+
+  @Get('categories')
+  @ApiOperation({ summary: 'Get quiz categories with stats' })
+  @ApiResponse({ status: 200, description: 'Category statistics' })
+  getCategoryStats() {
+    return this.quizzesService.getCategoryStats();
+  }
+
+  @Get('category/:category')
+  @ApiOperation({ summary: 'Get quizzes by category' })
+  @ApiResponse({ status: 200, description: 'Quizzes for the category' })
+  findByCategory(@Param('category') category: QuizCategory) {
+    return this.quizzesService.findByCategory(category);
   }
 
   @Get('trail/:trailId')
@@ -67,6 +98,47 @@ export class QuizzesController {
   @ApiResponse({ status: 200, description: 'Quizzes for the POI' })
   findByPoi(@Param('poiId', ParseUUIDPipe) poiId: string) {
     return this.quizzesService.findByPoi(poiId);
+  }
+
+  // Score endpoints
+  @Post('scores')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Submit quiz score' })
+  @ApiResponse({ status: 201, description: 'Score submitted successfully' })
+  submitScore(@Request() req, @Body() dto: SubmitQuizScoreDto) {
+    return this.quizzesService.submitScore(req.user.id, dto);
+  }
+
+  @Get('scores/me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get current user scores' })
+  @ApiResponse({ status: 200, description: 'User quiz scores' })
+  getMyScores(@Request() req) {
+    return this.quizzesService.getUserScores(req.user.id);
+  }
+
+  @Get('scores/leaderboard')
+  @ApiOperation({ summary: 'Get quiz leaderboard' })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    enum: QuizCategory,
+    description: 'Filter by category',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of results (default: 10)',
+  })
+  @ApiResponse({ status: 200, description: 'Leaderboard' })
+  getLeaderboard(
+    @Query('category') category?: QuizCategory,
+    @Query('limit') limit?: number,
+  ) {
+    return this.quizzesService.getLeaderboard(category, limit || 10);
   }
 
   @Get(':id')

@@ -7,7 +7,7 @@ enum PoiType {
   camping,
   danger,
   rest_area,
-  information
+  information,
 }
 
 class PoiModel {
@@ -15,6 +15,8 @@ class PoiModel {
   final String name;
   final PoiType type;
   final String description;
+  final String? badge;
+  final String? learnMoreUrl;
   final double latitude;
   final double longitude;
   final String? mediaUrl;
@@ -30,6 +32,8 @@ class PoiModel {
     required this.name,
     required this.type,
     required this.description,
+    this.badge,
+    this.learnMoreUrl,
     required this.latitude,
     required this.longitude,
     this.mediaUrl,
@@ -47,6 +51,8 @@ class PoiModel {
       name: json['name'] ?? '',
       type: _parseType(json['type']),
       description: json['description'] ?? '',
+      badge: json['badge'],
+      learnMoreUrl: json['learnMoreUrl'],
       latitude: _parseDouble(json['latitude']),
       longitude: _parseDouble(json['longitude']),
       mediaUrl: json['mediaUrl'],
@@ -78,6 +84,8 @@ class PoiModel {
       'name': name,
       'type': type.name,
       'description': description,
+      'badge': badge,
+      'learnMoreUrl': learnMoreUrl,
       'latitude': latitude,
       'longitude': longitude,
       'mediaUrl': mediaUrl,
