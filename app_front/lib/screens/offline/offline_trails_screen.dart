@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/widgets/eco_page_header.dart';
+import '../../models/quiz.dart';
 import '../../models/trail.dart';
 import '../../providers/local_service_provider.dart';
 import '../../providers/poi_provider.dart';
@@ -12,6 +13,7 @@ import '../../services/api_client.dart';
 import '../../services/offline_cache_service.dart';
 import '../../services/map_offline_service.dart';
 import '../../services/offline_service.dart';
+import '../../services/quiz_service.dart';
 
 class OfflineTrailsScreen extends StatefulWidget {
   const OfflineTrailsScreen({super.key});
@@ -30,11 +32,13 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
   static const Map<String, int> _basePackageMb = {
     'topo': 450,
     'poi_flora': 120,
+    'quizzes': 20,
     'services': 45,
   };
 
   late final OfflineService _offlineService;
   late final MapOfflineService _mapOfflineService;
+  late final QuizService _quizService;
 
   bool _isLoading = false;
   bool _autoSync = true;
@@ -51,6 +55,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     super.initState();
     _offlineService = OfflineService(context.read<ApiClient>());
     _mapOfflineService = MapOfflineService();
+    _quizService = QuizService(context.read<ApiClient>());
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initialize();
@@ -200,11 +205,13 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
             sizeMb: packageSizeMb / _regionTrails.length,
           );
 
-          await _offlineService.markDownloaded(
-            resourceType: 'trail',
-            resourceId: trail.id,
-            sizeBytes: bytesPerTrail,
-          );
+          try {
+            await _offlineService.markDownloaded(
+              resourceType: 'trail',
+              resourceId: trail.id,
+              sizeBytes: bytesPerTrail,
+            );
+          } catch (_) {}
         }
 
         if (mapResult.failed > 0 && mounted) {
@@ -216,13 +223,46 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
         await OfflineCacheService.instance.savePois(regionPois);
 
         final representativeTrail = _regionTrails.first;
-        await _offlineService.markDownloaded(
-          resourceType: 'poi',
-          resourceId: regionPois.isNotEmpty
-              ? regionPois.first.id
-              : representativeTrail.id,
-          sizeBytes: packageSizeMb * 1024 * 1024,
-        );
+        try {
+          await _offlineService.markDownloaded(
+            resourceType: 'poi',
+            resourceId: regionPois.isNotEmpty
+                ? regionPois.first.id
+                : representativeTrail.id,
+            sizeBytes: packageSizeMb * 1024 * 1024,
+          );
+        } catch (_) {}
+      } else if (packageId == 'quizzes') {
+        final allQuizzes = <Quiz>[];
+        for (final trail in _regionTrails) {
+          try {
+            final trailQuizzes = await _quizService.getQuizzesByTrail(trail.id);
+            allQuizzes.addAll(trailQuizzes);
+          } catch (e) {
+            debugPrint('Could not fetch quizzes for trail ${trail.id}: $e');
+          }
+        }
+
+        try {
+          final generalQuizzes = await _quizService.getRandomQuizzes(count: 50);
+          allQuizzes.addAll(generalQuizzes);
+        } catch (e) {
+          debugPrint('Could not fetch general quizzes: $e');
+        }
+
+        if (allQuizzes.isEmpty) {
+          throw Exception('Aucun quiz disponible pour le telechargement.');
+        }
+
+        await OfflineCacheService.instance.saveQuizzes(allQuizzes);
+
+        try {
+          await _offlineService.markDownloaded(
+            resourceType: 'quiz',
+            resourceId: _regionTrails.first.id,
+            sizeBytes: packageSizeMb * 1024 * 1024,
+          );
+        } catch (_) {}
       } else {
         if (localServiceProvider.services.isEmpty) {
           await localServiceProvider.loadServices();
@@ -232,11 +272,13 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
         );
 
         final representativeTrail = _regionTrails.first;
-        await _offlineService.markDownloaded(
-          resourceType: 'service',
-          resourceId: representativeTrail.id,
-          sizeBytes: packageSizeMb * 1024 * 1024,
-        );
+        try {
+          await _offlineService.markDownloaded(
+            resourceType: 'service',
+            resourceId: representativeTrail.id,
+            sizeBytes: packageSizeMb * 1024 * 1024,
+          );
+        } catch (_) {}
       }
 
       _installedPackages.add(packageId);
@@ -249,7 +291,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
       _showMessage(
         errorMsg.contains('ApiException')
             ? 'Erreur backend: ${errorMsg.split('-').last.trim()}'
-            : 'Echec du telechargement. Verifiez la connexion backend.',
+            : 'Echec du telechargement. Verifiez la connexion.',
       );
     } finally {
       if (mounted) {
@@ -267,6 +309,8 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
         for (final trail in _regionTrails) {
           await OfflineCacheService.instance.removeTrailPackage(trail.id);
         }
+      } else if (packageId == 'quizzes') {
+        await OfflineCacheService.instance.clearOfflineQuizzes();
       } else if (packageId == 'services') {
         await OfflineCacheService.instance.clearOfflineLocalServices();
       }
@@ -339,6 +383,14 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
                   subtitle:
                       'Guide multimedia des points cles et plantes locales.',
                   icon: Icons.park,
+                ),
+                const SizedBox(height: 12),
+                _buildPackageCard(
+                  id: 'quizzes',
+                  title: 'Quiz Nature & Ecologie',
+                  subtitle:
+                      'Questions sur la faune, flore et histoire locale.',
+                  icon: Icons.quiz,
                 ),
                 const SizedBox(height: 12),
                 _buildPackageCard(
