@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../providers/quiz_provider.dart';
+import '../home/home_screen.dart';
 
 class QuizGameScreen extends StatefulWidget {
   final String? category;
@@ -30,6 +32,23 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      bottomNavigationBar: EcoShortcutBadge(
+        currentTab: EcoShortcutTab.quiz,
+        onTabSelected: (tab) {
+          final index = switch (tab) {
+            EcoShortcutTab.home => 0,
+            EcoShortcutTab.map => 1,
+            EcoShortcutTab.trails => 2,
+            EcoShortcutTab.quiz => 4,
+            EcoShortcutTab.services => 6,
+            EcoShortcutTab.settings => 7,
+          };
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => HomeScreen(initialIndex: index)),
+            (route) => false,
+          );
+        },
+      ),
       body: SafeArea(
         child: provider.isLoading
             ? const Center(child: CircularProgressIndicator())

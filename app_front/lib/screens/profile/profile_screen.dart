@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_page_header.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/activity.dart';
 import '../../services/api_client.dart';
 import '../../services/activity_service.dart';
+import '../../services/quiz_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,6 +17,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   UserStats? _stats;
+  QuizSummary? _quizSummary;
   bool _isLoading = false;
 
   @override
@@ -32,12 +35,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final apiClient = context.read<ApiClient>();
       final activityService = ActivityService(apiClient);
-      final stats = await activityService.getMyStats();
-      setState(() => _stats = stats);
+      final quizService = QuizService(apiClient);
+      final statsFuture = activityService.getMyStats();
+      final quizSummaryFuture = quizService.getMySummary();
+
+      final results = await Future.wait<dynamic>([
+        statsFuture,
+        quizSummaryFuture,
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _stats = results[0] as UserStats;
+        _quizSummary = results[1] as QuizSummary;
+      });
     } catch (e) {
       // Ignore errors
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -47,8 +64,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = authProvider.user;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil'),
+      appBar: EcoPageHeader(
+        title: 'Profil',
+        showBackButton: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -150,6 +168,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         const SizedBox(height: 24),
 
+                        if (_quizSummary != null) _buildQuizProgressSection(),
+                        if (_quizSummary != null) const SizedBox(height: 24),
+
                         // Member since
                         Container(
                           width: double.infinity,
@@ -217,6 +238,166 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
     );
+  }
+
+  Widget _buildQuizProgressSection() {
+    final summary = _quizSummary;
+    if (summary == null) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE6E9EF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Progression Quiz',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildInfoChip('Score total', '${summary.totalScore} pts'),
+              _buildInfoChip('Quiz joues', '${summary.quizzesCompleted}'),
+              _buildInfoChip(
+                'Moyenne',
+                '${summary.averagePercentage.toStringAsFixed(0)}%',
+              ),
+              _buildInfoChip(
+                'Meilleur',
+                '${summary.bestPercentage.toStringAsFixed(0)}%',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Scores par categorie',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          if (summary.categoryScores.isEmpty)
+            Text(
+              'Aucun score enregistre pour le moment.',
+              style: TextStyle(color: Colors.grey[600]),
+            )
+          else
+            Column(
+              children: summary.categoryScores
+                  .where((score) => score.category != null)
+                  .map(
+                    (score) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.bar_chart, color: AppTheme.primaryColor),
+                      title: Text(_categoryLabel(score.category)),
+                      subtitle: Text(
+                        '${score.correctAnswers}/${score.totalQuestions} bonnes reponses',
+                      ),
+                      trailing: Text(
+                        '${score.totalScore} pts',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          const SizedBox(height: 16),
+          const Text(
+            'Badges debloques',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          if (summary.badges.isEmpty)
+            Text(
+              'Continuez pour debloquer vos premiers badges (>100 pts).',
+              style: TextStyle(color: Colors.grey[600]),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: summary.badges
+                  .map(
+                    (badge) => Chip(
+                      avatar: Icon(
+                        _iconFromName(badge.icon),
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                      backgroundColor:
+                          _parseColor(badge.color).withValues(alpha: 0.9),
+                      labelStyle: const TextStyle(color: Colors.white),
+                      label: Text(badge.label),
+                    ),
+                  )
+                  .toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F7FA),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text('$label: $value'),
+    );
+  }
+
+  String _categoryLabel(String? category) {
+    switch (category) {
+      case 'flora':
+        return 'Flore';
+      case 'fauna':
+        return 'Faune';
+      case 'ecology':
+        return 'Ecologie';
+      case 'history':
+        return 'Histoire';
+      case 'geography':
+        return 'Geographie';
+      case 'safety':
+        return 'Securite';
+      default:
+        return 'General';
+    }
+  }
+
+  IconData _iconFromName(String? iconName) {
+    switch (iconName) {
+      case 'emoji_events':
+        return Icons.emoji_events;
+      case 'workspace_premium':
+        return Icons.workspace_premium;
+      case 'verified':
+        return Icons.verified;
+      case 'military_tech':
+      default:
+        return Icons.military_tech;
+    }
+  }
+
+  Color _parseColor(String? color) {
+    if (color == null || color.isEmpty) {
+      return AppTheme.primaryColor;
+    }
+
+    final hex = color.replaceAll('#', '');
+    final normalized = hex.length == 6 ? 'FF$hex' : hex;
+    final parsed = int.tryParse(normalized, radix: 16);
+    if (parsed == null) return AppTheme.primaryColor;
+    return Color(parsed);
   }
 
   void _showSettingsDialog(BuildContext context) {

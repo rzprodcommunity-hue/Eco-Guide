@@ -8,6 +8,7 @@ import {
   IsObject,
   IsBoolean,
   Min,
+  Max,
   MaxLength,
 } from 'class-validator';
 import { TrailDifficulty } from '../entities/trail.entity';
@@ -57,6 +58,19 @@ export class CreateTrailDto {
   @IsOptional()
   @IsString()
   region?: string;
+
+  @ApiPropertyOptional({ example: 4.8, description: 'Average rating (0 to 5)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(5)
+  averageRating?: number;
+
+  @ApiPropertyOptional({ example: 240, description: 'Total number of reviews' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  reviewCount?: number;
 
   @ApiPropertyOptional({ example: 31.6295, description: 'Start point latitude' })
   @IsOptional()

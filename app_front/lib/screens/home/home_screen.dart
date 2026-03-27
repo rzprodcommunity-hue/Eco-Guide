@@ -1,28 +1,71 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_shortcut_badge.dart';
 import 'dashboard_screen.dart';
-import '../map/map_screen.dart';
+import '../map/interactive_map_screen.dart';
 import '../trails/trails_list_screen.dart';
 import '../poi/poi_list_screen.dart';
 import '../quiz/quiz_screen.dart';
+import '../offline/offline_trails_screen.dart';
 import '../services/local_services_screen.dart';
 import '../profile/profile_screen.dart';
 import '../sos/sos_button.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int initialIndex;
+
+  const HomeScreen({super.key, this.initialIndex = 0});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, 7);
+  }
 
   void _navigateToTab(int index) {
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  EcoShortcutTab _badgeTabFromIndex(int index) {
+    switch (index) {
+      case 1:
+        return EcoShortcutTab.map;
+      case 2:
+        return EcoShortcutTab.trails;
+      case 4:
+        return EcoShortcutTab.quiz;
+      case 6:
+        return EcoShortcutTab.services;
+      case 7:
+        return EcoShortcutTab.settings;
+      default:
+        return EcoShortcutTab.home;
+    }
+  }
+
+  void _onBadgeTabSelected(EcoShortcutTab tab) {
+    switch (tab) {
+      case EcoShortcutTab.home:
+        _navigateToTab(0);
+      case EcoShortcutTab.map:
+        _navigateToTab(1);
+      case EcoShortcutTab.trails:
+        _navigateToTab(2);
+      case EcoShortcutTab.quiz:
+        _navigateToTab(4);
+      case EcoShortcutTab.services:
+        _navigateToTab(6);
+      case EcoShortcutTab.settings:
+        _navigateToTab(7);
+    }
   }
 
   @override
@@ -31,78 +74,36 @@ class _HomeScreenState extends State<HomeScreen> {
       DashboardScreen(
         onNavigateToMap: () => _navigateToTab(1),
         onNavigateToTrails: () => _navigateToTab(2),
+        onNavigateToPois: () => _navigateToTab(3),
+        onNavigateToOffline: () => _navigateToTab(5),
+        onNavigateToQuiz: () => _navigateToTab(4),
+        onNavigateToSos: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SosScreen(),
+              fullscreenDialog: true,
+            ),
+          );
+        },
       ),
-      const MapScreen(),
+      const InteractiveMapScreen(),
       const TrailsListScreen(),
       const PoiListScreen(),
       const QuizScreen(),
+      const OfflineTrailsScreen(),
       const LocalServicesScreen(),
       const ProfileScreen(),
     ];
 
     return Scaffold(
-      body: Stack(
-        children: [
-          IndexedStack(
-            index: _currentIndex,
-            children: screens,
-          ),
-          // SOS Button (hidden on dashboard since it has its own)
-          if (_currentIndex != 0)
-            const Positioned(
-              right: 16,
-              bottom: 100,
-              child: SosButton(),
-            ),
-        ],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primaryColor,
-        unselectedItemColor: AppTheme.textSecondary,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
-            label: 'Map',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.hiking_outlined),
-            activeIcon: Icon(Icons.hiking),
-            label: 'Trails',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.place_outlined),
-            activeIcon: Icon(Icons.place),
-            label: 'POI',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.quiz_outlined),
-            activeIcon: Icon(Icons.quiz),
-            label: 'Quiz',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.store_outlined),
-            activeIcon: Icon(Icons.store),
-            label: 'Services',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outlined),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+      bottomNavigationBar: EcoShortcutBadge(
+        currentTab: _badgeTabFromIndex(_currentIndex),
+        onTabSelected: _onBadgeTabSelected,
       ),
     );
   }

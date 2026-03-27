@@ -53,19 +53,19 @@ Tables principales :
 * accès rapide aux sentiers
 * bouton SOS
 
-### 2. Authentification
+### 2. Authentification ::mrigl
 
 * Login / Register
 * JWT sécurisé
 * gestion session
 
-### 3. Carte Interactive
+### 3. Carte Interactive 
 
 * tracés GeoJSON
 * marqueurs POI
 * position utilisateur
 
-### 4. Liste des Sentiers
+### 4. Liste des Sentiers  // mrigl
 
 * filtre par difficulté
 * affichage distance / durée
@@ -182,7 +182,7 @@ Fonctionnalités API :
 * Cartographie GPS interactive
 * Navigation guidée
 * Détection sortie de sentier
-* Mode offline (cache + SQLite)
+* Mode offline (cache)
 * Système SOS
 * Contenus géolocalisés
 * Quiz éducatif

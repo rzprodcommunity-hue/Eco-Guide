@@ -1,13 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../models/poi.dart';
+import '../home/home_screen.dart';
+import '../map/navigation_sos_screen.dart';
 
-class PoiDetailScreen extends StatelessWidget {
+class PoiDetailScreen extends StatefulWidget {
   final Poi poi;
 
   const PoiDetailScreen({super.key, required this.poi});
+
+  @override
+  State<PoiDetailScreen> createState() => _PoiDetailScreenState();
+}
+
+class _PoiDetailScreenState extends State<PoiDetailScreen> {
+  LatLng? _currentPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    _detectUserPosition();
+  }
+
+  Future<void> _detectUserPosition() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+      });
+    } catch (_) {
+      // Ignore temporary location failures.
+    }
+  }
 
   IconData _getPoiIcon(String type) {
     switch (type) {
@@ -61,63 +106,138 @@ class PoiDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final poi = widget.poi;
     final poiColor = _getPoiColor(poi.type);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F2EC),
+      bottomNavigationBar: EcoShortcutBadge(
+        currentTab: EcoShortcutTab.map,
+        onTabSelected: (tab) {
+          final index = switch (tab) {
+            EcoShortcutTab.home => 0,
+            EcoShortcutTab.map => 1,
+            EcoShortcutTab.trails => 2,
+            EcoShortcutTab.quiz => 4,
+            EcoShortcutTab.services => 6,
+            EcoShortcutTab.settings => 7,
+          };
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => HomeScreen(initialIndex: index)),
+            (route) => false,
+          );
+        },
+      ),
       body: CustomScrollView(
         slivers: [
-          // App bar with image
-          SliverAppBar(
-            expandedHeight: 250,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                poi.name,
-                style: const TextStyle(
-                  shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+          SliverToBoxAdapter(
+            child: Stack(
+              children: [
+                SizedBox(
+                  height: 280,
+                  width: double.infinity,
+                  child: poi.mediaUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: poi.mediaUrl!,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(color: Colors.grey[300]),
+                          errorWidget: (_, __, ___) => Container(
+                            color: poiColor.withValues(alpha: 0.2),
+                            child: Icon(_getPoiIcon(poi.type), size: 64, color: Colors.white),
+                          ),
+                        )
+                      : Container(
+                          color: poiColor.withValues(alpha: 0.2),
+                          child: Icon(_getPoiIcon(poi.type), size: 64, color: Colors.white),
+                        ),
                 ),
-              ),
-              background: poi.mediaUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: poi.mediaUrl!,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: Colors.grey[300]),
-                      errorWidget: (_, __, ___) => Container(
-                        color: poiColor.withValues(alpha: 0.3),
-                        child: Icon(_getPoiIcon(poi.type), size: 64, color: Colors.white),
-                      ),
-                    )
-                  : Container(
-                      color: poiColor.withValues(alpha: 0.3),
-                      child: Icon(_getPoiIcon(poi.type), size: 64, color: Colors.white),
+                Container(
+                  height: 280,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Color(0xAA000000)],
                     ),
+                  ),
+                ),
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 8,
+                  left: 14,
+                  child: _CircleIconButton(
+                    icon: Icons.arrow_back_ios_new,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 18,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: poiColor,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          poi.typeDisplayName.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        poi.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 32,
+                          height: 1.06,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Type badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     decoration: BoxDecoration(
-                      color: poiColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: poiColor),
+                      color: const Color(0xFFEAE3D8),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFDCCFBF)),
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(_getPoiIcon(poi.type), size: 18, color: poiColor),
-                        const SizedBox(width: 8),
-                        Text(
-                          poi.typeDisplayName,
-                          style: TextStyle(
+                        Expanded(
+                          child: _FactBox(
+                            icon: _getPoiIcon(poi.type),
+                            label: 'Type',
+                            value: poi.typeDisplayName,
                             color: poiColor,
-                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _FactBox(
+                            icon: Icons.location_on,
+                            label: 'Coordonnees',
+                            value: '${poi.latitude.toStringAsFixed(4)}, ${poi.longitude.toStringAsFixed(4)}',
+                            color: AppTheme.primaryColor,
                           ),
                         ),
                       ],
@@ -125,25 +245,50 @@ class PoiDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Description
-                  Text(
-                    'Description',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  const Text(
+                    'A propos du point',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111111),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     poi.description,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: const TextStyle(
+                      color: Color(0xFF555555),
+                      fontSize: 16,
+                      height: 1.55,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NavigationSosScreen(
+                              destination: LatLng(poi.latitude, poi.longitude),
+                              destinationLabel: poi.name,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.route),
+                      label: const Text('Directions sur la carte'),
+                    ),
                   ),
                   const SizedBox(height: 24),
 
-                  // Location map
-                  Text(
+                  const Text(
                     'Localisation',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111111),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -155,9 +300,6 @@ class PoiDetailScreen extends StatelessWidget {
                         options: MapOptions(
                           initialCenter: LatLng(poi.latitude, poi.longitude),
                           initialZoom: 15,
-                          interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.none,
-                          ),
                         ),
                         children: [
                           TileLayer(
@@ -165,8 +307,31 @@ class PoiDetailScreen extends StatelessWidget {
                                 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.ecoguide.app',
                           ),
+                          if (_currentPosition != null)
+                            PolylineLayer(
+                              polylines: [
+                                Polyline(
+                                  points: [_currentPosition!, LatLng(poi.latitude, poi.longitude)],
+                                  strokeWidth: 4,
+                                  color: Colors.green,
+                                ),
+                              ],
+                            ),
                           MarkerLayer(
                             markers: [
+                              if (_currentPosition != null)
+                                Marker(
+                                  point: _currentPosition!,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                    ),
+                                    padding: const EdgeInsets.all(7),
+                                    child: const Icon(Icons.person, color: Colors.white, size: 14),
+                                  ),
+                                ),
                               Marker(
                                 point: LatLng(poi.latitude, poi.longitude),
                                 child: Container(
@@ -190,20 +355,28 @@ class PoiDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Coordinates
                   Text(
                     'Coordonnees: ${poi.latitude.toStringAsFixed(6)}, ${poi.longitude.toStringAsFixed(6)}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
+                  if (_currentPosition != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Distance depuis votre position: ${const Distance().as(LengthUnit.Kilometer, _currentPosition!, LatLng(poi.latitude, poi.longitude)).toStringAsFixed(2)} km',
+                        style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                      ),
+                    ),
                   const SizedBox(height: 24),
 
-                  // Additional media
                   if (poi.additionalMediaUrls != null &&
                       poi.additionalMediaUrls!.isNotEmpty) ...[
-                    Text(
+                    const Text(
                       'Galerie',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111111),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -230,34 +403,85 @@ class PoiDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                   ],
-
-                  // Audio guide button
-                  if (poi.audioGuideUrl != null)
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Audio guide en cours...')),
-                        );
-                      },
-                      icon: const Icon(Icons.headphones),
-                      label: const Text('Ecouter le guide audio'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                    ),
                 ],
               ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Navigation vers ce point...')),
-          );
-        },
-        child: const Icon(Icons.directions),
+    );
+  }
+}
+
+class _CircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CircleIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.92),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 18, color: const Color(0xFF111111)),
+      ),
+    );
+  }
+}
+
+class _FactBox extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _FactBox({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2ECE2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD3C6B5)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF777777),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: Color(0xFF171717),
+            ),
+          ),
+        ],
       ),
     );
   }

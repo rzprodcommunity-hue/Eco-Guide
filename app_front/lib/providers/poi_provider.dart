@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/poi.dart';
 import '../services/api_client.dart';
+import '../services/offline_cache_service.dart';
 import '../services/poi_service.dart';
 
 class PoiProvider extends ChangeNotifier {
@@ -10,6 +11,7 @@ class PoiProvider extends ChangeNotifier {
   Poi? _selectedPoi;
   bool _isLoading = false;
   String? _error;
+  String? _searchQuery;
 
   PoiProvider(ApiClient apiClient) : _service = PoiService(apiClient);
 
@@ -17,16 +19,51 @@ class PoiProvider extends ChangeNotifier {
   Poi? get selectedPoi => _selectedPoi;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get searchQuery => _searchQuery;
 
-  Future<void> loadPois({String? type, String? trailId}) async {
+  List<Poi> _applyOfflineFilters(
+    List<Poi> pois, {
+    String? type,
+    String? trailId,
+    String? search,
+  }) {
+    final query = search?.trim().toLowerCase();
+
+    return pois.where((poi) {
+      if (type != null && poi.type != type) {
+        return false;
+      }
+
+      if (trailId != null && poi.trailId != trailId) {
+        return false;
+      }
+
+      if (query != null && query.isNotEmpty) {
+        final inName = poi.name.toLowerCase().contains(query);
+        final inDescription = poi.description.toLowerCase().contains(query);
+        if (!inName && !inDescription) return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  Future<void> loadPois({String? type, String? trailId, String? search}) async {
     _isLoading = true;
     _error = null;
+    _searchQuery = search;
     notifyListeners();
 
     try {
-      _pois = await _service.getPois(type: type, trailId: trailId);
+      _pois = await _service.getPois(type: type, trailId: trailId, search: search);
     } catch (e) {
-      _error = e.toString();
+      final cached = await OfflineCacheService.instance.getOfflinePois(trailId: trailId);
+      if (cached.isNotEmpty) {
+        _pois = _applyOfflineFilters(cached, type: type, trailId: trailId, search: search);
+        _error = null;
+      } else {
+        _error = e.toString();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -41,7 +78,13 @@ class PoiProvider extends ChangeNotifier {
     try {
       _pois = await _service.getPoisByTrail(trailId);
     } catch (e) {
-      _error = e.toString();
+      final cached = await OfflineCacheService.instance.getOfflinePois(trailId: trailId);
+      if (cached.isNotEmpty) {
+        _pois = cached;
+        _error = null;
+      } else {
+        _error = e.toString();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -65,7 +108,21 @@ class PoiProvider extends ChangeNotifier {
     try {
       _selectedPoi = await _service.getPoiById(id);
     } catch (e) {
-      _error = e.toString();
+      final cached = await OfflineCacheService.instance.getOfflinePois();
+      Poi? local;
+      for (final poi in cached) {
+        if (poi.id == id) {
+          local = poi;
+          break;
+        }
+      }
+
+      if (local != null) {
+        _selectedPoi = local;
+        _error = null;
+      } else {
+        _error = e.toString();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

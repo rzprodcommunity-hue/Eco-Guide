@@ -44,7 +44,7 @@ export class LocalEconomyController {
   @ApiOperation({ summary: 'Get all local services' })
   @ApiResponse({ status: 200, description: 'List of local services' })
   findAll(@Query() queryDto: LocalServiceQueryDto) {
-    return this.localEconomyService.findAll(queryDto, queryDto.category);
+    return this.localEconomyService.findAll(queryDto);
   }
 
   @Get('nearby')

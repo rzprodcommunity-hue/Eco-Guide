@@ -1,10 +1,18 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsEnum, IsUUID } from 'class-validator';
+import { IsOptional, IsNumber, IsEnum, IsUUID, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PoiType } from '../entities/poi.entity';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class PoiQueryDto extends PaginationDto {
+  @ApiPropertyOptional({
+    example: 'sou',
+    description: 'Search by name, description, badge, or type (starts with, case-insensitive)',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({ enum: PoiType })
   @IsOptional()
   @IsEnum(PoiType)

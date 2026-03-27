@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { Trail } from './entities/trail.entity';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDto } from './dto/update-trail.dto';
@@ -20,7 +20,19 @@ export class TrailsService {
   }
 
   async findAll(queryDto: TrailQueryDto): Promise<PaginatedResult<Trail>> {
-    const { page, limit, difficulty, region, minDistance, maxDistance, sortBy, sortOrder, includeInactive } = queryDto;
+    const {
+      page,
+      limit,
+      search,
+      difficulty,
+      region,
+      minDistance,
+      maxDistance,
+      maxDuration,
+      sortBy,
+      sortOrder,
+      includeInactive,
+    } = queryDto;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.trailsRepository.createQueryBuilder('trail');
@@ -34,6 +46,17 @@ export class TrailsService {
       queryBuilder.andWhere('trail.difficulty = :difficulty', { difficulty });
     }
 
+    if (search?.trim()) {
+      const startsWith = `${search.trim()}%`;
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where('trail.name ILIKE :startsWith', { startsWith })
+            .orWhere('trail.region ILIKE :startsWith', { startsWith })
+            .orWhere('trail.description ILIKE :startsWith', { startsWith });
+        }),
+      );
+    }
+
     if (region) {
       queryBuilder.andWhere('trail.region ILIKE :region', { region: `%${region}%` });
     }
@@ -44,6 +67,10 @@ export class TrailsService {
 
     if (maxDistance !== undefined) {
       queryBuilder.andWhere('trail.distance <= :maxDistance', { maxDistance });
+    }
+
+    if (maxDuration !== undefined) {
+      queryBuilder.andWhere('trail.estimatedDuration <= :maxDuration', { maxDuration });
     }
 
     // Apply sorting

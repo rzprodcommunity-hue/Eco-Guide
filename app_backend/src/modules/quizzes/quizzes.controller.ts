@@ -119,6 +119,15 @@ export class QuizzesController {
     return this.quizzesService.getUserScores(req.user.id);
   }
 
+  @Get('scores/me/summary')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get current user quiz summary with badges' })
+  @ApiResponse({ status: 200, description: 'User quiz summary' })
+  getMyQuizSummary(@Request() req) {
+    return this.quizzesService.getUserQuizSummary(req.user.id);
+  }
+
   @Get('scores/leaderboard')
   @ApiOperation({ summary: 'Get quiz leaderboard' })
   @ApiQuery({

@@ -5,11 +5,15 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_page_header.dart';
+import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/trail_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../models/trail.dart';
 import '../../models/poi.dart';
+import '../../services/map_offline_service.dart';
+import '../home/home_screen.dart';
 import '../trails/trail_detail_screen.dart';
 import '../poi/poi_detail_screen.dart';
 
@@ -22,18 +26,30 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
+  final MapOfflineService _mapOfflineService = MapOfflineService();
   LatLng _currentPosition = LatLng(
     AppConstants.defaultLatitude,
     AppConstants.defaultLongitude,
   );
   String? _locationError;
+  bool _hasOfflineMap = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+      _initializeOfflineMap();
       _detectUserPosition(centerMap: false);
+    });
+  }
+
+  Future<void> _initializeOfflineMap() async {
+    await _mapOfflineService.initialize();
+    final hasOffline = await _mapOfflineService.hasAnyOfflineTile();
+    if (!mounted) return;
+    setState(() {
+      _hasOfflineMap = hasOffline;
     });
   }
 
@@ -119,11 +135,7 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ],
             ),
-            child: Icon(
-              _getPoiIcon(poi.type),
-              color: Colors.white,
-              size: 20,
-            ),
+            child: Icon(_getPoiIcon(poi.type), color: Colors.white, size: 20),
           ),
         ),
       );
@@ -134,34 +146,31 @@ class _MapScreenState extends State<MapScreen> {
     return trails
         .where((t) => t.startLatitude != null && t.startLongitude != null)
         .map((trail) {
-      return Marker(
-        point: LatLng(trail.startLatitude!, trail.startLongitude!),
-        width: 50,
-        height: 50,
-        child: GestureDetector(
-          onTap: () => _showTrailDetail(trail),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+          return Marker(
+            point: LatLng(trail.startLatitude!, trail.startLongitude!),
+            width: 50,
+            height: 50,
+            child: GestureDetector(
+              onTap: () => _showTrailDetail(trail),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ],
+                child: const Icon(Icons.hiking, color: Colors.white, size: 24),
+              ),
             ),
-            child: const Icon(
-              Icons.hiking,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-        ),
-      );
-    }).toList();
+          );
+        })
+        .toList();
   }
 
   Color _getPoiColor(String type) {
@@ -217,18 +226,14 @@ class _MapScreenState extends State<MapScreen> {
   void _showTrailDetail(Trail trail) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => TrailDetailScreen(trail: trail),
-      ),
+      MaterialPageRoute(builder: (_) => TrailDetailScreen(trail: trail)),
     );
   }
 
   void _showPoiDetail(Poi poi) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => PoiDetailScreen(poi: poi),
-      ),
+      MaterialPageRoute(builder: (_) => PoiDetailScreen(poi: poi)),
     );
   }
 
@@ -238,14 +243,28 @@ class _MapScreenState extends State<MapScreen> {
     final poiProvider = context.watch<PoiProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Eco-Guide'),
+      appBar: EcoPageHeader(
+        title: 'Eco-Guide',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
+      ),
+      bottomNavigationBar: EcoShortcutBadge(
+        currentTab: EcoShortcutTab.map,
+        onTabSelected: (tab) {
+          final index = switch (tab) {
+            EcoShortcutTab.home => 0,
+            EcoShortcutTab.map => 1,
+            EcoShortcutTab.trails => 2,
+            EcoShortcutTab.quiz => 4,
+            EcoShortcutTab.services => 6,
+            EcoShortcutTab.settings => 7,
+          };
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => HomeScreen(initialIndex: index)),
+            (route) => false,
+          );
+        },
       ),
       body: Column(
         children: [
@@ -278,8 +297,10 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.ecoguide.app',
+                      tileProvider: _LocalFirstTileProvider(_mapOfflineService),
                     ),
                     MarkerLayer(
                       markers: [
@@ -333,11 +354,51 @@ class _MapScreenState extends State<MapScreen> {
                     child: const Icon(Icons.my_location),
                   ),
                 ),
+                if (_hasOfflineMap)
+                  Positioned(
+                    left: 16,
+                    bottom: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Carte Tabarka offline activee',
+                        style: TextStyle(color: Colors.white, fontSize: 11),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class _LocalFirstTileProvider extends TileProvider {
+  _LocalFirstTileProvider(this._mapOfflineService);
+
+  final MapOfflineService _mapOfflineService;
+
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
+    final z = coordinates.z.round();
+    final x = coordinates.x.round();
+    final y = coordinates.y.round();
+
+    final cachedFile = _mapOfflineService.tileFileSync(z: z, x: x, y: y);
+    if (cachedFile != null) {
+      return FileImage(cachedFile);
+    }
+
+    final url = _mapOfflineService.tileUrl(z: z, x: x, y: y);
+    return NetworkImage(url);
   }
 }

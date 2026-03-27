@@ -5,19 +5,32 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_page_header.dart';
+import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
+import '../../providers/weather_provider.dart';
+import '../poi/poi_detail_screen.dart';
 import '../trails/trail_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback? onNavigateToMap;
   final VoidCallback? onNavigateToTrails;
+  final VoidCallback? onNavigateToOffline;
+  final VoidCallback? onNavigateToQuiz;
+  final VoidCallback? onNavigateToSos;
+  final VoidCallback? onNavigateToPois;
 
   const DashboardScreen({
     super.key,
     this.onNavigateToMap,
     this.onNavigateToTrails,
+    this.onNavigateToOffline,
+    this.onNavigateToQuiz,
+    this.onNavigateToSos,
+    this.onNavigateToPois,
   });
 
   @override
@@ -26,6 +39,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final MapController _mapController = MapController();
+  _DashboardMapStyle _mapStyle = _DashboardMapStyle.standard;
+  bool _hasCenteredOnUser = false;
   LatLng _currentPosition = LatLng(
     AppConstants.defaultLatitude,
     AppConstants.defaultLongitude,
@@ -42,6 +57,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _loadData() {
     context.read<TrailProvider>().loadTrails(refresh: true);
+    context.read<PoiProvider>().loadPois();
+    context.read<WeatherProvider>().loadCurrentWeather(
+      lat: _currentPosition.latitude,
+      lng: _currentPosition.longitude,
+    );
   }
 
   Future<void> _detectUserPosition() async {
@@ -69,6 +89,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
+      if (!_hasCenteredOnUser) {
+        _mapController.move(_currentPosition, 14);
+        _hasCenteredOnUser = true;
+      }
+      context.read<WeatherProvider>().loadCurrentWeather(
+        lat: position.latitude,
+        lng: position.longitude,
+      );
     } catch (_) {}
   }
 
@@ -85,10 +113,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final trailProvider = context.watch<TrailProvider>();
+    final poiProvider = context.watch<PoiProvider>();
+    final weatherProvider = context.watch<WeatherProvider>();
     final user = authProvider.user;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      // appBar: const EcoPageHeader(
+      //   title: 'Dashboard',
+      //   showBackButton: false,
+      //   showAccountBadge: false,
+      // ),
       body: SafeArea(
         child: Stack(
           children: [
@@ -105,7 +140,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 24),
                   _buildNearbyTrails(trailProvider),
                   const SizedBox(height: 24),
-                  _buildCurrentConditions(),
+                  _buildNearbyPois(poiProvider),
+                  const SizedBox(height: 24),
+                  _buildCurrentConditions(weatherProvider),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -202,14 +239,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 options: MapOptions(
                   initialCenter: _currentPosition,
                   initialZoom: 13,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.none,
-                  ),
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate: _mapStyle.urlTemplate,
                     userAgentPackageName: 'com.ecoguide.app',
                   ),
                   MarkerLayer(
@@ -218,11 +251,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         point: _currentPosition,
                         width: 24,
                         height: 24,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
+                        child: GestureDetector(
+                          onTap: () => _mapController.move(_currentPosition, 15),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.blue,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
                           ),
                         ),
                       ),
@@ -277,7 +313,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     _buildMapButton(
                       icon: Icons.layers_outlined,
-                      onTap: () {},
+                      onTap: _cycleMapStyle,
                     ),
                     const SizedBox(height: 8),
                     _buildMapButton(
@@ -286,22 +322,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _mapController.move(_currentPosition, 14);
                       },
                     ),
+                    const SizedBox(height: 8),
+                    _buildMapButton(
+                      icon: Icons.open_in_full,
+                      onTap: () => widget.onNavigateToMap?.call(),
+                    ),
                   ],
-                ),
-              ),
-              // Tap to expand
-              Positioned.fill(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: widget.onNavigateToMap,
-                    child: Container(),
-                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _cycleMapStyle() {
+    final styles = _DashboardMapStyle.values;
+    final currentIndex = styles.indexOf(_mapStyle);
+    final nextIndex = (currentIndex + 1) % styles.length;
+    final nextStyle = styles[nextIndex];
+
+    setState(() => _mapStyle = nextStyle);
+
+    if (!mounted) return;
+    final modeNumber = nextIndex + 1;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(milliseconds: 900),
+        content: Text('Mode $modeNumber: ${nextStyle.label}'),
       ),
     );
   }
@@ -348,36 +397,201 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icons.map_outlined,
             label: 'Offline Maps',
             color: const Color(0xFF2196F3),
-            onTap: () {},
+            onTap: widget.onNavigateToOffline,
           ),
           _buildQuickActionItem(
             icon: Icons.explore_outlined,
-            label: 'Eco-Guide',
+            label: 'Quiz Educatif',
             color: const Color(0xFF9C27B0),
-            onTap: () {},
+            onTap: widget.onNavigateToQuiz,
           ),
           _buildQuickActionItem(
             icon: Icons.sos,
-            label: 'Emergency',
+            label: 'SOS',
             color: const Color(0xFFE53935),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Emergency SOS'),
-                  content: const Text(
-                      'In case of emergency, use the SOS button to alert rescue services.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            },
+            onTap: widget.onNavigateToSos,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNearbyPois(PoiProvider poiProvider) {
+    final pois = poiProvider.pois.take(5).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Nearby POI',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              GestureDetector(
+                onTap: widget.onNavigateToPois,
+                child: Text(
+                  'See All',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 200,
+          child: poiProvider.isLoading && pois.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : pois.isEmpty
+                  ? const Center(child: Text('No POI available'))
+                  : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: pois.length,
+                      itemBuilder: (context, index) {
+                        final poi = pois[index];
+                        return Padding(
+                          padding: EdgeInsets.only(right: index < pois.length - 1 ? 12 : 0),
+                          child: _buildPoiCard(poi, _currentPosition),
+                        );
+                      },
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPoiCard(Poi poi, LatLng currentPosition) {
+    final hasImage = poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty;
+    final distanceKm = const Distance().as(
+      LengthUnit.Kilometer,
+      currentPosition,
+      LatLng(poi.latitude, poi.longitude),
+    );
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PoiDetailScreen(poi: poi)),
+        );
+      },
+      child: Container(
+        width: 230,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              child: SizedBox(
+                height: 100,
+                width: double.infinity,
+                child: hasImage
+                    ? Image.network(
+                        poi.mediaUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => _buildPoiImagePlaceholder(),
+                      )
+                    : _buildPoiImagePlaceholder(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    poi.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    poi.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          poi.typeDisplayName,
+                          style: const TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.near_me, size: 13, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${distanceKm.toStringAsFixed(1)} km',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    
+  }
+
+  Widget _buildPoiImagePlaceholder() {
+    return Container(
+      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+      child: Center(
+        child: Icon(
+          Icons.place,
+          size: 30,
+          color: AppTheme.primaryColor.withValues(alpha: 0.6),
+        ),
       ),
     );
   }
@@ -661,7 +875,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildCurrentConditions() {
+  Widget _buildCurrentConditions(WeatherProvider weatherProvider) {
+    final weather = weatherProvider.currentWeather;
+    final isLoading = weatherProvider.isLoading && weather == null;
+
+    final condition = weather?.condition ?? 'Variable';
+    final summary = weather?.summary ?? 'Weather data loading...';
+    final temperature = weather?.temperatureText ?? '--°C';
+    final wind = weather?.windText ?? '-- km/h';
+    final humidity = weather?.humidityText ?? '--%';
+    final icon = _weatherIcon(weather?.weatherCode ?? -1, weather?.isDay ?? true);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -695,8 +919,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(
-                  Icons.wb_sunny,
+                Icon(
+                  icon,
                   size: 48,
                   color: Colors.white,
                 ),
@@ -704,8 +928,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '22°C',
+                    Text(
+                      temperature,
                       style: TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
@@ -721,8 +945,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'Perfect for hiking',
+                      child: Text(
+                        isLoading ? 'Updating weather...' : summary,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -737,15 +961,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                _buildWeatherInfo(Icons.air, 'Wind', '12 km/h'),
+                _buildWeatherInfo(Icons.air, 'Wind', wind),
                 const SizedBox(width: 24),
-                _buildWeatherInfo(Icons.water_drop, 'Humidity', '45%'),
+                _buildWeatherInfo(Icons.water_drop, 'Humidity', humidity),
               ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              weatherProvider.error != null
+                  ? 'Live weather unavailable. Showing latest data.'
+                  : condition,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  IconData _weatherIcon(int weatherCode, bool isDay) {
+    if (weatherCode == 0) {
+      return isDay ? Icons.wb_sunny : Icons.nights_stay;
+    }
+    if ([1, 2, 3].contains(weatherCode)) {
+      return Icons.cloud_queue;
+    }
+    if ([61, 63, 65, 80, 81, 82, 51, 53, 55, 56, 57].contains(weatherCode)) {
+      return Icons.umbrella;
+    }
+    if ([71, 73, 75, 77, 85, 86].contains(weatherCode)) {
+      return Icons.ac_unit;
+    }
+    if ([95, 96, 99].contains(weatherCode)) {
+      return Icons.thunderstorm;
+    }
+    return Icons.cloud;
   }
 
   Widget _buildWeatherInfo(IconData icon, String label, String value) {
@@ -783,36 +1036,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStartTrekButton() {
     return Positioned(
-      left: 20,
       right: 20,
       bottom: 20,
-      child: ElevatedButton(
+      child: FloatingActionButton.extended(
+        heroTag: 'startTrekDashboard',
         onPressed: widget.onNavigateToTrails,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryColor,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+        backgroundColor: AppTheme.primaryColor,
+        icon: const Icon(Icons.play_arrow, color: Colors.white),
+        label: const Text(
+          'Start Exploring',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
           ),
-          elevation: 4,
-          shadowColor: AppTheme.primaryColor.withValues(alpha: 0.4),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.play_arrow, size: 24),
-            SizedBox(width: 8),
-            Text(
-              'Start Trek',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
+}
+
+enum _DashboardMapStyle {
+  standard('Normal', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+  relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png'),
+  dark('Noir', 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'),
+  satellite('Satellite', 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+
+  final String label;
+  final String urlTemplate;
+
+  const _DashboardMapStyle(this.label, this.urlTemplate);
 }

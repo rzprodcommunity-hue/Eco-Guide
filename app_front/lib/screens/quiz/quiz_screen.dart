@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_page_header.dart';
 import '../../providers/quiz_provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../services/quiz_service.dart';
 import 'quiz_game_screen.dart';
 
@@ -81,17 +81,18 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     final quizProvider = context.watch<QuizProvider>();
-    final authProvider = context.watch<AuthProvider>();
-    final user = authProvider.user;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      appBar: const EcoPageHeader(
+        title: 'Nature Quiz',
+        showBackButton: false,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(user),
               const SizedBox(height: 24),
               _buildTotalScore(quizProvider),
               const SizedBox(height: 24),

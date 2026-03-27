@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { Poi } from './entities/poi.entity';
 import { CreatePoiDto } from './dto/create-poi.dto';
 import { UpdatePoiDto } from './dto/update-poi.dto';
@@ -20,7 +20,7 @@ export class PoisService {
   }
 
   async findAll(queryDto: PoiQueryDto): Promise<PaginatedResult<Poi>> {
-    const { page, limit, type, trailId, includeInactive } = queryDto;
+    const { page, limit, search, type, trailId, includeInactive } = queryDto;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.poisRepository
@@ -33,6 +33,18 @@ export class PoisService {
 
     if (type) {
       queryBuilder.andWhere('poi.type = :type', { type });
+    }
+
+    if (search?.trim()) {
+      const startsWith = `${search.trim()}%`;
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where('poi.name ILIKE :startsWith', { startsWith })
+            .orWhere('poi.description ILIKE :startsWith', { startsWith })
+            .orWhere('poi.badge ILIKE :startsWith', { startsWith })
+            .orWhere('CAST(poi.type AS TEXT) ILIKE :startsWith', { startsWith });
+        }),
+      );
     }
 
     if (trailId) {

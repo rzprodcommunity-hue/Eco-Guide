@@ -111,8 +111,13 @@ Get all trails with optional filters.
 **Query Parameters:**
 - `page` (number) - Page number for pagination
 - `limit` (number) - Items per page
+- `search` (string) - Search by `name`, `region`, or `description` (starts with, case-insensitive)
 - `difficulty` (enum) - Filter by difficulty: `easy`, `moderate`, `difficult`
 - `region` (string) - Filter by region name
+- `minDistance` (number) - Minimum distance in km
+- `maxDistance` (number) - Maximum distance in km
+- `maxDuration` (number) - Maximum estimated duration in minutes
+- `includeInactive` (boolean) - Include inactive trails (admin use)
 
 **Response (200):**
 ```json
@@ -126,6 +131,8 @@ Get all trails with optional filters.
       "difficulty": "moderate",
       "estimatedDuration": 120,
       "elevationGain": 350,
+      "averageRating": 4.8,
+      "reviewCount": 240,
       "imageUrls": ["https://..."],
       "region": "Atlas Mountains",
       "startLatitude": 31.6295,
@@ -167,6 +174,8 @@ Create a new trail.
   "difficulty": "moderate",
   "estimatedDuration": 120,
   "elevationGain": 350,
+  "averageRating": 4.8,
+  "reviewCount": 240,
   "imageUrls": ["https://example.com/trail1.jpg"],
   "region": "Atlas Mountains",
   "startLatitude": 31.6295,
@@ -193,6 +202,7 @@ Get all POIs with optional filters.
 
 **Query Parameters:**
 - `page`, `limit` - Pagination
+- `search` (string) - Search by `name`, `description`, `badge`, or `type` (starts with, case-insensitive)
 - `type` (enum) - Filter by type: `viewpoint`, `flora`, `fauna`, `historical`, `water`, `camping`, `danger`, `rest_area`, `information`
 - `trailId` (uuid) - Filter by associated trail
 
@@ -357,6 +367,7 @@ Get all local services.
 
 **Query Parameters:**
 - `page`, `limit` - Pagination
+- `search` (string) - Search by `name`, `description`, `address`, or `category` (starts with, case-insensitive)
 - `category` (enum) - Filter by category: `guide`, `artisan`, `accommodation`, `restaurant`, `transport`, `equipment`
 
 #### GET `/api/local-services/nearby`
@@ -398,7 +409,33 @@ Get service details.
 
 ---
 
-### 7. SOS Emergency (`/api/sos`)
+### 7. Weather (`/api/weather`)
+
+#### GET `/api/weather/current`
+Get current weather conditions for coordinates.
+
+**Query Parameters:**
+- `lat` (number, optional) - Latitude (default: Atlas area)
+- `lng` (number, optional) - Longitude (default: Atlas area)
+
+**Response (200):**
+```json
+{
+  "temperature": 22.1,
+  "humidity": 45,
+  "windSpeed": 12.3,
+  "weatherCode": 1,
+  "isDay": true,
+  "condition": "Partly cloudy",
+  "summary": "Perfect for hiking",
+  "latitude": 31.6295,
+  "longitude": -7.9811
+}
+```
+
+---
+
+### 8. SOS Emergency (`/api/sos`)
 
 #### POST `/api/sos/alert` 🔒
 Send an emergency SOS alert.
@@ -424,7 +461,7 @@ Mark an alert as resolved.
 
 ---
 
-### 8. Media Upload (`/api/media`) 🔒
+### 9. Media Upload (`/api/media`) 🔒
 
 #### POST `/api/media/upload/image`
 Upload an image file.
@@ -450,7 +487,7 @@ Delete a media file by public ID.
 
 ---
 
-### 9. Offline Support (`/api/offline`) 🔒
+### 10. Offline Support (`/api/offline`) 🔒
 
 #### GET `/api/offline/packages`
 Get available offline packages for download.

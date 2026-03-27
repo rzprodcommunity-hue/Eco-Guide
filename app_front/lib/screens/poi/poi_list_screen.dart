@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_page_header.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/poi_provider.dart';
 import '../../models/poi.dart';
@@ -20,13 +23,36 @@ class PoiListScreen extends StatefulWidget {
 
 class _PoiListScreenState extends State<PoiListScreen> {
   String? _selectedType;
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  int _nearbyCount = 0;
+  bool _loadingNearbyCount = false;
+
+  static const List<String> _allPoiTypes = [
+    'viewpoint',
+    'flora',
+    'fauna',
+    'historical',
+    'water',
+    'camping',
+    'danger',
+    'rest_area',
+    'information',
+  ];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PoiProvider>().loadPois();
+      _loadPois();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   IconData _getPoiIcon(String type) {
@@ -56,7 +82,47 @@ class _PoiListScreenState extends State<PoiListScreen> {
 
   Future<void> _onFilterSelected(String? type) async {
     setState(() => _selectedType = type);
-    await context.read<PoiProvider>().loadPois(type: type);
+    await _loadPois();
+  }
+
+  Future<void> _loadPois() async {
+    final provider = context.read<PoiProvider>();
+    final query = _searchController.text.trim();
+    await provider.loadPois(type: _selectedType, search: query.isEmpty ? null : query);
+    if (!mounted) return;
+    await _refreshNearbyCount(provider);
+  }
+
+  Future<void> _refreshNearbyCount(PoiProvider provider) async {
+    if (provider.pois.isEmpty) {
+      setState(() => _nearbyCount = 0);
+      return;
+    }
+
+    setState(() => _loadingNearbyCount = true);
+    try {
+      final center = provider.pois.first;
+      final nearby = await provider.getNearbyPois(
+        center.latitude,
+        center.longitude,
+        type: _selectedType,
+      );
+
+      final currentIds = provider.pois.map((poi) => poi.id).toSet();
+      final others = nearby.where((poi) => !currentIds.contains(poi.id)).length;
+
+      if (!mounted) return;
+      setState(() => _nearbyCount = others);
+    } finally {
+      if (!mounted) return;
+      setState(() => _loadingNearbyCount = false);
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {});
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _loadPois);
   }
 
   Future<void> _openLearnMore(BuildContext context, Poi poi) async {
@@ -94,20 +160,15 @@ class _PoiListScreenState extends State<PoiListScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<PoiProvider>();
     final pois = provider.pois;
-    final availableTypes = {for (final poi in pois) poi.type}.toList()..sort();
+    final isTyping = _searchController.text.trim().isNotEmpty;
+    final visibleTypes = _selectedType == null
+        ? _allPoiTypes
+        : _allPoiTypes.where((type) => type == _selectedType).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Local Heritage'),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.search),
-          ),
-        ],
-      ),
+      appBar: const EcoPageHeader(title: 'Local Heritage'),
       body: RefreshIndicator(
-        onRefresh: () => provider.loadPois(type: _selectedType),
+        onRefresh: _loadPois,
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           children: [
@@ -115,7 +176,50 @@ class _PoiListScreenState extends State<PoiListScreen> {
               'Discover the wonders of the Vercors ecosystem',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: isTyping ? const Color(0xFFF7FFF8) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isTyping ? Colors.green : const Color(0xFFD1D5DB),
+                  width: isTyping ? 1.4 : 1,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search,
+                    color: isTyping ? Colors.green : Colors.grey[500],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      style: const TextStyle(color: Color(0xFF111827)),
+                      decoration: InputDecoration(
+                        hintText: 'Search points of interest...',
+                        hintStyle: TextStyle(color: Colors.grey[500]),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  if (_searchController.text.isNotEmpty)
+                    IconButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        _loadPois();
+                      },
+                      icon: const Icon(Icons.close, size: 18),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               height: 42,
               child: ListView(
@@ -127,7 +231,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                     isSelected: _selectedType == null,
                     onTap: () => _onFilterSelected(null),
                   ),
-                  ...availableTypes.map(
+                  ...visibleTypes.map(
                     (type) => _TypeFilterChip(
                       label: _formatType(type),
                       icon: _getPoiIcon(type),
@@ -142,7 +246,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
             if (provider.error != null && provider.error!.isNotEmpty)
               ErrorBanner(
                 message: provider.error!,
-                onRetry: () => provider.loadPois(type: _selectedType),
+                onRetry: _loadPois,
                 onDismiss: provider.clearError,
               ),
             if (provider.isLoading && pois.isEmpty)
@@ -162,15 +266,15 @@ class _PoiListScreenState extends State<PoiListScreen> {
                 padding: EdgeInsets.symmetric(vertical: 10),
                 child: Divider(height: 1),
               ),
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 10),
-                  child: Text(
-                    'Near Your Current Trail',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
+              // const Center(
+              //   child: Padding(
+              //     padding: EdgeInsets.only(bottom: 10),
+              //     child: Text(
+              //       'Near Your Current Trail',
+              //       style: TextStyle(fontWeight: FontWeight.w600),
+              //     ),
+              //   ),
+              // ),
               ...List.generate(
                 pois.length,
                 (index) => _PoiHeritageCard(
@@ -182,6 +286,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
               ),
               _InteractiveMapCard(
                 center: LatLng(pois.first.latitude, pois.first.longitude),
+                nearbyCount: _loadingNearbyCount ? null : _nearbyCount,
                 onTapOpenMap: () {
                   Navigator.push(
                     context,
@@ -424,9 +529,14 @@ class _TypeFilterChip extends StatelessWidget {
 
 class _InteractiveMapCard extends StatelessWidget {
   final LatLng center;
+  final int? nearbyCount;
   final VoidCallback onTapOpenMap;
 
-  const _InteractiveMapCard({required this.center, required this.onTapOpenMap});
+  const _InteractiveMapCard({
+    required this.center,
+    required this.nearbyCount,
+    required this.onTapOpenMap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -441,55 +551,88 @@ class _InteractiveMapCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ListTile(
-            contentPadding: EdgeInsets.symmetric(horizontal: 4),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
             minVerticalPadding: 0,
-            title: Text(
+            title: const Text(
               'Interactive POI Map',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
-            subtitle: Text('Find more points nearby'),
-            leading: Icon(Icons.map_outlined),
+            subtitle: Text(
+              nearbyCount == null
+                  ? 'Finding nearby points...'
+                  : 'Find ${nearbyCount!} more points nearby',
+            ),
+            leading: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCEAD8),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: const Icon(Icons.map_outlined, size: 18, color: AppTheme.primaryColor),
+            ),
           ),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
               height: 120,
-              child: FlutterMap(
-                options: MapOptions(
-                  initialCenter: center,
-                  initialZoom: 12,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.none,
-                  ),
-                ),
+              child: Stack(
                 children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.ecoguide.app',
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: center,
-                        child: const Icon(
-                          Icons.place,
-                          color: AppTheme.primaryColor,
-                        ),
+                  FlutterMap(
+                    options: MapOptions(
+                      initialCenter: center,
+                      initialZoom: 12,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.none,
+                      ),
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.ecoguide.app',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: center,
+                            child: const Icon(
+                              Icons.place,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
+                  ),
+                  Positioned(
+                    right: 8,
+                    bottom: 8,
+                    child: FilledButton.icon(
+                      onPressed: onTapOpenMap,
+                      icon: const Icon(Icons.explore, size: 14),
+                      label: const Text('Open Map'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: onTapOpenMap,
-              icon: const Icon(Icons.open_in_new, size: 16),
-              label: const Text('Open Map'),
+          const Padding(
+            padding: EdgeInsets.only(top: 4, right: 4),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'Map data from OpenStreetMap',
+                style: TextStyle(fontSize: 11, color: Color(0xFF7A7268)),
+              ),
             ),
           ),
         ],

@@ -9,6 +9,10 @@ class TrailsProvider extends ChangeNotifier {
   int _currentPage = 1;
   int _totalPages = 1;
   int _total = 0;
+  String? _filterDifficulty;
+  double? _minDistance;
+  double? _maxDistance;
+  int? _maxDuration;
 
   List<TrailModel> get trails => _trails;
   bool get isLoading => _isLoading;
@@ -16,6 +20,11 @@ class TrailsProvider extends ChangeNotifier {
   int get currentPage => _currentPage;
   int get totalPages => _totalPages;
   int get total => _total;
+  String? get filterDifficulty => _filterDifficulty;
+  double? get minDistance => _minDistance;
+  double? get maxDistance => _maxDistance;
+  int? get maxDuration => _maxDuration;
+  bool get hasActiveFilters => _filterDifficulty != null || _minDistance != null || _maxDistance != null || _maxDuration != null;
 
   Future<void> loadTrails({int page = 1, String? difficulty, String? region}) async {
     _isLoading = true;
@@ -26,8 +35,11 @@ class TrailsProvider extends ChangeNotifier {
       final response = await TrailService.getTrails(
         page: page,
         limit: 10,
-        difficulty: difficulty,
+        difficulty: difficulty ?? _filterDifficulty,
         region: region,
+        minDistance: _minDistance,
+        maxDistance: _maxDistance,
+        maxDuration: _maxDuration,
       );
       _trails = response['trails'] as List<TrailModel>;
       final meta = response['meta'] as Map<String, dynamic>?;
@@ -42,6 +54,30 @@ class TrailsProvider extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  void setDifficultyFilter(String? difficulty) {
+    _filterDifficulty = difficulty;
+    loadTrails(page: 1);
+  }
+
+  void setDistanceFilter(double? minDist, double? maxDist) {
+    _minDistance = minDist;
+    _maxDistance = maxDist;
+    loadTrails(page: 1);
+  }
+
+  void setDurationFilter(int? maxDur) {
+    _maxDuration = maxDur;
+    loadTrails(page: 1);
+  }
+
+  void clearAllFilters() {
+    _filterDifficulty = null;
+    _minDistance = null;
+    _maxDistance = null;
+    _maxDuration = null;
+    loadTrails(page: 1);
   }
 
   Future<bool> createTrail(Map<String, dynamic> data) async {

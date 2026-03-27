@@ -13,6 +13,7 @@ import { ActivitiesModule } from './modules/activities/activities.module';
 import { OfflineModule } from './modules/offline/offline.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { WeatherModule } from './modules/weather/weather.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AdminModule } from './modules/admin/admin.module';
     // Mobile support modules
     OfflineModule,
     NotificationsModule,
+    WeatherModule,
 
     // Backoffice module
     AdminModule,

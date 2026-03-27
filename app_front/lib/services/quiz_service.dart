@@ -77,6 +77,94 @@ class CategoryStats {
   }
 }
 
+class QuizBadgeModel {
+  final String id;
+  final String key;
+  final String label;
+  final String? description;
+  final String? icon;
+  final String? color;
+  final int threshold;
+  final String? category;
+  final DateTime unlockedAt;
+
+  QuizBadgeModel({
+    required this.id,
+    required this.key,
+    required this.label,
+    this.description,
+    this.icon,
+    this.color,
+    required this.threshold,
+    this.category,
+    required this.unlockedAt,
+  });
+
+  factory QuizBadgeModel.fromJson(Map<String, dynamic> json) {
+    return QuizBadgeModel(
+      id: json['id'] as String,
+      key: json['key'] as String,
+      label: json['label'] as String,
+      description: json['description'] as String?,
+      icon: json['icon'] as String?,
+      color: json['color'] as String?,
+      threshold: int.tryParse(json['threshold'].toString()) ?? 0,
+      category: json['category'] as String?,
+      unlockedAt: DateTime.tryParse(
+            json['unlockedAt'] as String? ?? '',
+          ) ??
+          DateTime.now(),
+    );
+  }
+}
+
+class QuizSummary {
+  final int totalScore;
+  final int quizzesCompleted;
+  final int correctAnswers;
+  final int totalQuestions;
+  final double averagePercentage;
+  final double bestPercentage;
+  final List<QuizScore> categoryScores;
+  final List<QuizBadgeModel> badges;
+
+  QuizSummary({
+    required this.totalScore,
+    required this.quizzesCompleted,
+    required this.correctAnswers,
+    required this.totalQuestions,
+    required this.averagePercentage,
+    required this.bestPercentage,
+    required this.categoryScores,
+    required this.badges,
+  });
+
+  factory QuizSummary.fromJson(Map<String, dynamic> json) {
+    final totals = (json['totals'] as Map<String, dynamic>?) ?? const {};
+
+    final categoryData =
+        (json['categoryScores'] as List<dynamic>? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+    final badgeData = (json['badges'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+
+    return QuizSummary(
+      totalScore: int.tryParse(totals['totalScore'].toString()) ?? 0,
+      quizzesCompleted: int.tryParse(totals['quizzesCompleted'].toString()) ?? 0,
+      correctAnswers: int.tryParse(totals['correctAnswers'].toString()) ?? 0,
+      totalQuestions: int.tryParse(totals['totalQuestions'].toString()) ?? 0,
+      averagePercentage:
+          (totals['averagePercentage'] as num?)?.toDouble() ?? 0.0,
+      bestPercentage: (totals['bestPercentage'] as num?)?.toDouble() ?? 0.0,
+      categoryScores: categoryData.map(QuizScore.fromJson).toList(),
+      badges: badgeData.map(QuizBadgeModel.fromJson).toList(),
+    );
+  }
+}
+
 class QuizService {
   final ApiClient _client;
 
@@ -90,7 +178,7 @@ class QuizService {
 
     final response =
         await _client.get(ApiConstants.quizzes, queryParams: queryParams);
-    final data = response['data'] as List? ?? [];
+    final data = _extractList(response, candidateKeys: const ['data', 'items', 'results']);
     return data
         .map((json) => Quiz.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -103,7 +191,7 @@ class QuizService {
     };
     final response =
         await _client.get(ApiConstants.quizzesRandom, queryParams: queryParams);
-    final data = response['data'] as List? ?? response as List;
+    final data = _extractList(response, candidateKeys: const ['data', 'items', 'results']);
     return data
         .map((json) => Quiz.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -112,7 +200,7 @@ class QuizService {
   Future<List<Quiz>> getQuizzesByCategory(String category) async {
     final response =
         await _client.get('${ApiConstants.quizzes}/category/$category');
-    final data = response['data'] as List? ?? response as List;
+    final data = _extractList(response, candidateKeys: const ['data', 'items', 'results']);
     return data
         .map((json) => Quiz.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -121,7 +209,7 @@ class QuizService {
   Future<List<Quiz>> getQuizzesByTrail(String trailId) async {
     final response =
         await _client.get('${ApiConstants.quizzes}/trail/$trailId');
-    final data = response['data'] as List? ?? response as List;
+    final data = _extractList(response, candidateKeys: const ['data', 'items', 'results']);
     return data
         .map((json) => Quiz.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -134,10 +222,32 @@ class QuizService {
 
   Future<List<CategoryStats>> getCategoryStats() async {
     final response = await _client.get('${ApiConstants.quizzes}/categories');
-    final data = response as List? ?? [];
-    return data
-        .map((json) => CategoryStats.fromJson(json as Map<String, dynamic>))
-        .toList();
+
+    final data = _extractList(
+      response,
+      candidateKeys: const ['data', 'categories', 'stats', 'items', 'results'],
+    );
+
+    if (data.isNotEmpty) {
+      return data
+          .map((json) => CategoryStats.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+
+    if (response is Map<String, dynamic>) {
+      final fallback = response.entries
+          .where((entry) => entry.value is num || entry.value is String)
+          .map(
+            (entry) => CategoryStats.fromJson({
+              'category': entry.key,
+              'quizCount': entry.value,
+            }),
+          )
+          .toList();
+      return fallback;
+    }
+
+    return [];
   }
 
   Future<QuizScore> submitScore({
@@ -160,10 +270,19 @@ class QuizService {
 
   Future<List<QuizScore>> getMyScores() async {
     final response = await _client.get('${ApiConstants.quizzes}/scores/me');
-    final data = response as List? ?? [];
+    final data = _extractList(
+      response,
+      candidateKeys: const ['data', 'scores', 'items', 'results'],
+    );
     return data
         .map((json) => QuizScore.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<QuizSummary> getMySummary() async {
+    final response =
+        await _client.get('${ApiConstants.quizzes}/scores/me/summary');
+    return QuizSummary.fromJson(response as Map<String, dynamic>);
   }
 
   Future<List<QuizScore>> getLeaderboard({String? category, int limit = 10}) async {
@@ -173,9 +292,35 @@ class QuizService {
     };
     final response = await _client
         .get('${ApiConstants.quizzes}/scores/leaderboard', queryParams: queryParams);
-    final data = response as List? ?? [];
+    final data = _extractList(
+      response,
+      candidateKeys: const ['data', 'scores', 'items', 'results'],
+    );
     return data
         .map((json) => QuizScore.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  List<dynamic> _extractList(
+    dynamic response, {
+    List<String> candidateKeys = const ['data'],
+  }) {
+    if (response is List) return response;
+    if (response is! Map<String, dynamic>) return const [];
+
+    for (final key in candidateKeys) {
+      final value = response[key];
+      if (value is List) return value;
+    }
+
+    final nestedData = response['data'];
+    if (nestedData is Map<String, dynamic>) {
+      for (final key in candidateKeys) {
+        final value = nestedData[key];
+        if (value is List) return value;
+      }
+    }
+
+    return const [];
   }
 }

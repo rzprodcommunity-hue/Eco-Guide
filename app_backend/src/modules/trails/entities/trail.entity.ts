@@ -56,6 +56,12 @@ export class Trail {
   @Column({ nullable: true })
   region: string;
 
+  @Column('decimal', { precision: 2, scale: 1, nullable: true })
+  averageRating: number;
+
+  @Column({ default: 0 })
+  reviewCount: number;
+
   @Column({ default: true })
   isActive: boolean;
 

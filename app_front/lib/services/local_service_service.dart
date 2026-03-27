@@ -11,11 +11,13 @@ class LocalServiceService {
     int page = 1,
     int limit = 10,
     String? category,
+    String? search,
   }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),
       if (category != null) 'category': category,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
     };
 
     final response = await _client.get(ApiConstants.localServices, queryParams: queryParams);

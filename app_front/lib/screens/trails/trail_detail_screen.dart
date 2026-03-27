@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../models/trail.dart';
 import '../../models/poi.dart';
 import '../../providers/poi_provider.dart';
+import '../home/home_screen.dart';
+import '../map/navigation_sos_screen.dart';
 import '../poi/poi_detail_screen.dart';
 
 class TrailDetailScreen extends StatefulWidget {
@@ -54,30 +56,32 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     }
   }
 
-  List<LatLng> _getTrailCoordinates() {
-    if (widget.trail.geojson == null) return [];
-
-    try {
-      final coordinates = widget.trail.geojson!['coordinates'] as List?;
-      if (coordinates == null) return [];
-
-      return coordinates.map((coord) {
-        final c = coord as List;
-        return LatLng(c[1] as double, c[0] as double);
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final poiProvider = context.watch<PoiProvider>();
-    final trailCoords = _getTrailCoordinates();
-    final hasMap = widget.trail.startLatitude != null &&
-                   widget.trail.startLongitude != null;
+    final rating = widget.trail.averageRating;
+    final reviewCount = widget.trail.reviewCount ?? 0;
+    final ratingText = rating != null ? rating.toStringAsFixed(1) : '-';
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F2EC),
+      bottomNavigationBar: EcoShortcutBadge(
+        currentTab: EcoShortcutTab.trails,
+        onTabSelected: (tab) {
+          final index = switch (tab) {
+            EcoShortcutTab.home => 0,
+            EcoShortcutTab.map => 1,
+            EcoShortcutTab.trails => 2,
+            EcoShortcutTab.quiz => 4,
+            EcoShortcutTab.services => 6,
+            EcoShortcutTab.settings => 7,
+          };
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => HomeScreen(initialIndex: index)),
+            (route) => false,
+          );
+        },
+      ),
       body: Column(
         children: [
           if (poiProvider.error != null && poiProvider.error!.isNotEmpty)
@@ -89,237 +93,325 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           Expanded(
             child: CustomScrollView(
               slivers: [
-          // App bar with image
-          SliverAppBar(
-            expandedHeight: 250,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                widget.trail.name,
-                style: const TextStyle(
-                  shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
-                ),
-              ),
-              background: widget.trail.imageUrls != null &&
-                         widget.trail.imageUrls!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: widget.trail.imageUrls!.first,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: Colors.grey[300]),
-                      errorWidget: (_, __, ___) => Container(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                        child: const Icon(Icons.landscape, size: 64),
-                      ),
-                    )
-                  : Container(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                      child: const Icon(Icons.landscape, size: 64, color: Colors.white),
-                    ),
-            ),
-          ),
-
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Difficulty and region
-                  Row(
+                SliverToBoxAdapter(
+                  child: Stack(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getDifficultyColor(widget.trail.difficulty)
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: _getDifficultyColor(widget.trail.difficulty),
-                          ),
-                        ),
-                        child: Text(
-                          _getDifficultyText(widget.trail.difficulty),
-                          style: TextStyle(
-                            color: _getDifficultyColor(widget.trail.difficulty),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      if (widget.trail.region != null)
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on,
-                                size: 18, color: Colors.grey),
-                            const SizedBox(width: 4),
-                            Text(
-                              widget.trail.region!,
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Stats cards
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.straighten,
-                          label: 'Distance',
-                          value: widget.trail.distanceText,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatCard(
-                          icon: Icons.timer,
-                          label: 'Duree',
-                          value: widget.trail.durationText,
-                        ),
-                      ),
-                      if (widget.trail.elevationGain != null) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StatCard(
-                            icon: Icons.trending_up,
-                            label: 'Denivele',
-                            value: '${widget.trail.elevationGain!.toInt()}m',
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Description
-                  Text(
-                    'Description',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.trail.description,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Map preview
-                  if (hasMap) ...[
-                    Text(
-                      'Carte',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        height: 200,
-                        child: FlutterMap(
-                          options: MapOptions(
-                            initialCenter: LatLng(
-                              widget.trail.startLatitude!,
-                              widget.trail.startLongitude!,
-                            ),
-                            initialZoom: 13,
-                            interactionOptions: const InteractionOptions(
-                              flags: InteractiveFlag.none,
-                            ),
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.ecoguide.app',
-                            ),
-                            if (trailCoords.isNotEmpty)
-                              PolylineLayer(
-                                polylines: [
-                                  Polyline(
-                                    points: trailCoords,
-                                    strokeWidth: 4,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                                ],
+                      SizedBox(
+                        height: 300,
+                        width: double.infinity,
+                        child:
+                            widget.trail.imageUrls != null &&
+                                widget.trail.imageUrls!.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: widget.trail.imageUrls!.first,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) =>
+                                    Container(color: Colors.grey[300]),
+                                errorWidget: (_, __, ___) => Container(
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.landscape, size: 64),
+                                ),
+                              )
+                            : Container(
+                                color: Colors.grey[300],
+                                child: const Icon(
+                                  Icons.landscape,
+                                  size: 64,
+                                  color: Colors.white,
+                                ),
                               ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: LatLng(
-                                    widget.trail.startLatitude!,
-                                    widget.trail.startLongitude!,
-                                  ),
-                                  child: const Icon(
-                                    Icons.flag,
-                                    color: AppTheme.primaryColor,
-                                    size: 32,
-                                  ),
+                      ),
+                      Container(
+                        height: 300,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Color(0xAA000000)],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 8,
+                        left: 14,
+                        right: 14,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _CircleIconButton(
+                              icon: Icons.arrow_back_ios_new,
+                              onTap: () => Navigator.of(context).pop(),
+                            ),
+                            Row(
+                              children: [
+                                _CircleIconButton(
+                                  icon: Icons.share_outlined,
+                                  onTap: () {},
+                                ),
+                                const SizedBox(width: 8),
+                                _CircleIconButton(
+                                  icon: Icons.favorite_border,
+                                  onTap: () {},
                                 ),
                               ],
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 20,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getDifficultyColor(
+                                  widget.trail.difficulty,
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                _getDifficultyText(
+                                  widget.trail.difficulty,
+                                ).toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.trail.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 34,
+                                height: 1.05,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    widget.trail.region ?? 'Region inconnue',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-                  // POIs
-                  if (poiProvider.pois.isNotEmpty) ...[
-                    Text(
-                      'Points d\'interet',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                SliverToBoxAdapter(
+                  child: Transform.translate(
+                    offset: const Offset(0, 0),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF5F2EC),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(28),
+                        ),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAE3D8),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: const Color(0xFFDCCFBF),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _DetailStatBox(
+                                    icon: Icons.straighten,
+                                    label: 'Distance',
+                                    value: widget.trail.distanceText,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _DetailStatBox(
+                                    icon: Icons.schedule,
+                                    label: 'Duree',
+                                    value: widget.trail.durationText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'A propos du sentier',
+                            style: TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF111111),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            widget.trail.description,
+                            style: const TextStyle(
+                              color: Color(0xFF555555),
+                              fontSize: 16,
+                              height: 1.55,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: widget.trail.startLatitude == null ||
+                                      widget.trail.startLongitude == null
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => NavigationSosScreen(
+                                            destination: LatLng(
+                                              widget.trail.startLatitude!,
+                                              widget.trail.startLongitude!,
+                                            ),
+                                            destinationLabel: widget.trail.name,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                              icon: const Icon(Icons.route),
+                              label: const Text('Directions sur la carte'),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Points d\'interet',
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF111111),
+                                ),
+                              ),
+                              Text(
+                                '${poiProvider.pois.length} lieux',
+                                style: const TextStyle(
+                                  color: Color(0xFF666666),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (poiProvider.isLoading)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 18),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          else if (poiProvider.pois.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                'Aucun point d\'interet disponible',
+                                style: TextStyle(color: Color(0xFF666666)),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              height: 176,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: poiProvider.pois.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, index) {
+                                  return _PoiPreviewCard(
+                                    poi: poiProvider.pois[index],
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: poiProvider.pois.length,
-                      itemBuilder: (context, index) {
-                        final poi = poiProvider.pois[index];
-                        return _PoiListItem(poi: poi);
-                      },
-                    ),
-                  ],
-                  const SizedBox(height: 80),
-                ],
-              ),
-            ),
-             ) ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Navigation demarree!')),
-          );
-        },
-        icon: const Icon(Icons.navigation),
-        label: const Text('Demarrer'),
       ),
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _CircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CircleIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.92),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 18, color: const Color(0xFF111111)),
+      ),
+    );
+  }
+}
+
+class _DetailStatBox extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
 
-  const _StatCard({
+  const _DetailStatBox({
     required this.icon,
     required this.label,
     required this.value,
@@ -328,27 +420,31 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFF2ECE2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD3C6B5)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: AppTheme.primaryColor),
-          const SizedBox(height: 4),
+          Icon(icon, color: AppTheme.primaryColor, size: 18),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF777777),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
           Text(
             value,
             style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              fontSize: 24,
+              color: Color(0xFF171717),
             ),
           ),
         ],
@@ -357,34 +453,84 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _PoiListItem extends StatelessWidget {
+class _PoiPreviewCard extends StatelessWidget {
   final Poi poi;
 
-  const _PoiListItem({required this.poi});
+  const _PoiPreviewCard({required this.poi});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-          child: Icon(
-            _getPoiIcon(poi.type),
-            color: AppTheme.primaryColor,
-          ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PoiDetailScreen(poi: poi)),
+        );
+      },
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFE8DD),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFDCCFBF)),
         ),
-        title: Text(poi.name),
-        subtitle: Text(poi.typeDisplayName),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PoiDetailScreen(poi: poi),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              child: SizedBox(
+                height: 92,
+                width: double.infinity,
+                child: poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: poi.mediaUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) =>
+                            Container(color: Colors.grey[300]),
+                        errorWidget: (_, __, ___) =>
+                            Container(color: Colors.grey[300]),
+                      )
+                    : Container(
+                        color: Colors.grey[300],
+                        child: Icon(
+                          _getPoiIcon(poi.type),
+                          color: const Color(0xFF666666),
+                        ),
+                      ),
+              ),
             ),
-          );
-        },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              child: Text(
+                poi.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: Color(0xFF111111),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+              child: Text(
+                poi.badge ?? poi.typeDisplayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

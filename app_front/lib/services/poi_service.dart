@@ -12,12 +12,14 @@ class PoiService {
     int limit = 10,
     String? type,
     String? trailId,
+    String? search,
   }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),
       if (type != null) 'type': type,
       if (trailId != null) 'trailId': trailId,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
     };
 
     final response = await _client.get(ApiConstants.pois, queryParams: queryParams);

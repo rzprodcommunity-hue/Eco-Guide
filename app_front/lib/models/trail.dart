@@ -8,6 +8,8 @@ class Trail {
   final double? elevationGain;
   final List<String>? imageUrls;
   final String? region;
+  final double? averageRating;
+  final int? reviewCount;
   final double? startLatitude;
   final double? startLongitude;
   final Map<String, dynamic>? geojson;
@@ -24,6 +26,8 @@ class Trail {
     this.elevationGain,
     this.imageUrls,
     this.region,
+    this.averageRating,
+    this.reviewCount,
     this.startLatitude,
     this.startLongitude,
     this.geojson,
@@ -108,6 +112,8 @@ class Trail {
       elevationGain: _parseNullableDouble(json['elevationGain']),
       imageUrls: _parseImageUrls(json['imageUrls']),
       region: json['region'] as String?,
+      averageRating: _parseNullableDouble(json['averageRating']),
+      reviewCount: _parseNullableInt(json['reviewCount']),
       startLatitude: _parseNullableDouble(json['startLatitude']),
       startLongitude: _parseNullableDouble(json['startLongitude']),
       geojson: json['geojson'] as Map<String, dynamic>?,
@@ -127,6 +133,8 @@ class Trail {
       'elevationGain': elevationGain,
       'imageUrls': imageUrls,
       'region': region,
+      'averageRating': averageRating,
+      'reviewCount': reviewCount,
       'startLatitude': startLatitude,
       'startLongitude': startLongitude,
       'geojson': geojson,

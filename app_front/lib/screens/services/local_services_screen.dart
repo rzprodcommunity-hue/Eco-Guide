@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_page_header.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/local_service_provider.dart';
 import '../../models/local_service.dart';
+import 'local_service_detail_screen.dart';
 
 class LocalServicesScreen extends StatefulWidget {
   const LocalServicesScreen({super.key});
@@ -20,6 +22,7 @@ class LocalServicesScreen extends StatefulWidget {
 class _LocalServicesScreenState extends State<LocalServicesScreen> {
   String? _selectedCategory;
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   final List<Map<String, dynamic>> _categories = [
     {'key': null, 'label': 'Tous', 'icon': Icons.apps},
@@ -41,6 +44,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -52,16 +56,37 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     context.read<LocalServiceProvider>().setCategoryFilter(category);
   }
 
+  Future<void> _loadServices() {
+    return context.read<LocalServiceProvider>().loadServices(
+      category: _selectedCategory,
+      search: _searchController.text.trim().isEmpty
+          ? null
+          : _searchController.text.trim(),
+    );
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {});
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      _loadServices,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LocalServiceProvider>();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      appBar: const EcoPageHeader(
+        title: 'Annuaire Local',
+        showBackButton: false,
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
             if (provider.error != null && provider.error!.isNotEmpty)
               ErrorBanner(
                 message: provider.error!,
@@ -71,7 +96,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
-                  await provider.loadServices();
+                  await _loadServices();
                 },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -79,6 +104,8 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 20),
+                      _buildSearchBar(),
+                      const SizedBox(height: 14),
                       _buildCategoryFilters(),
                       const SizedBox(height: 24),
                       _buildSectionHeader(provider),
@@ -149,72 +176,52 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: () => _showSearchDialog(),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.search,
-                color: Colors.grey[600],
-                size: 22,
-              ),
-            ),
-          ),
+          const SizedBox.shrink(),
         ],
       ),
     );
   }
 
-  void _showSearchDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+  Widget _buildSearchBar() {
+    final isTyping = _searchController.text.trim().isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isTyping ? const Color(0xFFF7FFF8) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isTyping ? Colors.green : const Color(0xFFD1D5DB),
+            width: isTyping ? 1.4 : 1,
+          ),
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _searchController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: 'Rechercher un etablissement...',
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                onSubmitted: (value) {
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 20),
-            ],
+        child: TextField(
+          controller: _searchController,
+          onChanged: _onSearchChanged,
+          style: const TextStyle(color: Color(0xFF111827)),
+          decoration: InputDecoration(
+            hintText: 'Rechercher un etablissement...',
+            hintStyle: TextStyle(color: Colors.grey[500]),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              color: isTyping ? Colors.green : Colors.grey[500],
+              size: 20,
+            ),
+            suffixIcon: isTyping
+                ? IconButton(
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                      _loadServices();
+                    },
+                    icon: const Icon(Icons.close, size: 18),
+                  )
+                : null,
           ),
         ),
       ),
@@ -307,16 +314,16 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               ),
             ],
           ),
-          TextButton(
-            onPressed: () {},
-            child: Text(
-              'Voir tout',
-              style: TextStyle(
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+          // TextButton(
+          //   onPressed: () {},
+          //   child: Text(
+          //     'Voir tout',
+          //     style: TextStyle(
+          //       color: AppTheme.primaryColor,
+          //       fontWeight: FontWeight.w600,
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -355,7 +362,21 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: provider.services.length,
       itemBuilder: (context, index) {
-        return _ServiceCard(service: provider.services[index]);
+        final service = provider.services[index];
+        return _ServiceCard(
+          service: service,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LocalServiceDetailScreen(
+                  serviceId: service.id,
+                  fallbackService: service,
+                ),
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -520,15 +541,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
 
 class _ServiceCard extends StatelessWidget {
   final LocalService service;
+  final VoidCallback onTap;
 
-  const _ServiceCard({required this.service});
-
-  Future<void> _launchPhone(String phone) async {
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
+  const _ServiceCard({required this.service, required this.onTap});
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
@@ -564,9 +579,12 @@ class _ServiceCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Image with rating
           Stack(
             children: [
@@ -668,11 +686,11 @@ class _ServiceCard extends StatelessWidget {
             ],
           ),
           // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // Title and price row
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -731,30 +749,29 @@ class _ServiceCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                // Action button
-                if (service.contact != null)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _launchPhone(service.contact!),
-                      icon: const Icon(Icons.phone, size: 18),
-                      label: const Text('Contacter'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-              ],
+                  // const SizedBox(height: 14),
+                  // Row(
+                  //   children: [
+                  //     Text(
+                  //       'Voir plus de details',
+                  //       style: TextStyle(
+                  //         color: AppTheme.primaryColor,
+                  //         fontWeight: FontWeight.w700,
+                  //       ),
+                  //     ),
+                  //     const SizedBox(width: 6),
+                  //     Icon(
+                  //       Icons.arrow_forward,
+                  //       size: 16,
+                  //       color: AppTheme.primaryColor,
+                  //     ),
+                  //   ],
+                  // ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

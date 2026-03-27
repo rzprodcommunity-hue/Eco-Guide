@@ -8,6 +8,7 @@ import 'providers/trail_provider.dart';
 import 'providers/poi_provider.dart';
 import 'providers/quiz_provider.dart';
 import 'providers/local_service_provider.dart';
+import 'providers/weather_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 
@@ -56,6 +57,12 @@ class EcoGuideApp extends StatelessWidget {
           create: (context) => LocalServiceProvider(context.read<ApiClient>()),
           update: (_, apiClient, previous) =>
               previous ?? LocalServiceProvider(apiClient),
+        ),
+        // Weather Provider
+        ChangeNotifierProxyProvider<ApiClient, WeatherProvider>(
+          create: (context) => WeatherProvider(context.read<ApiClient>()),
+          update: (_, apiClient, previous) =>
+              previous ?? WeatherProvider(apiClient),
         ),
       ],
       child: MaterialApp(

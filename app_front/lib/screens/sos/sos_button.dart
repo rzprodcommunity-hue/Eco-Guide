@@ -6,9 +6,12 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/eco_page_header.dart';
+import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/sos_service.dart';
+import '../home/home_screen.dart';
 
 class SosButton extends StatelessWidget {
   const SosButton({super.key});
@@ -217,39 +220,23 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppTheme.sosColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.sos,
-                color: AppTheme.sosColor,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Urgence SOS',
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
-        ),
-        centerTitle: false,
+      appBar: const EcoPageHeader(title: 'Urgence SOS'),
+      bottomNavigationBar: EcoShortcutBadge(
+        currentTab: EcoShortcutTab.home,
+        onTabSelected: (tab) {
+          final index = switch (tab) {
+            EcoShortcutTab.home => 0,
+            EcoShortcutTab.map => 1,
+            EcoShortcutTab.trails => 2,
+            EcoShortcutTab.quiz => 4,
+            EcoShortcutTab.services => 6,
+            EcoShortcutTab.settings => 7,
+          };
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => HomeScreen(initialIndex: index)),
+            (route) => false,
+          );
+        },
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

@@ -11,6 +11,8 @@ class TrailModel {
   final int? elevationGain;
   final List<String>? imageUrls;
   final String? region;
+  final double? averageRating;
+  final int? reviewCount;
   final double? startLatitude;
   final double? startLongitude;
   final bool isActive;
@@ -28,6 +30,8 @@ class TrailModel {
     this.elevationGain,
     this.imageUrls,
     this.region,
+    this.averageRating,
+    this.reviewCount,
     this.startLatitude,
     this.startLongitude,
     required this.isActive,
@@ -49,6 +53,10 @@ class TrailModel {
           ? List<String>.from(json['imageUrls'])
           : null,
       region: json['region'],
+        averageRating: json['averageRating'] != null ? _parseDouble(json['averageRating']) : null,
+        reviewCount: json['reviewCount'] is int
+          ? json['reviewCount']
+          : (json['reviewCount'] is num ? (json['reviewCount'] as num).toInt() : null),
       startLatitude: json['startLatitude'] != null ? _parseDouble(json['startLatitude']) : null,
       startLongitude: json['startLongitude'] != null ? _parseDouble(json['startLongitude']) : null,
       isActive: json['isActive'] ?? true,
@@ -80,6 +88,8 @@ class TrailModel {
       'elevationGain': elevationGain,
       'imageUrls': imageUrls,
       'region': region,
+      'averageRating': averageRating,
+      'reviewCount': reviewCount,
       'startLatitude': startLatitude,
       'startLongitude': startLongitude,
       'isActive': isActive,

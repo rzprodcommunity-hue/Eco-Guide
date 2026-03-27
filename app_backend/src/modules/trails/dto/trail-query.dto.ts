@@ -5,6 +5,15 @@ import { TrailDifficulty } from '../entities/trail.entity';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class TrailQueryDto extends PaginationDto {
+  @ApiPropertyOptional({
+    example: 'mont',
+    description:
+      'Search by trail name, region, or description (starts-with, case-insensitive)',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({ enum: TrailDifficulty })
   @IsOptional()
   @IsEnum(TrailDifficulty)
@@ -26,6 +35,12 @@ export class TrailQueryDto extends PaginationDto {
   @Type(() => Number)
   @IsNumber()
   maxDistance?: number;
+
+  @ApiPropertyOptional({ example: 240, description: 'Maximum estimated duration in minutes' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  maxDuration?: number;
 
   @ApiPropertyOptional({ example: 'name', description: 'Sort field' })
   @IsOptional()

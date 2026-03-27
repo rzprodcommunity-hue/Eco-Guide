@@ -13,7 +13,7 @@ class ApiConstants {
 
     // Android emulator cannot access localhost of the host machine directly.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return '10.0.2.2';
+      return '192.168.155.79';
     }
 
     return 'localhost';
@@ -54,4 +54,12 @@ class ApiConstants {
 
   // Media endpoints
   static const String mediaUpload = '/media/upload/image';
+
+  // Offline endpoints
+  static const String offlinePackages = '/offline/packages';
+  static const String offlineDownloads = '/offline/downloads';
+  static const String offlineDownload = '/offline/download';
+
+  // Weather endpoints
+  static const String weatherCurrent = '/weather/current';
 }

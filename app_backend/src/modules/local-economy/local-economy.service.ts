@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { LocalService, ServiceCategory } from './entities/local-service.entity';
 import { CreateLocalServiceDto } from './dto/create-local-service.dto';
 import { UpdateLocalServiceDto } from './dto/update-local-service.dto';
-import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
+import { LocalServiceQueryDto } from './dto/local-service-query.dto';
 
 @Injectable()
 export class LocalEconomyService {
@@ -19,10 +20,9 @@ export class LocalEconomyService {
   }
 
   async findAll(
-    paginationDto: PaginationDto,
-    category?: ServiceCategory,
+    queryDto: LocalServiceQueryDto,
   ): Promise<PaginatedResult<LocalService>> {
-    const { page, limit, includeInactive } = paginationDto;
+    const { page, limit, includeInactive, category, search } = queryDto;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.localServicesRepository
@@ -34,6 +34,18 @@ export class LocalEconomyService {
 
     if (category) {
       queryBuilder.andWhere('service.category = :category', { category });
+    }
+
+    if (search?.trim()) {
+      const startsWith = `${search.trim()}%`;
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where('service.name ILIKE :startsWith', { startsWith })
+            .orWhere('service.description ILIKE :startsWith', { startsWith })
+            .orWhere('service.address ILIKE :startsWith', { startsWith })
+            .orWhere('CAST(service.category AS TEXT) ILIKE :startsWith', { startsWith });
+        }),
+      );
     }
 
     queryBuilder.orderBy('service.createdAt', 'DESC').skip(skip).take(limit);

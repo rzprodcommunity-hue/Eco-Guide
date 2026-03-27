@@ -12,12 +12,20 @@ class TrailService {
     int limit = 10,
     String? difficulty,
     String? region,
+    String? search,
+    double? minDistance,
+    double? maxDistance,
+    int? maxDuration,
   }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),
       if (difficulty != null) 'difficulty': difficulty,
       if (region != null) 'region': region,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (minDistance != null) 'minDistance': minDistance.toString(),
+      if (maxDistance != null) 'maxDistance': maxDistance.toString(),
+      if (maxDuration != null) 'maxDuration': maxDuration.toString(),
     };
 
     final response = await _client.get(ApiConstants.trails, queryParams: queryParams);

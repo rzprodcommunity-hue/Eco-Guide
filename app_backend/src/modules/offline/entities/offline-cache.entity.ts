@@ -33,7 +33,7 @@ export class OfflineCache {
   })
   resourceType: CacheResourceType;
 
-  @Column('uuid')
+  @Column('varchar')
   resourceId: string;
 
   @Column({ default: 1 })

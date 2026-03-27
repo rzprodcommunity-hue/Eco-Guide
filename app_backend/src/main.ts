@@ -74,6 +74,7 @@ async function bootstrap() {
     .addTag('sos', 'Emergency SOS')
     .addTag('media', 'Media upload')
     .addTag('activities', 'User activities')
+    .addTag('weather', 'Weather data')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
