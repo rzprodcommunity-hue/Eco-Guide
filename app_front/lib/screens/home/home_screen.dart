@@ -7,7 +7,7 @@ import '../poi/poi_list_screen.dart';
 import '../quiz/quiz_screen.dart';
 import '../offline/offline_trails_screen.dart';
 import '../services/local_services_screen.dart';
-import '../profile/profile_screen.dart';
+import '../settings/settings_screen.dart';
 import '../sos/sos_button.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const QuizScreen(),
       const OfflineTrailsScreen(),
       const LocalServicesScreen(),
-      const ProfileScreen(),
+      const SettingsScreen(),
     ];
 
     return Scaffold(

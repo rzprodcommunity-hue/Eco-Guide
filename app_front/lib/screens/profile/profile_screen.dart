@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_page_header.dart';
-import '../../providers/auth_provider.dart';
 import '../../models/activity.dart';
-import '../../services/api_client.dart';
+import '../../models/user.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/activity_service.dart';
+import '../../services/api_client.dart';
 import '../../services/quiz_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -19,6 +21,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   UserStats? _stats;
   QuizSummary? _quizSummary;
   bool _isLoading = false;
+
+  final List<_TrailHistoryItem> _historyItems = const [
+    _TrailHistoryItem(
+      title: 'Sentier des Cretes',
+      date: 'Hier, 14:20',
+      distance: '12.4 km',
+      duration: '3h 45m',
+      imageUrl:
+          'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=300&q=80',
+    ),
+    _TrailHistoryItem(
+      title: 'Foret de Broceliande',
+      date: '12 Oct 2023',
+      distance: '8.2 km',
+      duration: '2h 10m',
+      imageUrl:
+          'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=300&q=80',
+    ),
+    _TrailHistoryItem(
+      title: 'Cascade du Dard',
+      date: '05 Oct 2023',
+      distance: '5.5 km',
+      duration: '1h 30m',
+      imageUrl:
+          'https://images.unsplash.com/photo-1551524164-6cf2ac9f4b4d?auto=format&fit=crop&w=300&q=80',
+    ),
+    _TrailHistoryItem(
+      title: 'Col de la Forclaz',
+      date: '28 Sep 2023',
+      distance: '15.1 km',
+      duration: '5h 20m',
+      imageUrl:
+          'https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?auto=format&fit=crop&w=300&q=80',
+    ),
+  ];
+
+  final List<double> _weeklyBars = const [28, 36, 58, 48, 84, 68, 94];
 
   @override
   void initState() {
@@ -36,12 +75,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final apiClient = context.read<ApiClient>();
       final activityService = ActivityService(apiClient);
       final quizService = QuizService(apiClient);
-      final statsFuture = activityService.getMyStats();
-      final quizSummaryFuture = quizService.getMySummary();
 
       final results = await Future.wait<dynamic>([
-        statsFuture,
-        quizSummaryFuture,
+        activityService.getMyStats(),
+        quizService.getMySummary(),
       ]);
 
       if (!mounted) return;
@@ -49,8 +86,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _stats = results[0] as UserStats;
         _quizSummary = results[1] as QuizSummary;
       });
-    } catch (e) {
-      // Ignore errors
+    } catch (_) {
+      // UI-only screen: ignore fetch failures and keep fallbacks.
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -63,427 +100,721 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
 
+    if (authProvider.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text('Non connecte')),
+      );
+    }
+
     return Scaffold(
-      appBar: EcoPageHeader(
+      backgroundColor: const Color(0xFFF6F5F2),
+      appBar: const EcoPageHeader(
         title: 'Profil',
-        showBackButton: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showSettingsDialog(context),
-          ),
-        ],
+        showAccountBadge: false,
       ),
-      body: authProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : user == null
-              ? const Center(child: Text('Non connecte'))
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    await authProvider.refreshProfile();
-                    await _loadStats();
-                  },
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        // Avatar and info
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                          backgroundImage: user.avatarUrl != null
-                              ? NetworkImage(user.avatarUrl!)
-                              : null,
-                          child: user.avatarUrl == null
-                              ? Text(
-                                  user.fullName.substring(0, 1).toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 40,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          user.fullName,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          user.email,
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Stats cards
-                        if (_isLoading)
-                          const CircularProgressIndicator()
-                        else if (_stats != null)
-                          Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _StatCard(
-                                      icon: Icons.hiking,
-                                      label: 'Randonnees',
-                                      value: '${_stats!.totalTrailsCompleted}',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _StatCard(
-                                      icon: Icons.place,
-                                      label: 'POIs visites',
-                                      value: '${_stats!.totalPoisVisited}',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _StatCard(
-                                      icon: Icons.straighten,
-                                      label: 'Distance',
-                                      value: _stats!.distanceText,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _StatCard(
-                                      icon: Icons.quiz,
-                                      label: 'Quiz',
-                                      value: '${_stats!.totalQuizzesAnswered}',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        const SizedBox(height: 24),
-
-                        if (_quizSummary != null) _buildQuizProgressSection(),
-                        if (_quizSummary != null) const SizedBox(height: 24),
-
-                        // Member since
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today, color: Colors.grey),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Membre depuis',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                  Text(
-                                    '${user.createdAt.day}/${user.createdAt.month}/${user.createdAt.year}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Logout button
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Deconnexion'),
-                                content: const Text('Voulez-vous vous deconnecter ?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('Annuler'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('Deconnecter'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirm == true) {
-                              await authProvider.logout();
-                            }
-                          },
-                          icon: const Icon(Icons.logout),
-                          label: const Text('Se deconnecter'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                            minimumSize: const Size.fromHeight(48),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await authProvider.refreshProfile();
+          await _loadStats();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProfileHeader(user),
+              const SizedBox(height: 22),
+              _buildStatsSection(),
+              const SizedBox(height: 24),
+              _buildBadgesSection(),
+              const SizedBox(height: 24),
+              _buildActivitySection(),
+              const SizedBox(height: 24),
+              _buildHistorySection(),
+              const SizedBox(height: 28),
+              const Divider(color: Color(0xFFD7C7AB)),
+              const SizedBox(height: 16),
+              _buildBottomActions(context),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildQuizProgressSection() {
-    final summary = _quizSummary;
-    if (summary == null) return const SizedBox.shrink();
+  Widget _buildProfileHeader(User user) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Stack(
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.primaryColor, width: 3),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: CircleAvatar(
+                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
+                  backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                      ? NetworkImage(user.avatarUrl!)
+                      : null,
+                  child: user.avatarUrl == null || user.avatarUrl!.isEmpty
+                      ? Text(
+                          _initials(user.fullName),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryColor,
+                            fontSize: 24,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 4,
+              bottom: 4,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF25B845),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                user.fullName,
+                style: const TextStyle(
+                  fontSize: 36 / 2,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _roleLabel(user.role),
+                style: const TextStyle(
+                  fontSize: 17,
+                  color: Color(0xFF5F5F5F),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Niveau 12',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0EEE8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFCFCBD0)),
+                    ),
+                    child: const Text(
+                      'Pro',
+                      style: TextStyle(
+                        color: Color(0xFF2C8C39),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-    return Container(
+  Widget _buildStatsSection() {
+    final distance = _stats?.distanceText ?? '124 km';
+    final completed = _stats?.totalTrailsCompleted ?? 18;
+
+    final cards = [
+      _KpiData(
+        icon: Icons.landscape,
+        iconColor: AppTheme.primaryColor,
+        value: distance,
+        label: 'Distance Totale',
+      ),
+      const _KpiData(
+        icon: Icons.help,
+        iconColor: Color(0xFFE38020),
+        value: '3.2k m',
+        label: 'Denivele Positif',
+      ),
+      _KpiData(
+        icon: Icons.local_fire_department,
+        iconColor: const Color(0xFFE53A32),
+        value: '$completed',
+        label: 'Sentiers Completes',
+      ),
+    ];
+
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: cards
+            .map(
+              (item) => SizedBox(
+                width: (MediaQuery.of(context).size.width - 56) / 3,
+                child: _KpiCard(data: item),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildBadgesSection() {
+    final badges = _quizSummary?.badges ?? const <QuizBadgeModel>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Badges & Succes',
+          style: TextStyle(
+            fontSize: 40 / 2,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF212121),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 96,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _BadgeTile(
+                color: const Color(0xFFF8EFCB),
+                icon: Icons.military_tech,
+                iconColor: const Color(0xFFF4BA09),
+                label: badges.isNotEmpty ? badges.first.label : 'Sommet',
+              ),
+              const SizedBox(width: 12),
+              const _BadgeTile(
+                color: Color(0xFFDFF0E3),
+                icon: Icons.eco,
+                iconColor: Color(0xFF47B35B),
+                label: 'Eco-Guide',
+              ),
+              const SizedBox(width: 12),
+              const _BadgeTile(
+                color: Color(0xFFDDEDFC),
+                icon: Icons.explore,
+                iconColor: Color(0xFF2996ED),
+                label: 'Pionnier',
+              ),
+              const SizedBox(width: 12),
+              const _BadgeTile(
+                color: Color(0xFFF0EEE8),
+                icon: Icons.lock,
+                iconColor: Color(0xFFA7A7A7),
+                label: '???',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivitySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Activite Mensuelle',
+                style: TextStyle(
+                  fontSize: 40 / 2,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF212121),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {},
+              child: const Text(
+                'Voir details',
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(14, 18, 14, 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2EFE8),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFD5C0A0), width: 1.2),
+          ),
+          child: Column(
+            children: [
+              SizedBox(
+                height: 130,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: _weeklyBars
+                      .map(
+                        (bar) => Expanded(
+                          child: Center(
+                            child: Container(
+                              width: 24,
+                              height: bar,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Row(
+                children: [
+                  _WeekLabel(label: 'L'),
+                  _WeekLabel(label: 'M'),
+                  _WeekLabel(label: 'M'),
+                  _WeekLabel(label: 'J'),
+                  _WeekLabel(label: 'V'),
+                  _WeekLabel(label: 'S'),
+                  _WeekLabel(label: 'D'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistorySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Historique des Randonnees',
+                style: TextStyle(
+                  fontSize: 40 / 2,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF212121),
+                ),
+              ),
+            ),
+            Icon(Icons.tune, color: Color(0xFF4A4A4A)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ..._historyItems.map((item) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: _TrailHistoryCard(item: item),
+          );
+        }),
+        if (_isLoading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBottomActions(BuildContext context) {
+    final authProvider = context.read<AuthProvider>();
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.of(context).maybePop();
+            },
+            icon: const Icon(Icons.settings),
+            label: const Text('Parametres'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF242424),
+              side: const BorderSide(color: Color(0xFFBCBCC0)),
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              minimumSize: const Size.fromHeight(50),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Deconnexion'),
+                  content: const Text('Voulez-vous vous deconnecter ?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Annuler'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Deconnecter'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await authProvider.logout();
+              }
+            },
+            icon: const Icon(Icons.logout),
+            label: const Text('Deconnexion'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C4D1E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              minimumSize: const Size.fromHeight(50),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'admin':
+        return 'Administrateur';
+      case 'guide':
+        return 'Guide Expert';
+      default:
+        return 'Explorateur Passionne';
+    }
+  }
+
+  String _initials(String value) {
+    final words = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+
+    if (words.isEmpty) return 'E';
+    if (words.length == 1) return words.first[0].toUpperCase();
+    return (words.first[0] + words.last[0]).toUpperCase();
+  }
+}
+
+class _KpiData {
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
+
+  const _KpiData({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+  });
+}
+
+class _KpiCard extends StatelessWidget {
+  final _KpiData data;
+
+  const _KpiCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE6E9EF)),
+        color: const Color(0xFFF2EFE8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFD5C0A0), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Progression Quiz',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildInfoChip('Score total', '${summary.totalScore} pts'),
-              _buildInfoChip('Quiz joues', '${summary.quizzesCompleted}'),
-              _buildInfoChip(
-                'Moyenne',
-                '${summary.averagePercentage.toStringAsFixed(0)}%',
-              ),
-              _buildInfoChip(
-                'Meilleur',
-                '${summary.bestPercentage.toStringAsFixed(0)}%',
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Scores par categorie',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          if (summary.categoryScores.isEmpty)
-            Text(
-              'Aucun score enregistre pour le moment.',
-              style: TextStyle(color: Colors.grey[600]),
-            )
-          else
-            Column(
-              children: summary.categoryScores
-                  .where((score) => score.category != null)
-                  .map(
-                    (score) => ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.bar_chart, color: AppTheme.primaryColor),
-                      title: Text(_categoryLabel(score.category)),
-                      subtitle: Text(
-                        '${score.correctAnswers}/${score.totalQuestions} bonnes reponses',
-                      ),
-                      trailing: Text(
-                        '${score.totalScore} pts',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  )
-                  .toList(),
+          Icon(data.icon, color: data.iconColor, size: 24),
+          const SizedBox(height: 10),
+          Text(
+            data.value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF222222),
             ),
-          const SizedBox(height: 16),
-          const Text(
-            'Badges debloques',
-            style: TextStyle(fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
-          if (summary.badges.isEmpty)
-            Text(
-              'Continuez pour debloquer vos premiers badges (>100 pts).',
-              style: TextStyle(color: Colors.grey[600]),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: summary.badges
-                  .map(
-                    (badge) => Chip(
-                      avatar: Icon(
-                        _iconFromName(badge.icon),
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      backgroundColor:
-                          _parseColor(badge.color).withValues(alpha: 0.9),
-                      labelStyle: const TextStyle(color: Colors.white),
-                      label: Text(badge.label),
-                    ),
-                  )
-                  .toList(),
+          const SizedBox(height: 2),
+          Text(
+            data.label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF535353),
             ),
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildInfoChip(String label, String value) {
+class _BadgeTile extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+
+  const _BadgeTile({
+    required this.color,
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      width: 152,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F7FA),
+        color: color,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: iconColor.withValues(alpha: 0.25)),
       ),
-      child: Text('$label: $value'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: iconColor, size: 34),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2A2A2A),
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
 
-  String _categoryLabel(String? category) {
-    switch (category) {
-      case 'flora':
-        return 'Flore';
-      case 'fauna':
-        return 'Faune';
-      case 'ecology':
-        return 'Ecologie';
-      case 'history':
-        return 'Histoire';
-      case 'geography':
-        return 'Geographie';
-      case 'safety':
-        return 'Securite';
-      default:
-        return 'General';
-    }
-  }
+class _WeekLabel extends StatelessWidget {
+  final String label;
 
-  IconData _iconFromName(String? iconName) {
-    switch (iconName) {
-      case 'emoji_events':
-        return Icons.emoji_events;
-      case 'workspace_premium':
-        return Icons.workspace_premium;
-      case 'verified':
-        return Icons.verified;
-      case 'military_tech':
-      default:
-        return Icons.military_tech;
-    }
-  }
+  const _WeekLabel({required this.label});
 
-  Color _parseColor(String? color) {
-    if (color == null || color.isEmpty) {
-      return AppTheme.primaryColor;
-    }
-
-    final hex = color.replaceAll('#', '');
-    final normalized = hex.length == 6 ? 'FF$hex' : hex;
-    final parsed = int.tryParse(normalized, radix: 16);
-    if (parsed == null) return AppTheme.primaryColor;
-    return Color(parsed);
-  }
-
-  void _showSettingsDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Parametres',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: const Icon(Icons.language),
-              title: const Text('Langue'),
-              subtitle: const Text('Francais'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Changement de langue bientot disponible')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.notifications),
-              title: const Text('Notifications'),
-              trailing: Switch(value: true, onChanged: (_) {}),
-            ),
-            ListTile(
-              leading: const Icon(Icons.location_on),
-              title: const Text('GPS'),
-              trailing: Switch(value: true, onChanged: (_) {}),
-            ),
-            const SizedBox(height: 16),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Color(0xFF6E6E6E),
+          fontWeight: FontWeight.w500,
+          fontSize: 16,
         ),
       ),
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _TrailHistoryItem {
+  final String title;
+  final String date;
+  final String distance;
+  final String duration;
+  final String imageUrl;
+
+  const _TrailHistoryItem({
+    required this.title,
+    required this.date,
+    required this.distance,
+    required this.duration,
+    required this.imageUrl,
+  });
+}
+
+class _TrailHistoryCard extends StatelessWidget {
+  final _TrailHistoryItem item;
+
+  const _TrailHistoryCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2EFE8),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFD5C0A0), width: 1.1),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(
+              item.imageUrl,
+              width: 96,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 96,
+                height: 80,
+                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                child: const Icon(Icons.image, color: AppTheme.primaryColor),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: Color(0xFF232323),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_month, size: 17, color: Color(0xFF616161)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        item.date,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF616161),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _TrailMetaInfo(
+                      icon: Icons.straighten,
+                      value: item.distance,
+                    ),
+                    _TrailMetaInfo(
+                      icon: Icons.timer,
+                      value: item.duration,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded, size: 28, color: Color(0xFFCFAF80)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrailMetaInfo extends StatelessWidget {
   final IconData icon;
-  final String label;
   final String value;
 
-  const _StatCard({
+  const _TrailMetaInfo({
     required this.icon,
-    required this.label,
     required this.value,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: AppTheme.primaryColor, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 17, color: AppTheme.primaryColor),
+        const SizedBox(width: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(0xFF2F2F2F),
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
           ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
