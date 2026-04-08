@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 class ApiConstants {
   // Optional runtime overrides:
-  // flutter run --dart-define=API_HOST=192.168.1.100 --dart-define=API_PORT=3000
+  // flutter run --dart-define=API_HOST=192.168.71.79 --dart-define=API_PORT=3000
   static const String _configuredHost = String.fromEnvironment('API_HOST');
   static const String _configuredPort = String.fromEnvironment('API_PORT');
 

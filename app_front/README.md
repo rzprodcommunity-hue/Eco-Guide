@@ -21,7 +21,7 @@ Avant de lancer l'application, configurez l'URL de l'API backend dans le fichier
 
 3. **Appareil physique** : Utilisez l'adresse IP de votre ordinateur
    ```dart
-   static const String _host = '192.168.1.100'; // Remplacez par votre IP
+   static const String _host = '192.168.71.79'; // Remplacez par votre IP
    ```
 
 ## Installation
