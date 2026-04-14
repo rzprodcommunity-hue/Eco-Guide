@@ -11,6 +11,10 @@ import 'providers/local_service_provider.dart';
 import 'providers/weather_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'core/services/offline_sos_service.dart';
+import 'services/sos_service.dart';
+import 'services/socket_service.dart';
 
 void main() {
   runApp(const EcoGuideApp());
@@ -75,8 +79,60 @@ class EcoGuideApp extends StatelessWidget {
   }
 }
 
-class AppWrapper extends StatelessWidget {
+class AppWrapper extends StatefulWidget {
   const AppWrapper({super.key});
+
+  @override
+  State<AppWrapper> createState() => _AppWrapperState();
+}
+
+class _AppWrapperState extends State<AppWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Start listening for network to sync offline SOS queue
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) {
+      if (!result.contains(ConnectivityResult.none) && result.isNotEmpty) {
+        // Network is back, try syncing!
+        if (mounted) {
+          final apiClient = context.read<ApiClient>();
+          OfflineSosService.syncOfflineAlerts(SosService(apiClient));
+        }
+      }
+    });
+
+    // Initialize real-time updates from Dashboard
+    SocketService.init();
+
+    SocketService.on('trail_updated', (data) {
+      if (mounted) {
+        print('📡 Real-time update: Trail ${data['action']}');
+        context.read<TrailProvider>().loadTrails(refresh: true);
+      }
+    });
+
+    SocketService.on('poi_updated', (data) {
+      if (mounted) {
+        print('📡 Real-time update: POI ${data['action']}');
+        context.read<PoiProvider>().loadPois();
+      }
+    });
+
+    SocketService.on('service_updated', (data) {
+      if (mounted) {
+        print('📡 Real-time update: Service ${data['action']}');
+        context.read<LocalServiceProvider>().loadServices();
+      }
+    });
+
+    SocketService.on('quiz_updated', (data) {
+      if (mounted) {
+        print('📡 Real-time update: Quiz ${data['action']}');
+        context.read<QuizProvider>().loadCategoryStats();
+        context.read<QuizProvider>().loadUserScores();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

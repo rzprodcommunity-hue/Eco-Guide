@@ -6,17 +6,21 @@ import { CreatePoiDto } from './dto/create-poi.dto';
 import { UpdatePoiDto } from './dto/update-poi.dto';
 import { PoiQueryDto, PoiNearbyQueryDto } from './dto/poi-query.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class PoisService {
   constructor(
     @InjectRepository(Poi)
     private poisRepository: Repository<Poi>,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   async create(createPoiDto: CreatePoiDto): Promise<Poi> {
     const poi = this.poisRepository.create(createPoiDto);
-    return this.poisRepository.save(poi);
+    const savedPoi = await this.poisRepository.save(poi);
+    this.eventsGateway.broadcast('poi_updated', { action: 'create', data: savedPoi });
+    return savedPoi;
   }
 
   async findAll(queryDto: PoiQueryDto): Promise<PaginatedResult<Poi>> {
@@ -123,11 +127,14 @@ export class PoisService {
   async update(id: string, updatePoiDto: UpdatePoiDto): Promise<Poi> {
     const poi = await this.findOne(id);
     Object.assign(poi, updatePoiDto);
-    return this.poisRepository.save(poi);
+    const updatedPoi = await this.poisRepository.save(poi);
+    this.eventsGateway.broadcast('poi_updated', { action: 'update', data: updatedPoi });
+    return updatedPoi;
   }
 
   async remove(id: string): Promise<void> {
     const poi = await this.findOne(id);
     await this.poisRepository.remove(poi);
+    this.eventsGateway.broadcast('poi_updated', { action: 'delete', id });
   }
 }

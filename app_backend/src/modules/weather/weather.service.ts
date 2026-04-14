@@ -14,12 +14,12 @@ export interface CurrentWeatherResponse {
 
 @Injectable()
 export class WeatherService {
-  private readonly defaultLat = 31.6295;
-  private readonly defaultLng = -7.9811;
+  private readonly DEFAULT_LAT = 36.9544; // Tabarka Coast
+  private readonly DEFAULT_LNG = 8.7580;    // Tabarka, Tunisia
 
   async getCurrentWeather(lat?: number, lng?: number): Promise<CurrentWeatherResponse> {
-    const latitude = lat ?? this.defaultLat;
-    const longitude = lng ?? this.defaultLng;
+    const latitude = lat ?? this.DEFAULT_LAT;
+    const longitude = lng ?? this.DEFAULT_LNG;
 
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', latitude.toString());

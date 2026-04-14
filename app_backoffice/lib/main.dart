@@ -10,9 +10,11 @@ import 'core/providers/local_services_provider.dart';
 import 'core/providers/sos_alerts_provider.dart';
 import 'core/constants/app_colors.dart';
 import 'router/app_router.dart';
+import 'core/services/socket_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SocketService.init();
   runApp(const EcoGuideBackoffice());
 }
 

@@ -6,17 +6,21 @@ import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDto } from './dto/update-trail.dto';
 import { TrailQueryDto, NearbyQueryDto } from './dto/trail-query.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class TrailsService {
   constructor(
     @InjectRepository(Trail)
     private trailsRepository: Repository<Trail>,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   async create(createTrailDto: CreateTrailDto): Promise<Trail> {
     const trail = this.trailsRepository.create(createTrailDto);
-    return this.trailsRepository.save(trail);
+    const savedTrail = await this.trailsRepository.save(trail);
+    this.eventsGateway.broadcast('trail_updated', { action: 'create', data: savedTrail });
+    return savedTrail;
   }
 
   async findAll(queryDto: TrailQueryDto): Promise<PaginatedResult<Trail>> {
@@ -139,11 +143,14 @@ export class TrailsService {
   async update(id: string, updateTrailDto: UpdateTrailDto): Promise<Trail> {
     const trail = await this.findOne(id);
     Object.assign(trail, updateTrailDto);
-    return this.trailsRepository.save(trail);
+    const updatedTrail = await this.trailsRepository.save(trail);
+    this.eventsGateway.broadcast('trail_updated', { action: 'update', data: updatedTrail });
+    return updatedTrail;
   }
 
   async remove(id: string): Promise<void> {
     const trail = await this.findOne(id);
     await this.trailsRepository.remove(trail);
+    this.eventsGateway.broadcast('trail_updated', { action: 'delete', id });
   }
 }

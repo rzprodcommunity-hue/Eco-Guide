@@ -12,6 +12,23 @@ export class MediaService {
     });
   }
 
+  private getActualMimeType(file: Express.Multer.File): string {
+    if (!file.mimetype || file.mimetype === 'application/octet-stream') {
+      const ext = file.originalname?.split('.').pop()?.toLowerCase();
+      if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+      if (ext === 'png') return 'image/png';
+      if (ext === 'gif') return 'image/gif';
+      if (ext === 'webp') return 'image/webp';
+      if (ext === 'mp4') return 'video/mp4';
+      if (ext === 'mov') return 'video/quicktime';
+      if (ext === 'avi') return 'video/x-msvideo';
+      if (ext === 'mp3') return 'audio/mpeg';
+      if (ext === 'wav') return 'audio/wav';
+      if (ext === 'ogg') return 'audio/ogg';
+    }
+    return file.mimetype;
+  }
+
   async uploadImage(
     file: Express.Multer.File,
     folder: string = 'eco-guide',
@@ -20,9 +37,10 @@ export class MediaService {
       throw new BadRequestException('No file provided');
     }
 
+    const actualMimeType = this.getActualMimeType(file);
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
+    if (!allowedMimeTypes.includes(actualMimeType)) {
+      throw new BadRequestException(`Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed. Got ${actualMimeType} from ${file.originalname}`);
     }
 
     try {
@@ -44,9 +62,10 @@ export class MediaService {
       throw new BadRequestException('No file provided');
     }
 
+    const actualMimeType = this.getActualMimeType(file);
     const allowedMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Invalid file type. Only MP4, MOV, and AVI are allowed.');
+    if (!allowedMimeTypes.includes(actualMimeType)) {
+      throw new BadRequestException(`Invalid file type. Only MP4, MOV, and AVI are allowed. Got ${actualMimeType}`);
     }
 
     // Check file size (max 100MB for videos)
@@ -74,9 +93,10 @@ export class MediaService {
       throw new BadRequestException('No file provided');
     }
 
+    const actualMimeType = this.getActualMimeType(file);
     const allowedMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Invalid file type. Only MP3, WAV, and OGG are allowed.');
+    if (!allowedMimeTypes.includes(actualMimeType)) {
+      throw new BadRequestException(`Invalid file type. Only MP3, WAV, and OGG are allowed. Got ${actualMimeType}`);
     }
 
     try {

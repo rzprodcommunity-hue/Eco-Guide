@@ -143,7 +143,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
@@ -153,7 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Icon(icon, color: color, size: 28),
           ),
-          const Spacer(),
+          const SizedBox(height: 12),
           Text(
             value,
             style: const TextStyle(

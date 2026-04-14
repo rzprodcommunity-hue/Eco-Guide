@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:flutter/widgets.dart';
+import 'package:flutter_map/flutter_map.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -86,6 +88,7 @@ class MapOfflineService {
 
   Future<MapOfflineDownloadResult> downloadTabarkaTiles({
     List<int> zooms = _defaultZooms,
+    void Function(double progress, int downloaded, int total)? onProgress,
   }) async {
     final baseDir = await _baseTileDirectory();
     await baseDir.create(recursive: true);
@@ -93,6 +96,9 @@ class MapOfflineService {
     var downloaded = 0;
     var alreadyCached = 0;
     var failed = 0;
+
+    final totalTiles = estimateTileCount(zooms: zooms);
+    var processedTiles = 0;
 
     for (final z in zooms) {
       final xMin = _lonToTileX(TabarkaMapBounds.minLng, z);
@@ -122,6 +128,11 @@ class MapOfflineService {
             }
           } catch (_) {
             failed++;
+          }
+
+          processedTiles++;
+          if (onProgress != null && totalTiles > 0) {
+            onProgress(processedTiles / totalTiles, downloaded + alreadyCached, totalTiles);
           }
         }
       }
@@ -169,5 +180,27 @@ class MapOfflineService {
             2.0 *
             n)
         .floor();
+  }
+}
+
+class LocalFirstTileProvider extends TileProvider {
+  final MapOfflineService _mapOfflineService;
+  
+  LocalFirstTileProvider({MapOfflineService? service}) 
+    : _mapOfflineService = service ?? MapOfflineService();
+
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
+    final z = coordinates.z.round();
+    final x = coordinates.x.round();
+    final y = coordinates.y.round();
+
+    final cachedFile = _mapOfflineService.tileFileSync(z: z, x: x, y: y);
+    if (cachedFile != null) {
+      return FileImage(cachedFile);
+    }
+
+    final url = _mapOfflineService.tileUrl(z: z, x: x, y: y);
+    return NetworkImage(url);
   }
 }

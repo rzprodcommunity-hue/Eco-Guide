@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../services/map_offline_service.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../../models/local_service.dart';
 import '../../models/poi.dart';
@@ -337,8 +338,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: _mapStyle.urlTemplate,
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.ecoguide.app',
+                tileProvider: LocalFirstTileProvider(),
               ),
               if (hasDestination)
                 PolylineLayer(

@@ -300,7 +300,7 @@ class _MapScreenState extends State<MapScreen> {
                       urlTemplate:
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.ecoguide.app',
-                      tileProvider: _LocalFirstTileProvider(_mapOfflineService),
+                      tileProvider: LocalFirstTileProvider(service: _mapOfflineService),
                     ),
                     MarkerLayer(
                       markers: [
@@ -382,23 +382,4 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-class _LocalFirstTileProvider extends TileProvider {
-  _LocalFirstTileProvider(this._mapOfflineService);
 
-  final MapOfflineService _mapOfflineService;
-
-  @override
-  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
-    final z = coordinates.z.round();
-    final x = coordinates.x.round();
-    final y = coordinates.y.round();
-
-    final cachedFile = _mapOfflineService.tileFileSync(z: z, x: x, y: y);
-    if (cachedFile != null) {
-      return FileImage(cachedFile);
-    }
-
-    final url = _mapOfflineService.tileUrl(z: z, x: x, y: y);
-    return NetworkImage(url);
-  }
-}

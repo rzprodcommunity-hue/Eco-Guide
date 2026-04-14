@@ -14,6 +14,7 @@ import { OfflineModule } from './modules/offline/offline.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { WeatherModule } from './modules/weather/weather.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
@@ -43,6 +44,9 @@ import { WeatherModule } from './modules/weather/weather.module';
 
     // Backoffice module
     AdminModule,
+
+    // Real-time events
+    EventsModule,
   ],
 })
 export class AppModule {}

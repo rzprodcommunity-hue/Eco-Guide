@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../core/providers/sos_alerts_provider.dart';
 import '../../core/models/sos_alert_model.dart';
 import '../../core/constants/app_colors.dart';
@@ -37,6 +40,20 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             children: [
               Row(
                 children: [
+                  if (provider.isAlarmPlaying)
+                    Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.volume_off, color: Colors.white),
+                        label: const Text('COUPER L\'ALARME', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        onPressed: () => provider.stopAlarm(),
+                      ),
+                    ),
                   if (provider.activeAlerts.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -354,16 +371,164 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
   }
 
   void _openMaps(SosAlertModel alert) {
-    final url = 'https://www.google.com/maps?q=${alert.latitude},${alert.longitude}';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ouvrir: $url')),
+    final alertPosition = LatLng(alert.latitude, alert.longitude);
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: SizedBox(
+            width: 700,
+            height: 520,
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    border: Border(bottom: BorderSide(color: AppColors.error.withOpacity(0.3))),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on, color: AppColors.error, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Localisation de l\'alerte SOS',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Lat: ${alert.latitude.toStringAsFixed(6)}  |  Lng: ${alert.longitude.toStringAsFixed(6)}',
+                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                // Map
+                Expanded(
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: alertPosition,
+                      initialZoom: 15.0,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.ecoguide.backoffice',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: alertPosition,
+                            width: 60,
+                            height: 60,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.error.withOpacity(0.15),
+                                  ),
+                                ),
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.error.withOpacity(0.3),
+                                  ),
+                                ),
+                                Container(
+                                  width: 18,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.error,
+                                    border: Border.all(color: Colors.white, width: 3),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.error.withOpacity(0.5),
+                                        blurRadius: 8,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Footer actions
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: '${alert.latitude}, ${alert.longitude}'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Coordonnees copiees dans le presse-papiers'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.copy, size: 16),
+                        label: const Text('Copier coordonnees'),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Fermer'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.success,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   void _copyCoordinates(SosAlertModel alert) {
+    Clipboard.setData(ClipboardData(text: '${alert.latitude}, ${alert.longitude}'));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Coordonnees copiees: ${alert.latitude}, ${alert.longitude}'),
+      const SnackBar(
+        content: Text('Coordonnees copiees dans le presse-papiers'),
+        backgroundColor: AppColors.success,
       ),
     );
   }

@@ -8,6 +8,7 @@ import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { SubmitQuizScoreDto } from './dto/submit-quiz-score.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { EventsGateway } from '../events/events.gateway';
 
 type BadgeRule = {
   key: string;
@@ -72,11 +73,14 @@ export class QuizzesService {
     private quizScoresRepository: Repository<QuizScore>,
     @InjectRepository(QuizBadge)
     private quizBadgesRepository: Repository<QuizBadge>,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   async create(createQuizDto: CreateQuizDto): Promise<Quiz> {
     const quiz = this.quizzesRepository.create(createQuizDto);
-    return this.quizzesRepository.save(quiz);
+    const savedQuiz = await this.quizzesRepository.save(quiz);
+    this.eventsGateway.broadcast('quiz_updated', { action: 'create', data: savedQuiz });
+    return savedQuiz;
   }
 
   async findAll(paginationDto: PaginationDto): Promise<PaginatedResult<Quiz>> {
@@ -152,12 +156,15 @@ export class QuizzesService {
   async update(id: string, updateQuizDto: UpdateQuizDto): Promise<Quiz> {
     const quiz = await this.findOne(id);
     Object.assign(quiz, updateQuizDto);
-    return this.quizzesRepository.save(quiz);
+    const updatedQuiz = await this.quizzesRepository.save(quiz);
+    this.eventsGateway.broadcast('quiz_updated', { action: 'update', data: updatedQuiz });
+    return updatedQuiz;
   }
 
   async remove(id: string): Promise<void> {
     const quiz = await this.findOne(id);
     await this.quizzesRepository.remove(quiz);
+    this.eventsGateway.broadcast('quiz_updated', { action: 'delete', id });
   }
 
   async submitScore(userId: string, dto: SubmitQuizScoreDto): Promise<QuizScore> {

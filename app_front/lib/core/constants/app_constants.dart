@@ -13,8 +13,8 @@ class AppConstants {
   static const double defaultSearchRadius = 50.0; // km
 
   // Map settings
-  static const double defaultLatitude = 31.6295;
-  static const double defaultLongitude = -7.9811;
+  static const double defaultLatitude = 36.9544; // Tabarka Coast
+  static const double defaultLongitude = 8.7580;    // Tabarka, Tunisia
   static const double defaultZoom = 12.0;
 
   // Difficulties

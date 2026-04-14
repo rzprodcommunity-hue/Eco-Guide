@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/map_offline_service.dart';
 import '../profile/profile_screen.dart';
+import '../offline/offline_trails_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,12 +21,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _securityAlerts = false;
   bool _gpsEnabled = false;
   bool _powerSaving = false;
+  final MapOfflineService _mapOfflineService = MapOfflineService();
+  bool _hasOfflineMap = false;
+  bool _isDownloadingMap = false;
+  String _offlineMapStatus = 'Vérification...';
 
   static const Color _pageBg = Color(0xFFF6F5F2);
   static const Color _cardBg = Color(0xFFEDE8DF);
   static const Color _title = Color(0xFF222222);
   static const Color _subtitle = Color(0xFF666666);
   static const Color _muted = Color(0xFF8C8895);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+    _checkOfflineMap();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _trailAlerts = prefs.getBool('settings_trail_alerts') ?? false;
+        _poiAlerts = prefs.getBool('settings_poi_alerts') ?? true;
+        _securityAlerts = prefs.getBool('settings_security_alerts') ?? true;
+        _gpsEnabled = prefs.getBool('settings_gps_enabled') ?? true;
+        _powerSaving = prefs.getBool('settings_power_saving') ?? false;
+      });
+    }
+  }
+
+  Future<void> _updateSetting(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+  }
+
+  Future<void> _checkOfflineMap() async {
+    await _mapOfflineService.initialize();
+    final hasTiles = await _mapOfflineService.hasAnyOfflineTile();
+    if (mounted) {
+      setState(() {
+        _hasOfflineMap = hasTiles;
+        _offlineMapStatus = hasTiles ? 'Disponible (Tabarka)' : 'Télécharger via WIFI';
+      });
+    }
+  }
+
+  Future<void> _handleDownloadMap() async {
+    if (_hasOfflineMap) return;
+    setState(() {
+      _isDownloadingMap = true;
+      _offlineMapStatus = 'Téléchargement en cours...';
+    });
+    
+    try {
+      await _mapOfflineService.downloadTabarkaTiles();
+      await _checkOfflineMap();
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carte de Tabarka téléchargée avec succès. Vous pouvez maintenant naviguer hors ligne !'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) {
+         setState(() => _isDownloadingMap = false);
+         _checkOfflineMap();
+      }
+    }
+  }
+
+  Future<void> _handleClearCache() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vider le cache ?'),
+        content: const Text('Cela supprimera la carte hors ligne. Vous devrez la retélécharger avec une connexion Internet.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Supprimer', style: TextStyle(color: Colors.red))),
+        ],
+      )
+    );
+    if (confirm != true) return;
+
+    await _mapOfflineService.clearTabarkaTiles();
+    await _checkOfflineMap();
+    if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cache vidé avec succès')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +180,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: 'Recevoir des alertes en cas de danger',
                       trailing: _buildSwitch(
                         value: _trailAlerts,
-                        onChanged: (value) => setState(() => _trailAlerts = value),
+                        onChanged: (value) {
+                          setState(() => _trailAlerts = value);
+                          _updateSetting('settings_trail_alerts', value);
+                        },
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -102,7 +194,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: 'Notifications a proximite des POI',
                       trailing: _buildSwitch(
                         value: _poiAlerts,
-                        onChanged: (value) => setState(() => _poiAlerts = value),
+                        onChanged: (value) {
+                          setState(() => _poiAlerts = value);
+                          _updateSetting('settings_poi_alerts', value);
+                        },
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -113,7 +208,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: 'Informations meteo et secours',
                       trailing: _buildSwitch(
                         value: _securityAlerts,
-                        onChanged: (value) => setState(() => _securityAlerts = value),
+                        onChanged: (value) {
+                          setState(() => _securityAlerts = value);
+                          _updateSetting('settings_security_alerts', value);
+                        },
                       ),
                     ),
                   ],
@@ -132,7 +230,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: 'Necessaire pour la navigation',
                       trailing: _buildSwitch(
                         value: _gpsEnabled,
-                        onChanged: (value) => setState(() => _gpsEnabled = value),
+                        onChanged: (value) {
+                          setState(() => _gpsEnabled = value);
+                          _updateSetting('settings_gps_enabled', value);
+                        },
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -164,7 +265,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: 'Reduit la frequence du GPS + mode dark',
                       trailing: _buildSwitch(
                         value: _powerSaving,
-                        onChanged: (value) => setState(() => _powerSaving = value),
+                        onChanged: (value) {
+                          setState(() => _powerSaving = value);
+                          _updateSetting('settings_power_saving', value);
+                        },
                       ),
                     ),
                   ],
@@ -175,34 +279,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 10),
               _SettingCard(
                 child: Column(
-                  children: const [
+                  children: [
                     _SettingTile(
                       icon: Icons.download_for_offline,
                       iconColor: AppTheme.primaryColor,
                       title: 'Cartes hors ligne',
-                      subtitle: 'Gerer vos cartes telechargees',
+                      subtitle: _offlineMapStatus,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const OfflineTrailsScreen()),
+                        );
+                        _checkOfflineMap();
+                      },
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            '1.2 GB',
-                            style: TextStyle(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w700,
+                          if (_isDownloadingMap) 
+                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          else 
+                            Text(
+                              _hasOfflineMap ? 'OK' : '12 MB',
+                              style: const TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.chevron_right_rounded, color: _muted),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chevron_right_rounded, color: _muted),
                         ],
                       ),
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     _SettingTile(
                       icon: Icons.delete_outline,
                       iconColor: AppTheme.primaryColor,
                       title: 'Vider le cache',
                       subtitle: 'Liberer de l\'espace local',
-                      trailing: Icon(Icons.chevron_right_rounded, color: _muted),
+                      onTap: _handleClearCache,
+                      trailing: const Icon(Icons.chevron_right_rounded, color: _muted),
                     ),
                   ],
                 ),

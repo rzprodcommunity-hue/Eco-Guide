@@ -10,6 +10,7 @@ import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/poi_provider.dart';
 import '../../core/widgets/eco_page_header.dart';
+import '../../services/map_offline_service.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../home/home_screen.dart';
 
@@ -123,6 +124,7 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.ecoguide.app',
+                      tileProvider: LocalFirstTileProvider(),
                     ),
                     if (target != null)
                       PolylineLayer(

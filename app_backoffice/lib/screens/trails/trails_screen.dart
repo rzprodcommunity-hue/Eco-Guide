@@ -1,10 +1,17 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:data_table_2/data_table_2.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../core/providers/trails_provider.dart';
 import '../../core/models/trail_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/api_constants.dart';
+import '../../core/services/api_service.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class TrailsScreen extends StatefulWidget {
   const TrailsScreen({super.key});
@@ -14,6 +21,26 @@ class TrailsScreen extends StatefulWidget {
 }
 
 class _TrailsScreenState extends State<TrailsScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _distanceController = TextEditingController();
+  final _elevationController = TextEditingController();
+  final _regionController = TextEditingController();
+  final _searchController = TextEditingController();
+
+  TrailDifficulty _difficulty = TrailDifficulty.moderate;
+  bool _isActive = true;
+  bool _isSaving = false;
+  String? _editingId;
+  Map<String, dynamic>? _geojson;
+  LatLng _mapCenter = const LatLng(31.6295, -7.9811);
+  final _scrollController = ScrollController();
+  final _formSectionKey = GlobalKey();
+  
+  List<String> _imageUrls = [];
+  bool _isUploadingImage = false;
+
   @override
   void initState() {
     super.initState();
@@ -23,32 +50,749 @@ class _TrailsScreenState extends State<TrailsScreen> {
   }
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _distanceController.dispose();
+    _elevationController.dispose();
+    _regionController.dispose();
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _editTrail(TrailModel trail) {
+    setState(() {
+      _editingId = trail.id;
+      _nameController.text = trail.name;
+      _descriptionController.text = trail.description;
+      _distanceController.text = trail.distance.toString();
+      _elevationController.text = trail.elevationGain?.toString() ?? '';
+      _regionController.text = trail.region ?? '';
+      _difficulty = trail.difficulty;
+      _isActive = trail.isActive;
+      _geojson = trail.geojson;
+      if (trail.startLatitude != null && trail.startLongitude != null) {
+        _mapCenter = LatLng(trail.startLatitude!, trail.startLongitude!);
+      }
+      _imageUrls = trail.imageUrls ?? [];
+    });
+  }
+
+  void _resetForm() {
+    setState(() {
+      _editingId = null;
+      _nameController.clear();
+      _descriptionController.clear();
+      _distanceController.clear();
+      _elevationController.clear();
+      _regionController.clear();
+      _difficulty = TrailDifficulty.moderate;
+      _isActive = true;
+      _geojson = null;
+      _imageUrls = [];
+      _mapCenter = const LatLng(31.6295, -7.9811);
+    });
+    // Scroll to form section
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_formSectionKey.currentContext != null) {
+        Scrollable.ensureVisible(
+          _formSectionKey.currentContext!,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _pickGeoJson() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json', 'geojson', 'gpx'],
+      withData: true,
+    );
+    if (result != null && result.files.single.bytes != null) {
+      try {
+        final content = utf8.decode(result.files.single.bytes!);
+        final json = jsonDecode(content);
+        setState(() => _geojson = json);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('GPX/GeoJSON imported successfully'), backgroundColor: AppColors.success),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid file format'), backgroundColor: AppColors.error),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _saveTrail({bool asDraft = false}) async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final provider = context.read<TrailsProvider>();
+      final data = <String, dynamic>{
+        'name': _nameController.text.trim(),
+        'description': _descriptionController.text.trim().isNotEmpty
+            ? _descriptionController.text.trim()
+            : 'No description provided',
+        'distance': double.tryParse(_distanceController.text) ?? 0.1,
+        'difficulty': _difficulty.name,
+        'startLatitude': _mapCenter.latitude,
+        'startLongitude': _mapCenter.longitude,
+        'isActive': asDraft ? false : _isActive,
+      };
+
+      // Only add optional fields if they have values
+      if (_elevationController.text.isNotEmpty) {
+        data['elevationGain'] = int.tryParse(_elevationController.text);
+      }
+      if (_regionController.text.trim().isNotEmpty) {
+        data['region'] = _regionController.text.trim();
+      }
+      if (_geojson != null) {
+        data['geojson'] = _geojson;
+      }
+      data['imageUrls'] = _imageUrls;
+
+      bool success;
+      if (_editingId != null) {
+        success = await provider.updateTrail(_editingId!, data);
+      } else {
+        success = await provider.createTrail(data);
+      }
+
+      setState(() => _isSaving = false);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_editingId != null ? 'Trail updated!' : (asDraft ? 'Draft saved!' : 'Trail published!')),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        _resetForm();
+      } else if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(provider.error ?? 'Failed to save trail'), backgroundColor: AppColors.error),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (c) => AlertDialog(
+            title: const Text('Error'),
+            content: Text(e.toString()),
+            actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteTrail(TrailModel trail) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: Text('Delete "${trail.name}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      await context.read<TrailsProvider>().deleteTrail(trail.id);
+    }
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return;
+
+    final file = result.files.single;
+    setState(() => _isUploadingImage = true);
+
+    try {
+      final uri = Uri.parse(ApiConstants.mediaUploadImage);
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer ${ApiService.token}';
+      String mimeType = 'jpeg';
+      String ext = file.name.split('.').last.toLowerCase();
+      if (ext == 'png') mimeType = 'png';
+      else if (ext == 'gif') mimeType = 'gif';
+      else if (ext == 'webp') mimeType = 'webp';
+
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        file.bytes!,
+        filename: file.name,
+        contentType: MediaType('image', mimeType),
+      ));
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final body = jsonDecode(response.body);
+        final url = body['url'] as String;
+        setState(() {
+          _imageUrls.add(url);
+          _isUploadingImage = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image uploadée avec succès!'), backgroundColor: AppColors.success),
+          );
+        }
+      } else {
+        setState(() => _isUploadingImage = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Upload échoué: ${response.body}'), backgroundColor: AppColors.error),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isUploadingImage = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur upload: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _imageUrls.removeAt(index);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final provider = context.watch<TrailsProvider>();
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${provider.total} sentiers au total',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 16,
-                ),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Trail Management', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  SizedBox(height: 8),
+                  Text('Create, monitor, and update hiking routes across the ecosystem.', style: TextStyle(color: AppColors.textSecondary)),
+                ],
               ),
               ElevatedButton.icon(
-                onPressed: () => context.go('/trails/create'),
+                onPressed: _resetForm,
                 icon: const Icon(Icons.add),
-                label: const Text('Nouveau Sentier'),
+                label: const Text('Create New Trail'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Stats Cards
+          _buildStatsRow(provider),
+          const SizedBox(height: 24),
+
+          // Form + Sidebar
+          Row(
+            key: _formSectionKey,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left: Trail Details Form
+              Expanded(
+                flex: 3,
+                child: _buildTrailDetailsForm(),
+              ),
+              const SizedBox(width: 24),
+              // Right: Pro Tip + Publishing Status
+              Expanded(
+                flex: 1,
+                child: Column(
+                  children: [
+                    _buildProTipCard(),
+                    const SizedBox(height: 24),
+                    _buildPublishingCard(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // Existing Trails Table
+          _buildExistingTrailsTable(provider),
+        ],
+      ),
+    );
+  }
+
+  // ── Stats Row ────────────────────────────────────────
+  Widget _buildStatsRow(TrailsProvider provider) {
+    double totalDistance = 0;
+    int easyCount = 0, modCount = 0, diffCount = 0;
+    for (var t in provider.trails) {
+      totalDistance += t.distance;
+      if (t.difficulty == TrailDifficulty.easy) easyCount++;
+      if (t.difficulty == TrailDifficulty.moderate) modCount++;
+      if (t.difficulty == TrailDifficulty.difficult) diffCount++;
+    }
+    String avgDiff = 'Moderate';
+    if (easyCount >= modCount && easyCount >= diffCount) avgDiff = 'Easy';
+    if (diffCount >= modCount && diffCount >= easyCount) avgDiff = 'Hard';
+
+    return Row(
+      children: [
+        Expanded(child: _statCard('Total Trails', provider.total.toString(), Icons.terrain, AppColors.primary)),
+        const SizedBox(width: 16),
+        Expanded(child: _statCard('Active Hikers', '1,284', Icons.people, Colors.blue)),
+        const SizedBox(width: 16),
+        Expanded(child: _statCard('Total Distance', '${totalDistance.toStringAsFixed(0)} km', Icons.straighten, Colors.teal)),
+        const SizedBox(width: 16),
+        Expanded(child: _statCard('Avg. Difficulty', avgDiff, Icons.signal_cellular_alt, Colors.orange)),
+      ],
+    );
+  }
+
+  Widget _statCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500, fontSize: 13)),
+          const SizedBox(height: 12),
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        ],
+      ),
+    );
+  }
+
+  // ── Trail Details Form ───────────────────────────────
+  Widget _buildTrailDetailsForm() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _editingId != null ? 'Edit Trail' : 'Trail Details',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+
+            // Trail Name + Difficulty
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Trail Name',
+                      hintText: 'e.g. Pine Ridge Loop',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<TrailDifficulty>(
+                    value: _difficulty,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Difficulty Level',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: TrailDifficulty.values.map((d) {
+                      String label = d == TrailDifficulty.easy ? 'Easy' : d == TrailDifficulty.moderate ? 'Moderate' : 'Hard';
+                      return DropdownMenuItem(value: d, child: Text(label));
+                    }).toList(),
+                    onChanged: (v) => setState(() => _difficulty = v ?? TrailDifficulty.moderate),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Description
+            const Text('Description', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _descriptionController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Describe the terrain, views and safety tips...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Images
+            _buildImageUploadSection(),
+            const SizedBox(height: 24),
+
+            // Distance + Elevation
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Distance (km)', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _distanceController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '0.0'),
+                        validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Elevation Gain (m)', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _elevationController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '0'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Route Path + Upload GPX
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Route Path', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                TextButton.icon(
+                  onPressed: _pickGeoJson,
+                  icon: const Icon(Icons.upload_file, size: 18, color: AppColors.success),
+                  label: const Text('Upload GPX', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 220,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: _mapCenter,
+                    initialZoom: 10.0,
+                    onTap: (tapPosition, point) {
+                      setState(() => _mapCenter = point);
+                    },
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.ecoguide.app',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _mapCenter,
+                          width: 40,
+                          height: 40,
+                          child: const Icon(Icons.location_pin, color: AppColors.error, size: 40),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_geojson != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, color: AppColors.success, size: 16),
+                    SizedBox(width: 6),
+                    Text('GPX/GeoJSON loaded', style: TextStyle(color: AppColors.success, fontSize: 13)),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Trail Photos', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        const Text(
+          'Upload photos for this trail (first photo is the main one)',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            ..._imageUrls.asMap().entries.map((entry) {
+              final index = entry.key;
+              final url = entry.value;
+              return _buildImageThumbnail(url, index);
+            }),
+            _buildUploadButton(),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageThumbnail(String url, int index) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            url,
+            width: 100,
+            height: 100,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.broken_image, color: AppColors.textHint, size: 28),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: GestureDetector(
+            onTap: () => _removeImage(index),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+              child: const Icon(Icons.close, color: Colors.white, size: 14),
+            ),
+          ),
+        ),
+        if (index == 0)
+          Positioned(
+            bottom: 4,
+            left: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(8)),
+              child: const Text('Main', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildUploadButton() {
+    return GestureDetector(
+      onTap: _isUploadingImage ? null : _pickAndUploadImage,
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 2),
+        ),
+        child: _isUploadingImage
+            ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5)))
+            : const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary, size: 28),
+                  SizedBox(height: 6),
+                  Text('Upload', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ── Pro Tip Card ─────────────────────────────────────
+  Widget _buildProTipCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lightbulb_outline, color: AppColors.success, size: 28),
+          const SizedBox(height: 12),
+          const Text('Pro Tip', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(
+            'Include high-resolution photos of trail markers to help hikers stay on track. GPS coordinates for water sources are highly recommended.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Publishing Status Card ──────────────────────────
+  Widget _buildPublishingCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Publishing Status', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Switch(
+                value: _isActive,
+                onChanged: (v) => setState(() => _isActive = v),
+                activeColor: AppColors.success,
+              ),
+              const SizedBox(width: 8),
+              Text(_isActive ? 'Visible to Public' : 'Hidden (Draft)', style: const TextStyle(fontWeight: FontWeight.w500)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _isSaving ? null : () => _saveTrail(asDraft: true),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.divider),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text('Save Draft'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : () => _saveTrail(asDraft: false),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: _isSaving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text(_editingId != null ? 'Update Trail' : 'Publish Trail'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Existing Trails Table ───────────────────────────
+  Widget _buildExistingTrailsTable(TrailsProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with search
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Existing Trails', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              SizedBox(
+                width: 260,
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search trails...',
+                    prefixIcon: const Icon(Icons.search, color: AppColors.textHint),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  ),
                 ),
               ),
             ],
@@ -73,52 +817,132 @@ class _TrailsScreenState extends State<TrailsScreen> {
                   const Icon(Icons.error_outline, color: AppColors.error),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Erreur de chargement',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.error,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          provider.error!,
-                          style: const TextStyle(color: AppColors.error),
-                        ),
-                      ],
+                    child: Text(
+                      provider.error ?? 'Erreur de chargement',
+                      style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w500),
                     ),
                   ),
+                ],
+              ),
+            ),
+
+          // Table Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              children: [
+                Expanded(flex: 3, child: Text('NAME & REGION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
+                Expanded(flex: 2, child: Text('DISTANCE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
+                Expanded(flex: 2, child: Text('DIFFICULTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
+                Expanded(flex: 2, child: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
+                SizedBox(width: 80, child: Text('ACTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
+              ],
+            ),
+          ),
+
+          // Rows
+          if (provider.isLoading)
+            const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
+          else if (provider.trails.isEmpty)
+            const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No trails found.')))
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: provider.trails.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final trail = provider.trails[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      // Name & Region
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(trail.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text(trail.region ?? '', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      // Distance
+                      Expanded(
+                        flex: 2,
+                        child: Text('${trail.distance} km', style: const TextStyle(color: AppColors.textPrimary)),
+                      ),
+                      // Difficulty
+                      Expanded(
+                        flex: 2,
+                        child: _buildDifficultyBadge(trail.difficulty),
+                      ),
+                      // Status
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          trail.isActive ? 'Published' : 'Draft',
+                          style: TextStyle(
+                            color: trail.isActive ? AppColors.textPrimary : AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      // Actions
+                      SizedBox(
+                        width: 80,
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 18, color: AppColors.textSecondary),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _editTrail(trail),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _deleteTrail(trail),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+          // Pagination
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Showing 1-${provider.trails.length} of ${provider.total} trails',
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+              Row(
+                children: [
                   IconButton(
-                    onPressed: () {
-                      provider.clearError();
-                      provider.loadTrails();
-                    },
-                    icon: const Icon(Icons.refresh, color: AppColors.error),
-                    tooltip: 'Reessayer',
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: provider.currentPage > 1 ? () => provider.loadTrails(page: provider.currentPage - 1) : null,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: provider.currentPage < provider.totalPages ? () => provider.loadTrails(page: provider.currentPage + 1) : null,
                   ),
                 ],
               ),
-            ),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: provider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildDataTable(provider),
-            ),
+            ],
           ),
         ],
       ),
@@ -189,202 +1013,36 @@ class _TrailsScreenState extends State<TrailsScreen> {
     return '${mins}min';
   }
 
-  Widget _buildDataTable(TrailsProvider provider) {
-    return Column(
-      children: [
-        Expanded(
-          child: DataTable2(
-            columnSpacing: 16,
-            horizontalMargin: 16,
-            minWidth: 800,
-            headingRowColor: WidgetStateProperty.all(AppColors.background),
-            columns: const [
-              DataColumn2(label: Text('Nom'), size: ColumnSize.L),
-              DataColumn2(label: Text('Region')),
-              DataColumn2(label: Text('Distance')),
-              DataColumn2(label: Text('Difficulte')),
-              DataColumn2(label: Text('Duree')),
-              DataColumn2(label: Text('Statut')),
-              DataColumn2(label: Text('Actions'), fixedWidth: 120),
-            ],
-            rows: provider.trails
-                .map((trail) => _buildRow(trail, provider))
-                .toList(),
-          ),
-        ),
-        _buildPagination(provider),
-      ],
-    );
-  }
+  Widget _buildDifficultyBadge(TrailDifficulty difficulty) {
+    Color bgColor;
+    Color textColor;
+    String label;
 
-  DataRow _buildRow(TrailModel trail, TrailsProvider provider) {
-    return DataRow(
-      cells: [
-        DataCell(
-          Row(
-            children: [
-              if (trail.imageUrls?.isNotEmpty == true)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    trail.imageUrls!.first,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 48,
-                      height: 48,
-                      color: AppColors.background,
-                      child: const Icon(Icons.hiking, color: AppColors.textHint),
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.hiking, color: AppColors.textHint),
-                ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  trail.name,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-        DataCell(Text(trail.region ?? '-')),
-        DataCell(Text('${trail.distance} km')),
-        DataCell(_buildDifficultyChip(trail.difficulty)),
-        DataCell(Text(trail.durationFormatted)),
-        DataCell(_buildStatusChip(trail.isActive)),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () => context.go('/trails/edit/${trail.id}'),
-                icon: const Icon(Icons.edit, color: AppColors.secondary),
-                tooltip: 'Modifier',
-              ),
-              IconButton(
-                onPressed: () => _confirmDelete(trail, provider),
-                icon: const Icon(Icons.delete, color: AppColors.error),
-                tooltip: 'Supprimer',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDifficultyChip(TrailDifficulty difficulty) {
-    Color color;
     switch (difficulty) {
       case TrailDifficulty.easy:
-        color = AppColors.success;
+        bgColor = AppColors.success;
+        textColor = Colors.white;
+        label = 'Easy';
         break;
       case TrailDifficulty.moderate:
-        color = AppColors.warning;
+        bgColor = Colors.orange;
+        textColor = Colors.white;
+        label = 'Moderate';
         break;
       case TrailDifficulty.difficult:
-        color = AppColors.error;
+        bgColor = AppColors.error;
+        textColor = Colors.white;
+        label = 'Hard';
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(
-        difficulty.name.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(bool isActive) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: isActive ? AppColors.success.withOpacity(0.1) : AppColors.textHint.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        isActive ? 'Actif' : 'Inactif',
-        style: TextStyle(
-          color: isActive ? AppColors.success : AppColors.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPagination(TrailsProvider provider) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.divider)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: provider.currentPage > 1
-                ? () => provider.loadTrails(page: provider.currentPage - 1)
-                : null,
-            icon: const Icon(Icons.chevron_left),
-          ),
-          const SizedBox(width: 16),
-          Text('Page ${provider.currentPage} sur ${provider.totalPages}'),
-          const SizedBox(width: 16),
-          IconButton(
-            onPressed: provider.currentPage < provider.totalPages
-                ? () => provider.loadTrails(page: provider.currentPage + 1)
-                : null,
-            icon: const Icon(Icons.chevron_right),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(TrailModel trail, TrailsProvider provider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmer la suppression'),
-        content: Text('Voulez-vous vraiment supprimer le sentier "${trail.name}" ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await provider.deleteTrail(trail.id);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+      child: Text(label, style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }
 }

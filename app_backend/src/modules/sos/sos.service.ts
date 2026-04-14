@@ -1,40 +1,36 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { SosAlertDto } from './dto/sos-alert.dto';
 import { User } from '../users/entities/user.entity';
-
-export interface SosAlertRecord {
-  id: string;
-  userId: string;
-  userEmail: string;
-  userName: string;
-  latitude: number;
-  longitude: number;
-  message?: string;
-  emergencyContact?: string;
-  timestamp: Date;
-  status: 'active' | 'resolved';
-}
+import { EventsGateway } from '../events/events.gateway';
+import { SosAlert } from './entities/sos-alert.entity';
 
 @Injectable()
 export class SosService {
   private readonly logger = new Logger(SosService.name);
-  private alerts: SosAlertRecord[] = []; // In-memory storage for demo; use database in production
 
-  async createAlert(user: User, alertDto: SosAlertDto): Promise<SosAlertRecord> {
-    const alert: SosAlertRecord = {
-      id: this.generateId(),
-      userId: user.id,
-      userEmail: user.email,
-      userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+  constructor(
+    @InjectRepository(SosAlert)
+    private readonly sosRepository: Repository<SosAlert>,
+    private readonly eventsGateway: EventsGateway,
+  ) {}
+
+
+
+  async createAlert(user: User | undefined, alertDto: SosAlertDto) {
+    const alert = this.sosRepository.create({
+      userId: user?.id || 'anonymous_user',
+      userEmail: user?.email || 'anonymous',
+      userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Anonymous Hiker',
       latitude: alertDto.latitude,
       longitude: alertDto.longitude,
       message: alertDto.message,
       emergencyContact: alertDto.emergencyContact,
-      timestamp: new Date(),
       status: 'active',
-    };
+    });
 
-    this.alerts.push(alert);
+    const savedAlert = await this.sosRepository.save(alert);
 
     // Log the emergency alert
     this.logger.warn(
@@ -47,32 +43,50 @@ export class SosService {
     // 3. Send SMS/email to emergency contacts
     // 4. Optionally integrate with emergency services API
 
-    return alert;
+    // Emit real-time event to connected clients
+    this.eventsGateway.broadcast('sos_alert_created', this.mapEntityToRecord(savedAlert));
+
+    return this.mapEntityToRecord(savedAlert);
   }
 
-  async getActiveAlerts(): Promise<SosAlertRecord[]> {
-    return this.alerts.filter((alert) => alert.status === 'active');
+  async getActiveAlerts() {
+    const alerts = await this.sosRepository.find({
+      where: { status: 'active' },
+      order: { createdAt: 'DESC' },
+    });
+    return alerts.map(a => this.mapEntityToRecord(a));
   }
 
-  async getAllAlerts(): Promise<SosAlertRecord[]> {
-    return this.alerts.sort(
-      (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
-    );
+  async getAllAlerts() {
+    const alerts = await this.sosRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+    return alerts.map(a => this.mapEntityToRecord(a));
   }
 
-  async resolveAlert(alertId: string): Promise<SosAlertRecord> {
-    const alert = this.alerts.find((a) => a.id === alertId);
+  async resolveAlert(alertId: string) {
+    const alert = await this.sosRepository.findOne({ where: { id: alertId } });
     if (!alert) {
-      throw new Error(`Alert with ID ${alertId} not found`);
+      throw new NotFoundException(`Alert with ID ${alertId} not found`);
     }
 
     alert.status = 'resolved';
+    alert.resolvedAt = new Date();
+    const savedAlert = await this.sosRepository.save(alert);
+    
     this.logger.log(`✅ SOS Alert ${alertId} resolved`);
 
-    return alert;
+    // Emit real-time event to connected clients
+    const mapped = this.mapEntityToRecord(savedAlert);
+    this.eventsGateway.broadcast('sos_alert_resolved', mapped);
+
+    return mapped;
   }
 
-  private generateId(): string {
-    return `sos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  private mapEntityToRecord(alert: SosAlert) {
+    return {
+      ...alert,
+      timestamp: alert.createdAt,
+    };
   }
 }

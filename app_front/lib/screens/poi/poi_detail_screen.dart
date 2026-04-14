@@ -8,6 +8,7 @@ import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../models/poi.dart';
 import '../home/home_screen.dart';
 import '../map/navigation_sos_screen.dart';
+import '../../services/map_offline_service.dart';
 
 class PoiDetailScreen extends StatefulWidget {
   final Poi poi;
@@ -306,6 +307,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                             urlTemplate:
                                 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.ecoguide.app',
+                            tileProvider: LocalFirstTileProvider(),
                           ),
                           if (_currentPosition != null)
                             PolylineLayer(

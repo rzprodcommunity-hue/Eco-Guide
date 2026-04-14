@@ -6,17 +6,21 @@ import { CreateLocalServiceDto } from './dto/create-local-service.dto';
 import { UpdateLocalServiceDto } from './dto/update-local-service.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { LocalServiceQueryDto } from './dto/local-service-query.dto';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class LocalEconomyService {
   constructor(
     @InjectRepository(LocalService)
     private localServicesRepository: Repository<LocalService>,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   async create(createDto: CreateLocalServiceDto): Promise<LocalService> {
     const service = this.localServicesRepository.create(createDto);
-    return this.localServicesRepository.save(service);
+    const savedService = await this.localServicesRepository.save(service);
+    this.eventsGateway.broadcast('service_updated', { action: 'create', data: savedService });
+    return savedService;
   }
 
   async findAll(
@@ -117,11 +121,14 @@ export class LocalEconomyService {
   async update(id: string, updateDto: UpdateLocalServiceDto): Promise<LocalService> {
     const service = await this.findOne(id);
     Object.assign(service, updateDto);
-    return this.localServicesRepository.save(service);
+    const updatedService = await this.localServicesRepository.save(service);
+    this.eventsGateway.broadcast('service_updated', { action: 'update', data: updatedService });
+    return updatedService;
   }
 
   async remove(id: string): Promise<void> {
     const service = await this.findOne(id);
     await this.localServicesRepository.remove(service);
+    this.eventsGateway.broadcast('service_updated', { action: 'delete', id });
   }
 }

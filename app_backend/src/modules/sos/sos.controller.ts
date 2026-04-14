@@ -27,11 +27,9 @@ export class SosController {
   constructor(private readonly sosService: SosService) {}
 
   @Post('alert')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Send an SOS emergency alert' })
   @ApiResponse({ status: 201, description: 'Alert sent successfully' })
-  createAlert(@CurrentUser() user: User, @Body() alertDto: SosAlertDto) {
+  createAlert(@CurrentUser() user: User | undefined, @Body() alertDto: SosAlertDto) {
     return this.sosService.createAlert(user, alertDto);
   }
 

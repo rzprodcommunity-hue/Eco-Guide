@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../core/services/offline_sos_service.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_page_header.dart';
@@ -147,37 +149,30 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       _isSending = true;
     });
 
-    final authProvider = context.read<AuthProvider>();
-
-    if (!authProvider.isAuthenticated) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vous devez etre connecte pour envoyer une alerte SOS'),
-          ),
-        );
-        setState(() => _isSending = false);
-      }
-      return;
-    }
-
-    if (authProvider.isDemoUser) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-                'Mode demo: alerte SOS simulee. Connectez-vous pour une vraie alerte.'),
-            backgroundColor: Colors.orange[700],
-          ),
-        );
-        setState(() => _isSending = false);
-      }
-      return;
-    }
+    // L'envoi d'Alerte SOS est maintenant public, pas besoin d'être authentifié.
 
     try {
       final apiClient = context.read<ApiClient>();
       final sosService = SosService(apiClient);
+
+      // Check Network Connectivity First
+      final connectivityResult = await (Connectivity().checkConnectivity());
+      final isOffline = connectivityResult.contains(ConnectivityResult.none) || connectivityResult.isEmpty;
+
+      if (isOffline) {
+        // Save to offline queue
+        await OfflineSosService.saveOfflineAlert(
+          _currentPosition.latitude,
+          _currentPosition.longitude,
+          'Alerte SOS declenchee depuis l\'application',
+        );
+
+        if (mounted) {
+          setState(() => _isSending = false);
+          _showOfflineEmergencyDialog();
+        }
+        return;
+      }
 
       await sosService.sendAlert(
         latitude: _currentPosition.latitude,
@@ -203,10 +198,54 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         );
       }
     } finally {
-      if (mounted) {
+      if (mounted && _isSending) {
         setState(() => _isSending = false);
       }
     }
+  }
+
+  void _showOfflineEmergencyDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.signal_cellular_connected_no_internet_4_bar, color: AppTheme.errorColor),
+            SizedBox(width: 8),
+            Text('Aucun Réseau Détecté', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'L\'alerte a été sauvegardée. Elle sera transmise au Dashboard automatiquement dès qu\'un signal sera retrouvé.\n\n'
+          'En attendant, vous pouvez :\n'
+          '1. Envoyer vos coordonnées par SMS (GSM).\n'
+          '2. Utiliser le mode Satellite natif d\'iOS (si disponible).',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.sms, size: 18),
+            label: const Text('SMS d\'Urgence'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              final link = 'sms:112?body=${Uri.encodeComponent("URGENCE ECO-GUIDE - Je suis à la position GPS : ${_currentPosition.latitude}, ${_currentPosition.longitude}. Envoyez des secours.")}';
+              final uri = Uri.parse(link);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri);
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _callNumber(String number) async {

@@ -99,6 +99,12 @@ class _MainLayoutState extends State<MainLayout> {
                   path: '/sos-alerts',
                   currentPath: currentPath,
                 ),
+                _buildNavItem(
+                  icon: Icons.settings,
+                  label: 'Parametres',
+                  path: '/settings',
+                  currentPath: currentPath,
+                ),
               ],
             ),
           ),
@@ -281,6 +287,7 @@ class _MainLayoutState extends State<MainLayout> {
     if (path.startsWith('/quizzes')) return 'Quiz';
     if (path.startsWith('/local-services')) return 'Services Locaux';
     if (path.startsWith('/sos-alerts')) return 'Alertes SOS';
+    if (path.startsWith('/settings')) return 'Parametres';
     return 'Eco-Guide Admin';
   }
 }

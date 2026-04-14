@@ -4,8 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../services/map_offline_service.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/eco_page_header.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/auth_provider.dart';
@@ -55,10 +55,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    // Stop weather auto-refresh when leaving dashboard
+    // (safe to call even if never started)
+    try {
+      context.read<WeatherProvider>().stopAutoRefresh();
+    } catch (_) {}
+    super.dispose();
+  }
+
   void _loadData() {
     context.read<TrailProvider>().loadTrails(refresh: true);
     context.read<PoiProvider>().loadPois();
     context.read<WeatherProvider>().loadCurrentWeather(
+      lat: _currentPosition.latitude,
+      lng: _currentPosition.longitude,
+    );
+    // Start weather auto-refresh with current position
+    context.read<WeatherProvider>().startAutoRefresh(
       lat: _currentPosition.latitude,
       lng: _currentPosition.longitude,
     );
@@ -93,7 +108,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _mapController.move(_currentPosition, 14);
         _hasCenteredOnUser = true;
       }
+      // Reload weather with real GPS position and restart auto-refresh
       context.read<WeatherProvider>().loadCurrentWeather(
+        lat: position.latitude,
+        lng: position.longitude,
+      );
+      context.read<WeatherProvider>().startAutoRefresh(
         lat: position.latitude,
         lng: position.longitude,
       );
@@ -244,6 +264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   TileLayer(
                     urlTemplate: _mapStyle.urlTemplate,
                     userAgentPackageName: 'com.ecoguide.app',
+                    tileProvider: LocalFirstTileProvider(),
                   ),
                   MarkerLayer(
                     markers: [
@@ -513,6 +534,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ? Image.network(
                         poi.mediaUrl!,
                         fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: AppTheme.primaryColor,
+                            ),
+                          );
+                        },
                         errorBuilder: (context, error, stackTrace) => _buildPoiImagePlaceholder(),
                       )
                     : _buildPoiImagePlaceholder(),
@@ -739,6 +773,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ? Image.network(
                             imageUrl!,
                             fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              );
+                            },
                             errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                           )
                         : _buildPlaceholderImage(),
@@ -864,20 +911,76 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildPlaceholderImage() {
     return Container(
-      color: Colors.grey[200],
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primaryColor.withValues(alpha: 0.08),
+            AppTheme.primaryColor.withValues(alpha: 0.18),
+          ],
+        ),
+      ),
       child: Center(
-        child: Icon(
-          Icons.terrain,
-          size: 40,
-          color: Colors.grey[400],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.terrain,
+              size: 36,
+              color: AppTheme.primaryColor.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'No photo',
+              style: TextStyle(
+                fontSize: 10,
+                color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  /// Returns dynamic gradient colors based on the current weather condition.
+  List<Color> _weatherGradient(String condition, bool isDay) {
+    if (!isDay) {
+      return [const Color(0xFF1A237E), const Color(0xFF283593)];
+    }
+    switch (condition) {
+      case 'Clear':
+        return [const Color(0xFF42A5F5), const Color(0xFF1E88E5)];
+      case 'Partly cloudy':
+        return [const Color(0xFF4FC3F7), const Color(0xFF29B6F6)];
+      case 'Rain':
+      case 'Drizzle':
+        return [const Color(0xFF546E7A), const Color(0xFF37474F)];
+      case 'Thunderstorm':
+        return [const Color(0xFF37474F), const Color(0xFF263238)];
+      case 'Snow':
+        return [const Color(0xFF90A4AE), const Color(0xFF78909C)];
+      case 'Fog':
+        return [const Color(0xFFB0BEC5), const Color(0xFF90A4AE)];
+      default:
+        return [const Color(0xFF4FC3F7), const Color(0xFF29B6F6)];
+    }
+  }
+
+  String _lastUpdatedText(DateTime? lastFetch) {
+    if (lastFetch == null) return '';
+    final diff = DateTime.now().difference(lastFetch);
+    if (diff.inSeconds < 60) return 'Updated just now';
+    if (diff.inMinutes < 60) return 'Updated ${diff.inMinutes} min ago';
+    return 'Updated ${diff.inHours}h ago';
+  }
+
   Widget _buildCurrentConditions(WeatherProvider weatherProvider) {
     final weather = weatherProvider.currentWeather;
     final isLoading = weatherProvider.isLoading && weather == null;
+    final isRefreshing = weatherProvider.isLoading && weather != null;
 
     final condition = weather?.condition ?? 'Variable';
     final summary = weather?.summary ?? 'Weather data loading...';
@@ -885,98 +988,149 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final wind = weather?.windText ?? '-- km/h';
     final humidity = weather?.humidityText ?? '--%';
     final icon = _weatherIcon(weather?.weatherCode ?? -1, weather?.isDay ?? true);
+    final gradientColors = _weatherGradient(condition, weather?.isDay ?? true);
+    final updatedText = _lastUpdatedText(weatherProvider.lastFetchTime);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF4FC3F7), Color(0xFF29B6F6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      child: GestureDetector(
+        onTap: () {
+          // Manual refresh on tap
+          weatherProvider.loadCurrentWeather(
+            lat: _currentPosition.latitude,
+            lng: _currentPosition.longitude,
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: gradientColors,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: gradientColors.last.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF29B6F6).withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Current Conditions',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.white70,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 48,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      temperature,
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Current Conditions',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white70,
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        isLoading ? 'Updating weather...' : summary,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isRefreshing)
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: Colors.white70,
+                          ),
                         ),
+                      if (isRefreshing) const SizedBox(width: 6),
+                      Icon(
+                        Icons.refresh,
+                        size: 16,
+                        color: Colors.white70,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 48,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          temperature,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isLoading ? 'Updating weather...' : summary,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildWeatherInfo(Icons.air, 'Wind', wind),
+                  const SizedBox(width: 24),
+                  _buildWeatherInfo(Icons.water_drop, 'Humidity', humidity),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    weatherProvider.error != null
+                        ? 'Live weather unavailable. Showing latest data.'
+                        : condition,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  if (updatedText.isNotEmpty)
+                    Text(
+                      updatedText,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.6),
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _buildWeatherInfo(Icons.air, 'Wind', wind),
-                const SizedBox(width: 24),
-                _buildWeatherInfo(Icons.water_drop, 'Humidity', humidity),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              weatherProvider.error != null
-                  ? 'Live weather unavailable. Showing latest data.'
-                  : condition,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.8),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

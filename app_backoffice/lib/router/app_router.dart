@@ -15,6 +15,7 @@ import '../screens/quizzes/quiz_form_screen.dart';
 import '../screens/local_services/local_services_screen.dart';
 import '../screens/local_services/local_service_form_screen.dart';
 import '../screens/sos/sos_alerts_screen.dart';
+import '../screens/settings/admin_settings_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -112,6 +113,10 @@ GoRouter createRouter(AuthProvider authProvider) {
           GoRoute(
             path: '/sos-alerts',
             builder: (context, state) => const SosAlertsScreen(),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => const AdminSettingsScreen(),
           ),
         ],
       ),

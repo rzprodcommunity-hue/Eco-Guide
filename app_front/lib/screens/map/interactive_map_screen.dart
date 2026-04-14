@@ -16,6 +16,7 @@ import '../../models/trail.dart';
 import '../../providers/local_service_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
+import '../../services/map_offline_service.dart';
 import 'map_search_results_screen.dart';
 import 'navigation_sos_screen.dart';
 import '../poi/poi_detail_screen.dart';
@@ -226,8 +227,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: _mapStyle.urlTemplate,
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.ecoguide.app',
+                tileProvider: LocalFirstTileProvider(),
               ),
               if (hasDestination)
                 PolylineLayer(
