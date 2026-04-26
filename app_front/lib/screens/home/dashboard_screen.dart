@@ -160,9 +160,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 24),
                   _buildNearbyTrails(trailProvider),
                   const SizedBox(height: 24),
-                  _buildNearbyPois(poiProvider),
-                  const SizedBox(height: 24),
                   _buildCurrentConditions(weatherProvider),
+                  const SizedBox(height: 24),
+                  _buildDiscoverNature(),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -216,15 +216,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.transparent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFF2E7D32),
+                width: 2,
+              ),
             ),
             child: Center(
               child: Text(
                 initials,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
+                  color: Color(0xFF1A1A1A),
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -287,45 +291,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ],
               ),
-              // Location Label
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: AppTheme.primaryColor,
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'Reserve Naturelle',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               // Action Buttons
               Positioned(
                 top: 12,
@@ -335,6 +300,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _buildMapButton(
                       icon: Icons.layers_outlined,
                       onTap: _cycleMapStyle,
+                      bgColor: const Color(0xFFF6EBE1),
                     ),
                     const SizedBox(height: 8),
                     _buildMapButton(
@@ -342,13 +308,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       onTap: () {
                         _mapController.move(_currentPosition, 14);
                       },
-                    ),
-                    const SizedBox(height: 8),
-                    _buildMapButton(
-                      icon: Icons.open_in_full,
-                      onTap: () => widget.onNavigateToMap?.call(),
+                      bgColor: const Color(0xFF2E7D32),
+                      iconColor: Colors.white,
                     ),
                   ],
+                ),
+              ),
+              // Location Label
+              Positioned(
+                bottom: 12,
+                left: 12,
+                right: 12,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6EBE1).withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.black12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF2E7D32),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Mont Blanc Sanctuary',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -376,14 +376,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildMapButton({required IconData icon, required VoidCallback onTap}) {
+  Widget _buildMapButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    Color bgColor = Colors.white,
+    Color iconColor = const Color(0xFF1A1A1A),
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: bgColor,
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
@@ -396,7 +401,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Icon(
           icon,
           size: 20,
-          color: const Color(0xFF1A1A1A),
+          color: iconColor,
         ),
       ),
     );
@@ -409,27 +414,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildQuickActionItem(
-            icon: Icons.terrain,
+            icon: Icons.landscape,
             label: 'Trails',
-            color: const Color(0xFF4CAF50),
             onTap: widget.onNavigateToTrails,
           ),
           _buildQuickActionItem(
-            icon: Icons.map_outlined,
+            icon: Icons.map,
             label: 'Offline Maps',
-            color: const Color(0xFF2196F3),
             onTap: widget.onNavigateToOffline,
           ),
           _buildQuickActionItem(
-            icon: Icons.explore_outlined,
-            label: 'Quiz Educatif',
-            color: const Color(0xFF9C27B0),
+            icon: Icons.eco,
+            label: 'Eco-Guide',
             onTap: widget.onNavigateToQuiz,
           ),
           _buildQuickActionItem(
             icon: Icons.sos,
-            label: 'SOS',
-            color: const Color(0xFFE53935),
+            label: 'Emergency',
             onTap: widget.onNavigateToSos,
           ),
         ],
@@ -633,7 +634,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildQuickActionItem({
     required IconData icon,
     required String label,
-    required Color color,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
@@ -641,15 +641,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 65,
+            height: 65,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: const Color(0xFFF6EBE1),
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.brown.withValues(alpha: 0.1)),
             ),
             child: Icon(
               icon,
-              color: color,
+              color: const Color(0xFF2E7D32),
               size: 28,
             ),
           ),
@@ -658,8 +659,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label,
             style: const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF666666),
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF333333),
             ),
           ),
         ],
@@ -743,17 +744,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
       },
       child: Container(
-        width: 180,
+        width: 220,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFFF6EBE1),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -801,7 +795,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.black.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -813,12 +807,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: Color(0xFFFFB800),
                         ),
                         const SizedBox(width: 4),
-                        Text(
+                        const Text(
                           '4.8',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A),
+                            color: Colors.white,
                           ),
                         ),
                       ],
@@ -827,23 +821,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 // Difficulty badge
                 Positioned(
-                  top: 8,
-                  right: 8,
+                  bottom: 8,
+                  left: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
+                      horizontal: 12,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: isEasy
-                          ? const Color(0xFF4CAF50)
-                          : const Color(0xFFE53935),
-                      borderRadius: BorderRadius.circular(12),
+                          ? const Color(0xFF388E3C)
+                          : const Color(0xFFD32F2F),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1),
                     ),
                     child: Text(
                       isEasy ? 'Easy' : 'Hard',
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -854,7 +849,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             // Info section
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -863,39 +858,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Icon(
-                        Icons.straighten,
-                        size: 14,
-                        color: Colors.grey[500],
+                        Icons.help_outline,
+                        size: 15,
+                        color: Colors.grey[700],
                       ),
                       const SizedBox(width: 4),
                       Text(
                         trail.distanceText,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: Colors.grey[500],
+                        Icons.timer_outlined,
+                        size: 15,
+                        color: Colors.grey[700],
                       ),
                       const SizedBox(width: 4),
                       Text(
                         trail.durationText,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -980,209 +977,187 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildCurrentConditions(WeatherProvider weatherProvider) {
     final weather = weatherProvider.currentWeather;
     final isLoading = weatherProvider.isLoading && weather == null;
-    final isRefreshing = weatherProvider.isLoading && weather != null;
 
-    final condition = weather?.condition ?? 'Variable';
-    final summary = weather?.summary ?? 'Weather data loading...';
-    final temperature = weather?.temperatureText ?? '--°C';
-    final wind = weather?.windText ?? '-- km/h';
-    final humidity = weather?.humidityText ?? '--%';
-    final icon = _weatherIcon(weather?.weatherCode ?? -1, weather?.isDay ?? true);
-    final gradientColors = _weatherGradient(condition, weather?.isDay ?? true);
-    final updatedText = _lastUpdatedText(weatherProvider.lastFetchTime);
+    final temperature = weather?.temperatureText ?? '22°C';
+    final wind = weather?.windText ?? '12km/h';
+    final humidity = weather?.humidityText ?? '45%';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GestureDetector(
-        onTap: () {
-          // Manual refresh on tap
-          weatherProvider.loadCurrentWeather(
-            lat: _currentPosition.latitude,
-            lng: _currentPosition.longitude,
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: gradientColors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: gradientColors.last.withValues(alpha: 0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6EBE1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.brown.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Current Conditions',
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
                     ),
                   ),
+                  const SizedBox(height: 8),
                   Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isRefreshing)
-                        const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: Colors.white70,
-                          ),
+                      const Icon(Icons.wb_sunny_outlined, size: 36, color: Colors.black87),
+                      const SizedBox(width: 8),
+                      Text(
+                        temperature,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
-                      if (isRefreshing) const SizedBox(width: 6),
-                      Icon(
-                        Icons.refresh,
-                        size: 16,
-                        color: Colors.white70,
                       ),
                     ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 48,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          temperature,
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            isLoading ? 'Updating weather...' : summary,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.air, size: 16, color: Colors.black54),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Wind: $wind',
+                      style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.water_drop_outlined, size: 16, color: Colors.black54),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Humidity: $humidity',
+                      style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _buildWeatherInfo(Icons.air, 'Wind', wind),
-                  const SizedBox(width: 24),
-                  _buildWeatherInfo(Icons.water_drop, 'Humidity', humidity),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    weatherProvider.error != null
-                        ? 'Live weather unavailable. Showing latest data.'
-                        : condition,
+                  child: const Text(
+                    'Perfect for hiking',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2E7D32),
                     ),
                   ),
-                  if (updatedText.isNotEmpty)
-                    Text(
-                      updatedText,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.6),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  IconData _weatherIcon(int weatherCode, bool isDay) {
-    if (weatherCode == 0) {
-      return isDay ? Icons.wb_sunny : Icons.nights_stay;
-    }
-    if ([1, 2, 3].contains(weatherCode)) {
-      return Icons.cloud_queue;
-    }
-    if ([61, 63, 65, 80, 81, 82, 51, 53, 55, 56, 57].contains(weatherCode)) {
-      return Icons.umbrella;
-    }
-    if ([71, 73, 75, 77, 85, 86].contains(weatherCode)) {
-      return Icons.ac_unit;
-    }
-    if ([95, 96, 99].contains(weatherCode)) {
-      return Icons.thunderstorm;
-    }
-    return Icons.cloud;
-  }
-
-  Widget _buildWeatherInfo(IconData icon, String label, String value) {
-    return Row(
+  Widget _buildDiscoverNature() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 20,
-          color: Colors.white70,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Discover Nature',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {},
+                child: const Text(
+                  'See All',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2E7D32),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.white70,
-              ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            height: 100,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF6EBE1),
+              borderRadius: BorderRadius.circular(16),
             ),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                  child: Image.network(
+                    'https://images.unsplash.com/photo-1596704153098-90b5d535b91b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80',
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(width: 100, color: Colors.grey),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Alpine Flora',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'The Rare Edelweiss',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Learn why this resilient flower is the symbol of the Alps...',
+                          style: TextStyle(fontSize: 11, color: Colors.black54),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ],
     );
@@ -1195,10 +1170,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: FloatingActionButton.extended(
         heroTag: 'startTrekDashboard',
         onPressed: widget.onNavigateToTrails,
-        backgroundColor: AppTheme.primaryColor,
-        icon: const Icon(Icons.play_arrow, color: Colors.white),
+        backgroundColor: const Color(0xFF2E7D32),
+        icon: const Icon(Icons.add_location_alt, color: Colors.white),
         label: const Text(
-          'Start Exploring',
+          'Start Trek',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w600,
