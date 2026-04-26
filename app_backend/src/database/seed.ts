@@ -75,7 +75,14 @@ async function seed() {
        'A beautiful day hike through traditional Berber villages in the foothills of Toubkal. Experience authentic mountain culture, terraced fields, and stunning views without the extreme altitude.',
        10.0, 'easy', 240, 350,
        '{"https://images.unsplash.com/photo-1464278533981-50106e6176b1?w=800"}',
-       'High Atlas', 31.1378, -7.9195, true, NOW(), NOW())
+       'High Atlas', 31.1378, -7.9195, true, NOW(), NOW()),
+
+      ('aaaa6666-6666-6666-6666-666666666666',
+       'Sfax Hay Ons Urban Eco Walk',
+       'Urban eco walk in Sfax Hay Ons combining neighborhood streets, small green pockets, and local points of interest. Designed for short daily walks and lightweight orientation training.',
+       4.2, 'easy', 70, 25,
+       '{"https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800"}',
+       'Sfax - Hay Ons', 34.7487, 10.7698, true, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
   `);
 
@@ -146,7 +153,39 @@ async function seed() {
        'Caution: Very steep section ahead with loose rocks. Use trekking poles recommended. Not suitable after rain.',
        31.0578, -7.9123,
        NULL,
-       'aaaa1111-1111-1111-1111-111111111111', true, NOW(), NOW())
+       'aaaa1111-1111-1111-1111-111111111111', true, NOW(), NOW()),
+
+      ('bbbb9991-9991-9991-9991-999999999991',
+       'Hay Ons Neighborhood Plaza',
+       'viewpoint',
+       'Central plaza in Hay Ons used as a local orientation point and meetup area for short walking routes.',
+       34.7489, 10.7701,
+       NULL,
+       'aaaa6666-6666-6666-6666-666666666666', true, NOW(), NOW()),
+
+      ('bbbb9992-9992-9992-9992-999999999992',
+       'Eco Information Board',
+       'information',
+       'Community information point sharing environmental awareness tips and walking guidance in the district.',
+       34.7497, 10.7689,
+       NULL,
+       'aaaa6666-6666-6666-6666-666666666666', true, NOW(), NOW()),
+
+      ('bbbb9993-9993-9993-9993-999999999993',
+       'Hay Ons Pocket Garden',
+       'flora',
+       'Small urban garden with drought-resistant Mediterranean plants and shade trees.',
+       34.7478, 10.7712,
+       NULL,
+       'aaaa6666-6666-6666-6666-666666666666', true, NOW(), NOW()),
+
+      ('bbbb9994-9994-9994-9994-999999999994',
+       'Street Crossing Alert - Hay Ons',
+       'danger',
+       'Busy road crossing section. Slow down, look both ways, and use marked pedestrian crossing when available.',
+       34.7482, 10.7681,
+       NULL,
+       'aaaa6666-6666-6666-6666-666666666666', true, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
   `);
 
@@ -310,7 +349,33 @@ async function seed() {
        31.6295, -7.9811,
        'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800',
        '{Arabic,French,English}',
-       4.8, 203, true, true, NOW(), NOW())
+       4.8, 203, true, true, NOW(), NOW()),
+
+      ('dddd7777-7777-7777-7777-777777777777',
+       'Hay Ons Community First Aid Point',
+        'guide',
+       'Local first-aid support point for minor incidents during urban walks and neighborhood activities.',
+       '+216 74 200 100',
+       NULL,
+       NULL,
+       'Hay Ons, Sfax',
+       34.7492, 10.7690,
+       NULL,
+       '{Arabic,French}',
+       4.5, 22, true, true, NOW(), NOW()),
+
+      ('dddd8888-8888-8888-8888-888888888888',
+       'Hay Ons Local Bike & Repair',
+       'equipment',
+       'Neighborhood bike rental and quick repair service useful for soft mobility exploration in Sfax.',
+       '+216 74 200 220',
+       NULL,
+       NULL,
+       'Avenue principale, Hay Ons, Sfax',
+       34.7476, 10.7708,
+       NULL,
+       '{Arabic,French}',
+       4.4, 17, true, true, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
   `);
 
@@ -362,10 +427,10 @@ async function seed() {
   console.log('');
   console.log('📊 Seeded Data:');
   console.log('   - 3 Users (1 admin, 2 regular users)');
-  console.log('   - 5 Trails');
-  console.log('   - 8 Points of Interest');
+  console.log('   - 6 Trails');
+  console.log('   - 12 Points of Interest');
   console.log('   - 8 Quizzes');
-  console.log('   - 6 Local Services');
+  console.log('   - 8 Local Services');
   console.log('   - 4 Sample Activities');
 
   await AppDataSource.destroy();
