@@ -309,6 +309,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                                               widget.trail.startLongitude!,
                                             ),
                                             destinationLabel: widget.trail.name,
+                                            trail: widget.trail,
                                           ),
                                         ),
                                       );

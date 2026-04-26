@@ -34,7 +34,7 @@ class MapOfflineService {
 
   static const List<int> _defaultZooms = <int>[11, 12, 13, 14, 15];
   static const String _tileUrlTemplate =
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
 
   final http.Client _httpClient;
   String? _baseTilePath;

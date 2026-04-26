@@ -298,7 +298,7 @@ class _MapScreenState extends State<MapScreen> {
                   children: [
                     TileLayer(
                       urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                       userAgentPackageName: 'com.ecoguide.app',
                       tileProvider: LocalFirstTileProvider(service: _mapOfflineService),
                     ),

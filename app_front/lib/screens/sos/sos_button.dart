@@ -518,7 +518,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                     children: [
                       TileLayer(
                         urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                         userAgentPackageName: 'com.ecoguide.app',
                       ),
                       MarkerLayer(

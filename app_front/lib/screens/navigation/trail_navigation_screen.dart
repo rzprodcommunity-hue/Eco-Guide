@@ -43,6 +43,28 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
     return LatLng(lat, lng);
   }
 
+  List<LatLng> get _trailPoints {
+    final points = <LatLng>[];
+    if (widget.trail.geojson != null) {
+      try {
+        final features = widget.trail.geojson!['features'] as List;
+        if (features.isNotEmpty) {
+          final geometry = features[0]['geometry'];
+          if (geometry['type'] == 'LineString') {
+            final coords = geometry['coordinates'] as List;
+            for (var coord in coords) {
+              points.add(LatLng(coord[1], coord[0]));
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    if (points.isEmpty && _trailStart != null) {
+      points.add(_trailStart!);
+    }
+    return points;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -93,6 +115,7 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
   Widget build(BuildContext context) {
     final current = _current;
     final target = _trailStart;
+    final trailPoints = _trailPoints;
 
     return Scaffold(
       appBar: const EcoPageHeader(title: 'Navigation & SOS'),
@@ -122,16 +145,16 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                   options: MapOptions(initialCenter: current, initialZoom: 15),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                       userAgentPackageName: 'com.ecoguide.app',
                       tileProvider: LocalFirstTileProvider(),
                     ),
-                    if (target != null)
+                    if (trailPoints.length > 1)
                       PolylineLayer(
                         polylines: [
                           Polyline(
-                            points: [current, target],
-                            strokeWidth: 4,
+                            points: trailPoints,
+                            strokeWidth: 5,
                             color: Colors.deepPurple,
                           ),
                         ],

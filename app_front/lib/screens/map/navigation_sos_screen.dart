@@ -22,11 +22,13 @@ import '../sos/sos_button.dart';
 class NavigationSosScreen extends StatefulWidget {
   final LatLng? destination;
   final String? destinationLabel;
+  final Trail? trail;
 
   const NavigationSosScreen({
     super.key,
     this.destination,
     this.destinationLabel,
+    this.trail,
   });
 
   @override
@@ -52,10 +54,35 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   bool _isRouting = false;
   bool _offTrailAlert = false;
 
-  _MapVisualStyle _mapStyle = _MapVisualStyle.standard;
+  _MapVisualStyle _mapStyle = _MapVisualStyle.satellite;
 
   List<_NavPoint> _nearbyPoints = [];
   _NavPoint? _featuredPoint;
+
+  _HikeStatus _hikeStatus = _HikeStatus.notStarted;
+  DateTime? _startTime;
+  Duration _elapsedTime = Duration.zero;
+  double _distanceTraveled = 0.0;
+  Timer? _stopwatchTimer;
+
+  List<LatLng> get _trailPoints {
+    final points = <LatLng>[];
+    if (widget.trail?.geojson != null) {
+      try {
+        final features = widget.trail!.geojson!['features'] as List;
+        if (features.isNotEmpty) {
+          final geometry = features[0]['geometry'];
+          if (geometry['type'] == 'LineString') {
+            final coords = geometry['coordinates'] as List;
+            for (var coord in coords) {
+              points.add(LatLng(coord[1], coord[0]));
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    return points;
+  }
 
   @override
   void initState() {
@@ -73,6 +100,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   @override
   void dispose() {
     _gpsTimer?.cancel();
+    _stopwatchTimer?.cancel();
     super.dispose();
   }
 
@@ -99,9 +127,42 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
 
   void _startGpsTracking() {
     _gpsTimer?.cancel();
-    _gpsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _gpsTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _updatePositionSilently();
     });
+  }
+
+  void _startHike() {
+    setState(() {
+      _hikeStatus = _HikeStatus.inProgress;
+      _startTime ??= DateTime.now();
+    });
+    _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_hikeStatus == _HikeStatus.inProgress) {
+        setState(() {
+          _elapsedTime = DateTime.now().difference(_startTime!);
+        });
+      }
+    });
+  }
+
+  void _pauseHike() {
+    setState(() {
+      _hikeStatus = _HikeStatus.paused;
+    });
+  }
+
+  void _resumeHike() {
+    setState(() {
+      _hikeStatus = _HikeStatus.inProgress;
+      // Adjust start time so elapsed time continues smoothly
+      _startTime = DateTime.now().subtract(_elapsedTime);
+    });
+  }
+
+  void _stopHike() {
+    // Return to the home screen
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Future<void> _detectUserPosition() async {
@@ -140,8 +201,17 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       );
       if (!mounted) return;
 
+      final newPos = LatLng(position.latitude, position.longitude);
+      
       setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
+        if (_hikeStatus == _HikeStatus.inProgress) {
+          final distanceMoved = _distance.as(LengthUnit.Meter, _currentPosition, newPos);
+          // Only add to distance if it's a significant movement (e.g. > 2 meters) to avoid GPS jitter
+          if (distanceMoved > 2 && distanceMoved < 100) {
+            _distanceTraveled += (distanceMoved / 1000); // km
+          }
+        }
+        _currentPosition = newPos;
       });
 
       final trailProvider = context.read<TrailProvider>();
@@ -334,24 +404,33 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: destination ?? _currentPosition,
-              initialZoom: 13,
+              initialZoom: 14,
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: _mapStyle.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
                 tileProvider: LocalFirstTileProvider(),
+                // Disable caching if users change the tile url to force refresh
+                reset: StreamController<void>().stream,
               ),
-              if (hasDestination)
+              if (hasDestination || _trailPoints.isNotEmpty)
                 PolylineLayer(
                   polylines: [
-                    Polyline(
-                      points: _routePoints.isNotEmpty
-                          ? _routePoints
-                          : [_currentPosition, destination],
-                      strokeWidth: 4,
-                      color: const Color(0xFF8E44AD),
-                    ),
+                    if (_trailPoints.isNotEmpty)
+                      Polyline(
+                        points: _trailPoints,
+                        strokeWidth: 6,
+                        color: Colors.deepPurpleAccent,
+                      )
+                    else if (hasDestination)
+                      Polyline(
+                        points: _routePoints.isNotEmpty
+                            ? _routePoints
+                            : [_currentPosition, destination!],
+                        strokeWidth: 4,
+                        color: const Color(0xFF8E44AD),
+                      ),
                   ],
                 ),
               MarkerLayer(
@@ -612,7 +691,30 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   }
 
   Widget _buildBottomStatsPanel(double destinationKm) {
-    final remaining = destinationKm <= 0 ? '--' : destinationKm.toStringAsFixed(1);
+    if (_hikeStatus == _HikeStatus.notStarted) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: FilledButton.icon(
+            onPressed: _startHike,
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1E9A35)),
+            icon: const Icon(Icons.play_arrow, size: 28),
+            label: const Text('Commencer le Trail', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      );
+    }
+
+    final durationStr = '${_elapsedTime.inHours}h ${(_elapsedTime.inMinutes % 60).toString().padLeft(2, '0')}m';
+    final pace = _distanceTraveled > 0 && _elapsedTime.inMinutes > 0 
+        ? (_distanceTraveled / (_elapsedTime.inMinutes / 60)).toStringAsFixed(1) 
+        : '0.0';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -635,33 +737,39 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _metricItem('1h 15m', 'Remaining'),
-              _metricItem('$remaining km', 'Distance'),
-              _metricItem('4.2 km/h', 'Pace'),
+              _metricItem(durationStr, 'Temps'),
+              _metricItem('${_distanceTraveled.toStringAsFixed(2)} km', 'Distance'),
+              _metricItem('$pace km/h', 'Vitesse'),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () {},
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF6E431F),
+              if (_hikeStatus == _HikeStatus.inProgress)
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _pauseHike,
+                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6E431F)),
+                    icon: const Icon(Icons.pause, size: 16),
+                    label: const Text('Pause'),
                   ),
-                  icon: const Icon(Icons.pause, size: 16),
-                  label: const Text('Pause Hike'),
+                )
+              else
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _resumeHike,
+                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD68227)),
+                    icon: const Icon(Icons.play_arrow, size: 16),
+                    label: const Text('Reprendre'),
+                  ),
                 ),
-              ),
               const SizedBox(width: 10),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () {},
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E9A35),
-                  ),
-                  icon: const Icon(Icons.flag, size: 16),
-                  label: const Text('Finish'),
+                  onPressed: _stopHike,
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD84B3C)),
+                  icon: const Icon(Icons.stop, size: 16),
+                  label: const Text('Stop & Quitter'),
                 ),
               ),
             ],
@@ -708,13 +816,20 @@ class _NavPoint {
 }
 
 enum _MapVisualStyle {
-  standard('Normal', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+  standard('Normal', 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'),
   relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png'),
   dark('Dark', 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'),
-  satellite('Satellite', 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+  satellite('Satellite', 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}');
 
   final String label;
   final String urlTemplate;
 
   const _MapVisualStyle(this.label, this.urlTemplate);
+}
+
+enum _HikeStatus {
+  notStarted,
+  inProgress,
+  paused,
+  finished,
 }

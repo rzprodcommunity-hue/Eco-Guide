@@ -1210,7 +1210,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 enum _DashboardMapStyle {
-  standard('Normal', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+  standard('Normal', 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'),
   relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png'),
   dark('Noir', 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'),
   satellite('Satellite', 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');

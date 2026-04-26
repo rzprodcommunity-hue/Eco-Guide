@@ -34,9 +34,13 @@ class _TrailsScreenState extends State<TrailsScreen> {
   bool _isSaving = false;
   String? _editingId;
   Map<String, dynamic>? _geojson;
-  LatLng _mapCenter = const LatLng(31.6295, -7.9811);
+  LatLng _mapCenter = const LatLng(37.113, 9.023); // Jbel Chitana, Nefza, Tunisia
+  List<LatLng> _drawnPoints = [];
   final _scrollController = ScrollController();
   final _formSectionKey = GlobalKey();
+  final MapController _mapController = MapController();
+  final TextEditingController _mapSearchController = TextEditingController();
+  bool _isSearchingMap = false;
   
   List<String> _imageUrls = [];
   bool _isUploadingImage = false;
@@ -57,7 +61,9 @@ class _TrailsScreenState extends State<TrailsScreen> {
     _elevationController.dispose();
     _regionController.dispose();
     _searchController.dispose();
+    _mapSearchController.dispose();
     _scrollController.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -72,8 +78,25 @@ class _TrailsScreenState extends State<TrailsScreen> {
       _difficulty = trail.difficulty;
       _isActive = trail.isActive;
       _geojson = trail.geojson;
+      _drawnPoints.clear();
+      
       if (trail.startLatitude != null && trail.startLongitude != null) {
         _mapCenter = LatLng(trail.startLatitude!, trail.startLongitude!);
+      }
+      
+      if (trail.geojson != null) {
+        try {
+          final features = trail.geojson!['features'] as List;
+          if (features.isNotEmpty) {
+            final geometry = features[0]['geometry'];
+            if (geometry['type'] == 'LineString') {
+              final coords = geometry['coordinates'] as List;
+              for (var coord in coords) {
+                _drawnPoints.add(LatLng(coord[1], coord[0]));
+              }
+            }
+          }
+        } catch (_) {}
       }
       _imageUrls = trail.imageUrls ?? [];
     });
@@ -90,8 +113,9 @@ class _TrailsScreenState extends State<TrailsScreen> {
       _difficulty = TrailDifficulty.moderate;
       _isActive = true;
       _geojson = null;
+      _drawnPoints.clear();
       _imageUrls = [];
-      _mapCenter = const LatLng(31.6295, -7.9811);
+      _mapCenter = const LatLng(37.113, 9.023);
     });
     // Scroll to form section
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -105,28 +129,47 @@ class _TrailsScreenState extends State<TrailsScreen> {
     });
   }
 
-  Future<void> _pickGeoJson() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json', 'geojson', 'gpx'],
-      withData: true,
-    );
-    if (result != null && result.files.single.bytes != null) {
-      try {
-        final content = utf8.decode(result.files.single.bytes!);
-        final json = jsonDecode(content);
-        setState(() => _geojson = json);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('GPX/GeoJSON imported successfully'), backgroundColor: AppColors.success),
-          );
+
+
+  Future<void> _searchMapLocation() async {
+    final query = _mapSearchController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() => _isSearchingMap = true);
+    try {
+      final url = Uri.parse('https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=1');
+      final response = await http.get(url, headers: {'User-Agent': 'EcoGuideApp'});
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        if (data.isNotEmpty) {
+          final lat = double.parse(data[0]['lat']);
+          final lon = double.parse(data[0]['lon']);
+          final newCenter = LatLng(lat, lon);
+          
+          _mapController.move(newCenter, 14.0);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Lieu trouvé!'), backgroundColor: AppColors.success),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Lieu introuvable'), backgroundColor: AppColors.error),
+            );
+          }
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invalid file format'), backgroundColor: AppColors.error),
-          );
-        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur de recherche'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSearchingMap = false);
       }
     }
   }
@@ -144,10 +187,30 @@ class _TrailsScreenState extends State<TrailsScreen> {
             : 'No description provided',
         'distance': double.tryParse(_distanceController.text) ?? 0.1,
         'difficulty': _difficulty.name,
-        'startLatitude': _mapCenter.latitude,
-        'startLongitude': _mapCenter.longitude,
         'isActive': asDraft ? false : _isActive,
       };
+
+      if (_drawnPoints.length > 1) {
+        final coordinates = _drawnPoints.map((p) => [p.longitude, p.latitude]).toList();
+        data['geojson'] = {
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "type": "Feature",
+              "geometry": {
+                "type": "LineString",
+                "coordinates": coordinates
+              },
+              "properties": {"name": _nameController.text.trim()}
+            }
+          ]
+        };
+      } else if (_geojson != null) {
+        data['geojson'] = _geojson;
+      }
+      
+      data['startLatitude'] = _drawnPoints.isNotEmpty ? _drawnPoints.first.latitude : _mapCenter.latitude;
+      data['startLongitude'] = _drawnPoints.isNotEmpty ? _drawnPoints.first.longitude : _mapCenter.longitude;
 
       // Only add optional fields if they have values
       if (_elevationController.text.isNotEmpty) {
@@ -155,9 +218,6 @@ class _TrailsScreenState extends State<TrailsScreen> {
       }
       if (_regionController.text.trim().isNotEmpty) {
         data['region'] = _regionController.text.trim();
-      }
-      if (_geojson != null) {
-        data['geojson'] = _geojson;
       }
       data['imageUrls'] = _imageUrls;
 
@@ -514,51 +574,129 @@ class _TrailsScreenState extends State<TrailsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Route Path + Upload GPX
+            // Route Path
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Route Path', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                TextButton.icon(
-                  onPressed: _pickGeoJson,
-                  icon: const Icon(Icons.upload_file, size: 18, color: AppColors.success),
-                  label: const Text('Upload GPX', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w600)),
-                ),
+                if (_drawnPoints.isNotEmpty)
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => setState(() => _drawnPoints.removeLast()),
+                        icon: const Icon(Icons.undo, size: 18, color: Colors.orange),
+                        label: const Text('Undo', style: TextStyle(color: Colors.orange)),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () => setState(() => _drawnPoints.clear()),
+                        icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                        label: const Text('Clear Path', style: TextStyle(color: AppColors.error)),
+                      ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 8),
+            // Map Search Bar
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _mapSearchController,
+                    decoration: InputDecoration(
+                      hintText: 'Chercher un lieu (ex: Jbel Chitana)...',
+                      prefixIcon: const Icon(Icons.search, color: AppColors.textHint),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                    onSubmitted: (_) => _searchMapLocation(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _isSearchingMap ? null : _searchMapLocation,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  ),
+                  child: _isSearchingMap
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Aller'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             SizedBox(
-              height: 220,
+              height: 600,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: FlutterMap(
+                  mapController: _mapController,
                   options: MapOptions(
                     initialCenter: _mapCenter,
-                    initialZoom: 10.0,
+                    initialZoom: 14.0,
                     onTap: (tapPosition, point) {
-                      setState(() => _mapCenter = point);
+                      setState(() => _drawnPoints.add(point));
                     },
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
                       userAgentPackageName: 'com.ecoguide.app',
+                    ),
+                    PolylineLayer(
+                      polylines: [
+                        if (_drawnPoints.length > 1)
+                          Polyline(
+                            points: _drawnPoints,
+                            color: AppColors.error,
+                            strokeWidth: 4.0,
+                          ),
+                      ],
                     ),
                     MarkerLayer(
                       markers: [
-                        Marker(
-                          point: _mapCenter,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.location_pin, color: AppColors.error, size: 40),
-                        ),
+                        ..._drawnPoints.map((p) => Marker(
+                          point: p,
+                          width: 12,
+                          height: 12,
+                          child: Container(
+                            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                          ),
+                        )),
+                        if (_drawnPoints.isNotEmpty)
+                          Marker(
+                            point: _drawnPoints.first,
+                            width: 32,
+                            height: 32,
+                            child: const Icon(Icons.play_circle_fill, color: AppColors.success, size: 32),
+                          ),
+                        if (_drawnPoints.length > 1)
+                          Marker(
+                            point: _drawnPoints.last,
+                            width: 32,
+                            height: 32,
+                            child: const Icon(Icons.stop_circle, color: AppColors.error, size: 32),
+                          ),
                       ],
                     ),
                   ],
                 ),
               ),
             ),
-            if (_geojson != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _drawnPoints.isNotEmpty 
+                  ? '${_drawnPoints.length} points plotted. Click map to add more.' 
+                  : 'Click on the map to draw the route or upload a GPX file.',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+            if (_geojson != null && _drawnPoints.isEmpty) ...[
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
