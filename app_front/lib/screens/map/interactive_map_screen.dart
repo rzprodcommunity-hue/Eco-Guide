@@ -9,7 +9,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/widgets/eco_page_header.dart';
 import '../../models/local_service.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
@@ -60,7 +59,6 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   List<LatLng> _routePoints = [];
 
   final Set<String> _dismissedNearbyKeys = <String>{};
-  final Map<String, DateTime> _nearbyFirstSeenAt = <String, DateTime>{};
 
   @override
   void initState() {
@@ -216,7 +214,6 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     final hasDestination = destination != null;
 
     return Scaffold(
-      appBar: const EcoPageHeader(title: 'Carte Interactive'),
       body: Stack(
         children: [
           FlutterMap(
@@ -227,7 +224,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                urlTemplate: _mapStyle.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
                 tileProvider: LocalFirstTileProvider(),
               ),
@@ -271,77 +268,162 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               ),
             ],
           ),
-          if (hasDestination)
-            Positioned(
-              left: 12,
-              right: 12,
-              top: 66,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+          
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                 child: Row(
                   children: [
-                    const Icon(Icons.route, color: Colors.green),
-                    const SizedBox(width: 8),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6F3ED),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.black87),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        '${_activeOriginLabel ?? 'Depart'} -> ${_activeDestinationLabel ?? 'Destination'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MapSearchResultsScreen(currentPosition: _currentPosition),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF6F3ED),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                            ],
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.search, color: Colors.black54),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Search trails or POIs...',
+                                  style: TextStyle(color: Colors.black54, fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6F3ED),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.filter_list, color: Colors.black87),
+                        onPressed: () {},
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-          Positioned(
-            right: 12,
-            top: 90,
-            child: _buildActionColumn(),
           ),
-          if (notifications.isNotEmpty)
+          
+          if (hasDestination)
             Positioned(
               left: 12,
               right: 12,
-              bottom: 84,
-              child: _buildNearbyPanel(notifications),
-            ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: SafeArea(
-              top: false,
-              child: FilledButton.icon(
-                onPressed: () => _showRoutePlanner(
-                  trails: trails,
-                  pois: pois,
-                  services: services,
-                ),
-                icon: const Icon(Icons.route),
-                label: const Text('Destination'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              top: 120,
+              child: SafeArea(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.route, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${_activeOriginLabel ?? 'Depart'} -> ${_activeDestinationLabel ?? 'Destination'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
+            
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildSOSButton(),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _buildOfflineIndicator(),
+                      ),
+                      _buildActionColumn(),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (notifications.isNotEmpty)
+                  _buildNearbyPanel(notifications),
+                if (notifications.isNotEmpty)
+                  const SizedBox(height: 16),
+                _buildBottomNavigationBlock(context),
+              ],
+            ),
           ),
+          
           if (_isLoading || _isRouting || trailProvider.isLoading || poiProvider.isLoading || localServiceProvider.isLoading)
-            const Positioned(
-              top: 70,
-              left: 0,
-              right: 0,
+            const Positioned.fill(
               child: Center(child: CircularProgressIndicator()),
             ),
         ],
@@ -351,46 +433,202 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
 
   Widget _buildActionColumn() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        FloatingActionButton.small(
-          heroTag: 'mapCenterBtn',
-          onPressed: () => _mapController.move(_currentPosition, 14),
-          child: const Icon(Icons.my_location),
-        ),
-        const SizedBox(height: 8),
-        FloatingActionButton.small(
-          heroTag: 'mapStyleBtn',
+        _buildRoundButton(
+          icon: Icons.layers,
           onPressed: _cycleMapStyle,
-          child: const Icon(Icons.layers),
         ),
         const SizedBox(height: 8),
-        FloatingActionButton.small(
-          heroTag: 'mapSearchBtn',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MapSearchResultsScreen(
-                  currentPosition: _currentPosition,
-                ),
-              ),
-            );
-          },
-          child: const Icon(Icons.search),
+        _buildRoundButton(
+          icon: Icons.explore,
+          onPressed: () {},
         ),
         const SizedBox(height: 8),
-        FloatingActionButton.small(
-          heroTag: 'mapZoomInBtn',
+        _buildRoundButton(
+          icon: Icons.my_location,
+          onPressed: () => _mapController.move(_currentPosition, 14),
+        ),
+        const SizedBox(height: 8),
+        _buildRoundButton(
+          icon: Icons.add,
           onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
-          child: const Icon(Icons.add),
         ),
         const SizedBox(height: 8),
-        FloatingActionButton.small(
-          heroTag: 'mapZoomOutBtn',
+        _buildRoundButton(
+          icon: Icons.remove,
           onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1),
-          child: const Icon(Icons.remove),
         ),
       ],
+    );
+  }
+
+  Widget _buildRoundButton({required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F3ED),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.black87),
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  Widget _buildSOSButton() {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: const Color(0xFFD32F2F),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            // SOS action
+          },
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Text(
+                'SOS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'SOS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOfflineIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.shade300, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Colors.green,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'Offline Mode Active',
+            style: TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigationBlock(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFF6F3ED),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Current Position',
+                  style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 18, color: Colors.black87),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _activeOriginLabel ?? 'Massif du Mont-Blanc',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.black87),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          FilledButton.icon(
+            onPressed: () {
+              final trails = context.read<TrailProvider>().trails;
+              final pois = context.read<PoiProvider>().pois;
+              final services = context.read<LocalServiceProvider>().services;
+              _showRoutePlanner(trails: trails, pois: pois, services: services);
+            },
+            icon: const Icon(Icons.directions_walk),
+            label: const Text('Start Navigation'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -403,112 +641,145 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   }
 
   Widget _buildNearbyPanel(List<_NearbyItem> items) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: items.take(2).map((item) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-              child: Row(
+    if (items.isEmpty) return const SizedBox.shrink();
+    final item = items.first;
+    
+    String difficulty = 'Moderate';
+    int durationMins = 135;
+    List<String> images = [
+      'https://images.unsplash.com/photo-1551632811-561f3222ef86?q=80&w=400&auto=format&fit=crop'
+    ];
+    
+    if (item.trail != null) {
+      difficulty = item.trail!.difficulty;
+      durationMins = item.trail!.estimatedDuration ?? 135;
+      if (item.trail!.imageUrls != null && item.trail!.imageUrls!.isNotEmpty) {
+        images = item.trail!.imageUrls!;
+      }
+    }
+
+    final int h = durationMins ~/ 60;
+    final int m = durationMins % 60;
+    final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
+
+    return GestureDetector(
+      onTap: () => _onNearbyTap(item),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6F3ED),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                images.first,
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 80, height: 80, color: Colors.grey.shade300,
+                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: item.color.withValues(alpha: 0.14),
-                    child: Icon(item.icon, color: item.color, size: 18),
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black87),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${item.subtitle} • ${item.distanceKm.toStringAsFixed(1)} km',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            FilledButton.icon(
-                              onPressed: () => _startDirectionsTo(item),
-                              icon: const Icon(Icons.route, size: 16),
-                              label: const Text('Direction'),
-                              style: FilledButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            TextButton(
-                              onPressed: () => _onNearbyTap(item),
-                              child: const Text('Voir'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.terrain, size: 14, color: Colors.black54),
+                      const SizedBox(width: 4),
+                      Text(
+                        difficulty,
+                        style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: 'Supprimer',
-                    onPressed: () => _dismissNearbyNotification(item),
-                    icon: const Icon(Icons.close),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time, size: 14, color: Colors.green),
+                      const SizedBox(width: 4),
+                      Text(
+                        durationStr,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.straighten, size: 14, color: Colors.green),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${item.distanceKm.toStringAsFixed(1)} km',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      }).toList(),
+            if (images.length > 1) ...[
+              const SizedBox(width: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  images[1],
+                  width: 60,
+                  height: 80,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ] else ...[
+              const SizedBox(width: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=200&auto=format&fit=crop',
+                  width: 60,
+                  height: 80,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
   List<_NearbyItem> _getVisibleNearbyNotifications(List<_NearbyItem> items) {
-    final now = DateTime.now();
-    const maxDuration = Duration(seconds: 12);
-
-    final currentKeys = items.map(_nearbyItemKey).toSet();
-    _nearbyFirstSeenAt.removeWhere((key, _) => !currentKeys.contains(key));
-
     final visible = <_NearbyItem>[];
     for (final item in items) {
-      final key = _nearbyItemKey(item);
-      if (_dismissedNearbyKeys.contains(key)) continue;
-      _nearbyFirstSeenAt.putIfAbsent(key, () => now);
-      if (now.difference(_nearbyFirstSeenAt[key]!) <= maxDuration) {
+      if (!_dismissedNearbyKeys.contains(_nearbyItemKey(item))) {
         visible.add(item);
+        break; // Show at most 1 item for the new card design
       }
     }
-
     return visible;
   }
 
   String _nearbyItemKey(_NearbyItem item) {
     return '${item.type.name}:${item.latitude.toStringAsFixed(5)}:${item.longitude.toStringAsFixed(5)}:${item.name}';
-  }
-
-  void _dismissNearbyNotification(_NearbyItem item) {
-    setState(() => _dismissedNearbyKeys.add(_nearbyItemKey(item)));
-  }
-
-  void _startDirectionsTo(_NearbyItem item) {
-    setState(() {
-      _useCurrentPositionAsOrigin = true;
-      _activeOrigin = _currentPosition;
-      _activeOriginLabel = 'Ma position';
-      _activeDestination = LatLng(item.latitude, item.longitude);
-      _activeDestinationLabel = item.name;
-      _routePoints = [];
-    });
-    _mapController.move(_activeDestination!, 14);
-    _refreshRoute(force: true);
   }
 
   Future<void> _showRoutePlanner({
@@ -587,7 +858,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<_RoutePointOption>(
-                    value: origin,
+                    initialValue: origin,
                     isExpanded: true,
                     decoration: InputDecoration(
                       labelText: 'Point de depart',
@@ -636,7 +907,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<_RoutePointOption>(
-                    value: destination,
+                    initialValue: destination,
                     isExpanded: true,
                     decoration: InputDecoration(
                       labelText: 'Destination',
@@ -695,6 +966,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
       return;
     }
 
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
