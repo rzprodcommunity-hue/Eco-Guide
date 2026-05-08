@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import 'dashboard_screen.dart';
 import '../map/interactive_map_screen.dart';
@@ -21,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late int _currentIndex;
+  DateTime? _lastBackPressedAt;
 
   @override
   void initState() {
@@ -68,6 +70,41 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _handleBackPressed() {
+    if (_currentIndex != 0) {
+      _navigateToTab(0);
+      return;
+    }
+
+    final now = DateTime.now();
+    final shouldExit =
+        _lastBackPressedAt != null &&
+        now.difference(_lastBackPressedAt!) <= const Duration(seconds: 2);
+
+    if (shouldExit) {
+      SystemNavigator.pop();
+      return;
+    }
+
+    _lastBackPressedAt = now;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Return another time to exit',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF1F2937),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
@@ -96,14 +133,18 @@ class _HomeScreenState extends State<HomeScreen> {
       const SettingsScreen(),
     ];
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: EcoShortcutBadge(
-        currentTab: _badgeTabFromIndex(_currentIndex),
-        onTabSelected: _onBadgeTabSelected,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackPressed();
+      },
+      child: Scaffold(
+        body: IndexedStack(index: _currentIndex, children: screens),
+        bottomNavigationBar: EcoShortcutBadge(
+          currentTab: _badgeTabFromIndex(_currentIndex),
+          onTabSelected: _onBadgeTabSelected,
+        ),
       ),
     );
   }

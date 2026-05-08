@@ -13,7 +13,7 @@ class ApiConstants {
 
     // Android emulator cannot access localhost of the host machine directly.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return '192.168.155.79';
+      return '192.168.229.79';
     }
 
     return 'localhost';

@@ -162,7 +162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 24),
                   _buildCurrentConditions(weatherProvider),
                   const SizedBox(height: 24),
-                  _buildDiscoverNature(),
+                  _buildDiscoverNature(poiProvider),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -195,10 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text(
                   'Welcome back,',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -218,10 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             decoration: BoxDecoration(
               color: Colors.transparent,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF2E7D32),
-                width: 2,
-              ),
+              border: Border.all(color: const Color(0xFF2E7D32), width: 2),
             ),
             child: Center(
               child: Text(
@@ -266,6 +260,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 children: [
                   TileLayer(
+                    key: ValueKey(_mapStyle),
                     urlTemplate: _mapStyle.urlTemplate,
                     userAgentPackageName: 'com.ecoguide.app',
                     tileProvider: LocalFirstTileProvider(),
@@ -277,7 +272,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         width: 24,
                         height: 24,
                         child: GestureDetector(
-                          onTap: () => _mapController.move(_currentPosition, 15),
+                          onTap: () =>
+                              _mapController.move(_currentPosition, 15),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.blue,
@@ -294,22 +290,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // Action Buttons
               Positioned(
                 top: 12,
+                left: 12,
                 right: 12,
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildMapButton(
-                      icon: Icons.layers_outlined,
-                      onTap: _cycleMapStyle,
-                      bgColor: const Color(0xFFF6EBE1),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6EBE1).withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.black12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _mapStyle.icon,
+                            size: 16,
+                            color: AppTheme.primaryColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _mapStyle.label,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    _buildMapButton(
-                      icon: Icons.my_location,
-                      onTap: () {
-                        _mapController.move(_currentPosition, 14);
-                      },
-                      bgColor: const Color(0xFF2E7D32),
-                      iconColor: Colors.white,
+                    Column(
+                      children: [
+                        _buildMapButton(
+                          icon: Icons.layers_outlined,
+                          onTap: _cycleMapStyle,
+                          bgColor: const Color(0xFFF6EBE1),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildMapButton(
+                          icon: Icons.my_location,
+                          onTap: () {
+                            _mapController.move(_currentPosition, 14);
+                          },
+                          bgColor: const Color(0xFF2E7D32),
+                          iconColor: Colors.white,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -320,8 +353,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 left: 12,
                 right: 12,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF6EBE1).withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(24),
@@ -340,7 +375,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(width: 8),
                       const Text(
-                        'Mont Blanc Sanctuary',
+                        'Jbel Chitana',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -367,11 +402,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _mapStyle = nextStyle);
 
     if (!mounted) return;
-    final modeNumber = nextIndex + 1;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        duration: const Duration(milliseconds: 900),
-        content: Text('Mode $modeNumber: ${nextStyle.label}'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF1F2937),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Row(
+          children: [
+            Icon(nextStyle.icon, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Mode carte active : ${nextStyle.label}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -398,11 +447,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: iconColor,
-        ),
+        child: Icon(icon, size: 20, color: iconColor),
       ),
     );
   }
@@ -477,19 +522,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: poiProvider.isLoading && pois.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : pois.isEmpty
-                  ? const Center(child: Text('No POI available'))
-                  : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: pois.length,
-                      itemBuilder: (context, index) {
-                        final poi = pois[index];
-                        return Padding(
-                          padding: EdgeInsets.only(right: index < pois.length - 1 ? 12 : 0),
-                          child: _buildPoiCard(poi, _currentPosition),
-                        );
-                      },
-                    ),
+              ? const Center(child: Text('No POI available'))
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: pois.length,
+                  itemBuilder: (context, index) {
+                    final poi = pois[index];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index < pois.length - 1 ? 12 : 0,
+                      ),
+                      child: _buildPoiCard(poi, _currentPosition),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -527,7 +574,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
               child: SizedBox(
                 height: 100,
                 width: double.infinity,
@@ -542,13 +591,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               strokeWidth: 2,
                               value: loadingProgress.expectedTotalBytes != null
                                   ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
+                                        loadingProgress.expectedTotalBytes!
                                   : null,
                               color: AppTheme.primaryColor,
                             ),
                           );
                         },
-                        errorBuilder: (context, error, stackTrace) => _buildPoiImagePlaceholder(),
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildPoiImagePlaceholder(),
                       )
                     : _buildPoiImagePlaceholder(),
               ),
@@ -572,16 +622,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     poi.description,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
@@ -615,7 +665,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
-    
   }
 
   Widget _buildPoiImagePlaceholder() {
@@ -648,11 +697,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.brown.withValues(alpha: 0.1)),
             ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF2E7D32),
-              size: 28,
-            ),
+            child: Icon(icon, color: const Color(0xFF2E7D32), size: 28),
           ),
           const SizedBox(height: 8),
           Text(
@@ -707,22 +752,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: trailProvider.isLoading && trails.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : trails.isEmpty
-                  ? const Center(
-                      child: Text('No trails available'),
-                    )
-                  : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: trails.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            right: index < trails.length - 1 ? 16 : 0,
-                          ),
-                          child: _buildTrailCard(trails[index]),
-                        );
-                      },
-                    ),
+              ? const Center(child: Text('No trails available'))
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: trails.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index < trails.length - 1 ? 16 : 0,
+                      ),
+                      child: _buildTrailCard(trails[index]),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -738,9 +781,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => TrailDetailScreen(trail: trail),
-          ),
+          MaterialPageRoute(builder: (_) => TrailDetailScreen(trail: trail)),
         );
       },
       child: Container(
@@ -772,15 +813,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               return Center(
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  value: loadingProgress.expectedTotalBytes != null
+                                  value:
+                                      loadingProgress.expectedTotalBytes != null
                                       ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
+                                            loadingProgress.expectedTotalBytes!
                                       : null,
                                   color: AppTheme.primaryColor,
                                 ),
                               );
                             },
-                            errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholderImage(),
                           )
                         : _buildPlaceholderImage(),
                   ),
@@ -833,7 +876,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ? const Color(0xFF388E3C)
                           : const Color(0xFFD32F2F),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
                     ),
                     child: Text(
                       isEasy ? 'Easy' : 'Hard',
@@ -1008,7 +1054,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.wb_sunny_outlined, size: 36, color: Colors.black87),
+                      const Icon(
+                        Icons.wb_sunny_outlined,
+                        size: 36,
+                        color: Colors.black87,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         temperature,
@@ -1032,24 +1082,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 4),
                     Text(
                       'Wind: $wind',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.water_drop_outlined, size: 16, color: Colors.black54),
+                    const Icon(
+                      Icons.water_drop_outlined,
+                      size: 16,
+                      color: Colors.black54,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Humidity: $humidity',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE8F5E9),
                     borderRadius: BorderRadius.circular(8),
@@ -1071,7 +1136,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDiscoverNature() {
+  Widget _buildDiscoverNature(PoiProvider poiProvider) {
+    final pois = poiProvider.pois.take(3).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1089,13 +1156,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
-                child: const Text(
+                onTap: widget.onNavigateToPois,
+                child: Text(
                   'See All',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF2E7D32),
+                    color: AppTheme.primaryColor,
                   ),
                 ),
               ),
@@ -1103,63 +1170,119 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Container(
+        if (poiProvider.isLoading && pois.isEmpty)
+          const SizedBox(
             height: 100,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF6EBE1),
-              borderRadius: BorderRadius.circular(16),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (pois.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
+              height: 100,
+              child: Center(child: Text('No POI available')),
             ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: List.generate(
+                pois.length,
+                (index) => Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index < pois.length - 1 ? 12 : 0,
                   ),
-                  child: Image.network(
-                    'https://images.unsplash.com/photo-1596704153098-90b5d535b91b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80',
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(width: 100, color: Colors.grey),
-                  ),
+                  child: _buildDiscoverNatureCard(pois[index]),
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Alpine Flora',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'The Rare Edelweiss',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Learn why this resilient flower is the symbol of the Alps...',
-                          style: TextStyle(fontSize: 11, color: Colors.black54),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
       ],
+    );
+  }
+
+  Widget _buildDiscoverNatureCard(Poi poi) {
+    final hasImage = poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PoiDetailScreen(poi: poi)),
+        );
+      },
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6EBE1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              child: SizedBox(
+                width: 100,
+                height: 100,
+                child: hasImage
+                    ? Image.network(
+                        poi.mediaUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildPoiImagePlaceholder(),
+                      )
+                    : _buildPoiImagePlaceholder(),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      poi.typeDisplayName,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black54,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      poi.name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      poi.description,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black54,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1174,10 +1297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         icon: const Icon(Icons.add_location_alt, color: Colors.white),
         label: const Text(
           'Start Trek',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -1185,13 +1305,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 enum _DashboardMapStyle {
-  standard('Normal', 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'),
-  relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png'),
-  dark('Noir', 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'),
-  satellite('Satellite', 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+  standard(
+    'Standard',
+    Icons.map_outlined,
+    'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+  ),
+  relief(
+    'Relief',
+    Icons.terrain_outlined,
+    'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+  ),
+  dark(
+    'Sombre',
+    Icons.dark_mode_outlined,
+    'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+  ),
+  satellite(
+    'Satellite',
+    Icons.satellite_alt_outlined,
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  );
 
   final String label;
+  final IconData icon;
   final String urlTemplate;
 
-  const _DashboardMapStyle(this.label, this.urlTemplate);
+  const _DashboardMapStyle(this.label, this.icon, this.urlTemplate);
 }

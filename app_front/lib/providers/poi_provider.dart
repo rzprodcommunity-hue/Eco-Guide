@@ -55,11 +55,25 @@ class PoiProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _pois = await _service.getPois(type: type, trailId: trailId, search: search);
+      _pois = await _service.getPois(
+        type: type,
+        trailId: trailId,
+        search: search,
+      );
+      if (_pois.isNotEmpty) {
+        await OfflineCacheService.instance.savePois(_pois, trailId: trailId);
+      }
     } catch (e) {
-      final cached = await OfflineCacheService.instance.getOfflinePois(trailId: trailId);
+      final cached = await OfflineCacheService.instance.getOfflinePois(
+        trailId: trailId,
+      );
       if (cached.isNotEmpty) {
-        _pois = _applyOfflineFilters(cached, type: type, trailId: trailId, search: search);
+        _pois = _applyOfflineFilters(
+          cached,
+          type: type,
+          trailId: trailId,
+          search: search,
+        );
         _error = null;
       } else {
         _error = e.toString();
@@ -77,8 +91,13 @@ class PoiProvider extends ChangeNotifier {
 
     try {
       _pois = await _service.getPoisByTrail(trailId);
+      if (_pois.isNotEmpty) {
+        await OfflineCacheService.instance.savePois(_pois, trailId: trailId);
+      }
     } catch (e) {
-      final cached = await OfflineCacheService.instance.getOfflinePois(trailId: trailId);
+      final cached = await OfflineCacheService.instance.getOfflinePois(
+        trailId: trailId,
+      );
       if (cached.isNotEmpty) {
         _pois = cached;
         _error = null;
@@ -91,7 +110,11 @@ class PoiProvider extends ChangeNotifier {
     }
   }
 
-  Future<List<Poi>> getNearbyPois(double lat, double lng, {String? type}) async {
+  Future<List<Poi>> getNearbyPois(
+    double lat,
+    double lng, {
+    String? type,
+  }) async {
     try {
       return await _service.getNearbyPois(lat: lat, lng: lng, type: type);
     } catch (e) {

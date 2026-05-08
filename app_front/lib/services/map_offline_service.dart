@@ -33,8 +33,9 @@ class MapOfflineService {
     : _httpClient = httpClient ?? http.Client();
 
   static const List<int> _defaultZooms = <int>[11, 12, 13, 14, 15];
-  static const String _tileUrlTemplate =
+  static const String standardTileUrlTemplate =
       'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+  static const String _tileUrlTemplate = standardTileUrlTemplate;
 
   final http.Client _httpClient;
   String? _baseTilePath;
@@ -132,7 +133,11 @@ class MapOfflineService {
 
           processedTiles++;
           if (onProgress != null && totalTiles > 0) {
-            onProgress(processedTiles / totalTiles, downloaded + alreadyCached, totalTiles);
+            onProgress(
+              processedTiles / totalTiles,
+              downloaded + alreadyCached,
+              totalTiles,
+            );
           }
         }
       }
@@ -185,8 +190,8 @@ class MapOfflineService {
 
 class LocalFirstTileProvider extends TileProvider {
   final MapOfflineService _mapOfflineService;
-  
-  LocalFirstTileProvider({MapOfflineService? service}) 
+
+  LocalFirstTileProvider({MapOfflineService? service})
     : _mapOfflineService = service ?? MapOfflineService();
 
   @override
@@ -195,12 +200,13 @@ class LocalFirstTileProvider extends TileProvider {
     final x = coordinates.x.round();
     final y = coordinates.y.round();
 
-    final cachedFile = _mapOfflineService.tileFileSync(z: z, x: x, y: y);
-    if (cachedFile != null) {
-      return FileImage(cachedFile);
+    if (options.urlTemplate == MapOfflineService.standardTileUrlTemplate) {
+      final cachedFile = _mapOfflineService.tileFileSync(z: z, x: x, y: y);
+      if (cachedFile != null) {
+        return FileImage(cachedFile);
+      }
     }
 
-    final url = _mapOfflineService.tileUrl(z: z, x: x, y: y);
-    return NetworkImage(url);
+    return NetworkImage(getTileUrl(coordinates, options));
   }
 }
