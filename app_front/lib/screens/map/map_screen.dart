@@ -311,7 +311,7 @@ class _MapScreenState extends State<MapScreen> {
                           height: 30,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.blue,
+                              color: Theme.of(context).primaryColor,
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 3),
                             ),
@@ -364,12 +364,16 @@ class _MapScreenState extends State<MapScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.72),
+                        color: Theme.of(context).cardColor.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Carte Tabarka offline activee',
-                        style: TextStyle(color: Colors.white, fontSize: 11),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface, 
+                          fontSize: 11
+                        ),
                       ),
                     ),
                   ),

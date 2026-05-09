@@ -719,16 +719,24 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0F0),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.red.withValues(alpha: 0.1)
+            : const Color(0xFFFFF0F0),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFD4D4)),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.red.withValues(alpha: 0.3)
+              : const Color(0xFFFFD4D4)
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.lightbulb,
-            color: Color(0xFFD32F2F),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.redAccent
+                : const Color(0xFFD32F2F),
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -736,19 +744,23 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'En attendant les secours',
                   style: TextStyle(
-                    color: Color(0xFFD32F2F),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.redAccent
+                        : const Color(0xFFD32F2F),
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Restez visible, couvrez-vous pour éviter l\'hypothermie et ne quittez pas votre position actuelle.',
                   style: TextStyle(
-                    color: Color(0xFFD32F2F),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.redAccent.withValues(alpha: 0.9)
+                        : const Color(0xFFD32F2F),
                     fontSize: 12,
                     height: 1.4,
                   ),

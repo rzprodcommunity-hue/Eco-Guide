@@ -80,7 +80,7 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
     final service = _serviceFromProvider(provider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F2EC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       bottomNavigationBar: EcoShortcutBadge(
         currentTab: EcoShortcutTab.services,
         onTabSelected: (tab) {
@@ -224,9 +224,11 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAE3D8),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                          : const Color(0xFFEAE3D8),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFDCCFBF)),
+                      border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
                     ),
                     child: Row(
                       children: [
@@ -249,19 +251,19 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Text(
+                  Text(
                     'A propos du service',
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF111111),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 10),
                   Text(
                     service.description,
-                    style: const TextStyle(
-                      color: Color(0xFF555555),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       fontSize: 16,
                       height: 1.55,
                     ),
@@ -288,12 +290,12 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Text(
+                  Text(
                     'Informations',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF111111),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -323,12 +325,12 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                     ),
                   const SizedBox(height: 18),
                   if (service.latitude != null && service.longitude != null) ...[
-                    const Text(
+                    Text(
                       'Localisation',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF111111),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -364,12 +366,12 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                   ],
                   if (service.additionalImages != null && service.additionalImages!.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       'Galerie',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF111111),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -439,10 +441,10 @@ class _CircleIconButton extends StatelessWidget {
         width: 34,
         height: 34,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.92),
+          color: Theme.of(context).cardColor.withValues(alpha: 0.9),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 18, color: const Color(0xFF111111)),
+        child: Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurface),
       ),
     );
   }
@@ -464,9 +466,11 @@ class _FactBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2ECE2),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
+            : const Color(0xFFF2ECE2),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFD3C6B5)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -474,8 +478,8 @@ class _FactBox extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF777777),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -485,10 +489,10 @@ class _FactBox extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,
-              color: Color(0xFF171717),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],
@@ -514,9 +518,9 @@ class _InfoTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4D9C9)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -528,15 +532,18 @@ class _InfoTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F1F1F),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(color: Color(0xFF666666), height: 1.4),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),

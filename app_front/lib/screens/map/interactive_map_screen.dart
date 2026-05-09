@@ -283,14 +283,14 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF6F3ED),
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
                         ],
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.menu, color: Colors.black87),
+                        icon: Icon(Icons.menu, color: Theme.of(context).colorScheme.onSurface),
                         onPressed: () => Scaffold.of(context).openDrawer(),
                       ),
                     ),
@@ -309,20 +309,23 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                           height: 48,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF6F3ED),
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
                             ],
                           ),
                           child: Row(
-                            children: const [
-                              Icon(Icons.search, color: Colors.black54),
+                            children: [
+                              Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Search trails or POIs...',
-                                  style: TextStyle(color: Colors.black54, fontSize: 14),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), 
+                                    fontSize: 14
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -336,14 +339,14 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF6F3ED),
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
                         ],
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.filter_list, color: Colors.black87),
+                        icon: Icon(Icons.filter_list, color: Theme.of(context).colorScheme.onSurface),
                         onPressed: () {},
                       ),
                     ),
@@ -362,7 +365,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -381,7 +384,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                           '${_activeOriginLabel ?? 'Depart'} -> ${_activeDestinationLabel ?? 'Destination'}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600, 
+                            color: Theme.of(context).colorScheme.onSurface
+                          ),
                         ),
                       ),
                     ],
@@ -468,7 +474,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F3ED),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -479,7 +485,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
         ],
       ),
       child: IconButton(
-        icon: Icon(icon, color: Colors.black87),
+        icon: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
         onPressed: onPressed,
       ),
     );
@@ -538,9 +544,16 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.green.withValues(alpha: 0.1)
+            : const Color(0xFFE8F5E9),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.green.shade300, width: 1),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.green.withValues(alpha: 0.3)
+              : Colors.green.shade300, 
+          width: 1
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -554,10 +567,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
+          Text(
             'Offline Mode Active',
             style: TextStyle(
-              color: Colors.black87,
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
@@ -569,9 +582,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
 
   Widget _buildBottomNavigationBlock(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFF6F3ED),
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
@@ -585,19 +598,27 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Current Position',
-                  style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 12, 
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), 
+                    fontWeight: FontWeight.w600
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.location_on, size: 18, color: Colors.black87),
+                    Icon(Icons.location_on, size: 18, color: Theme.of(context).colorScheme.onSurface),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         _activeOriginLabel ?? 'Massif du Mont-Blanc',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 16, 
+                          fontWeight: FontWeight.w800, 
+                          color: Theme.of(context).colorScheme.onSurface
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -618,7 +639,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
             icon: const Icon(Icons.directions_walk),
             label: const Text('Start Navigation'),
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2E7D32),
+              backgroundColor: Theme.of(context).primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               shape: RoundedRectangleBorder(
@@ -668,7 +689,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF6F3ED),
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -703,7 +724,11 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black87),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800, 
+                      fontSize: 16, 
+                      color: Theme.of(context).colorScheme.onSurface
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -712,7 +737,11 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                       const SizedBox(width: 4),
                       Text(
                         difficulty,
-                        style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 12, 
+                          color: Theme.of(context).colorScheme.onSurface, 
+                          fontWeight: FontWeight.w600
+                        ),
                       ),
                     ],
                   ),
@@ -723,14 +752,22 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                       const SizedBox(width: 4),
                       Text(
                         durationStr,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 12, 
+                          fontWeight: FontWeight.w600, 
+                          color: Theme.of(context).colorScheme.onSurface
+                        ),
                       ),
                       const SizedBox(width: 12),
                       const Icon(Icons.straighten, size: 14, color: Colors.green),
                       const SizedBox(width: 4),
                       Text(
                         '${item.distanceKm.toStringAsFixed(1)} km',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 12, 
+                          fontWeight: FontWeight.w600, 
+                          color: Theme.of(context).colorScheme.onSurface
+                        ),
                       ),
                     ],
                   ),

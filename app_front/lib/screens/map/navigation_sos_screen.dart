@@ -480,7 +480,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E9A35),
+                  color: Theme.of(context).primaryColor,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
@@ -533,28 +533,41 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFDF3F3),
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF3D201E)
+                      : const Color(0xFFFDF3F3),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE97C74)),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.red.withValues(alpha: 0.5)
+                        : const Color(0xFFE97C74),
+                  ),
                 ),
                 child: Row(
                   children: [
                     const Icon(Icons.warning_amber_rounded, color: Color(0xFFE65245)),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Off-Trail Alert',
                             style: TextStyle(
-                              color: Color(0xFFD64A3A),
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.redAccent
+                                  : const Color(0xFFD64A3A),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           Text(
                             'You are away from the path.',
-                            style: TextStyle(fontSize: 12, color: Color(0xFFD64A3A)),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.redAccent.withValues(alpha: 0.8)
+                                  : const Color(0xFFD64A3A),
+                            ),
                           ),
                         ],
                       ),
@@ -562,7 +575,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                     FilledButton(
                       onPressed: () => _refreshRoute(force: true),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E9A35),
+                        backgroundColor: Theme.of(context).primaryColor,
                         visualDensity: VisualDensity.compact,
                       ),
                       child: const Text('Re-route'),
@@ -598,9 +611,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEDE6DB),
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFD9CCBB)),
+                  border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
                 ),
                 child: Row(
                   children: [
@@ -625,7 +638,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                           ),
                           Text(
                             _featuredPoint!.subtitle,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF5F5F5F)),
+                            style: TextStyle(
+                              fontSize: 12, 
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -634,7 +650,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                     ),
                     IconButton(
                       onPressed: () => _selectDestination(_featuredPoint!),
-                      icon: const Icon(Icons.gps_fixed, color: Color(0xFF1E9A35)),
+                      icon: Icon(Icons.gps_fixed, color: Theme.of(context).primaryColor),
                     ),
                   ],
                 ),
@@ -694,8 +710,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     if (_hikeStatus == _HikeStatus.notStarted) {
       return Container(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SizedBox(
@@ -703,7 +719,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
           height: 56,
           child: FilledButton.icon(
             onPressed: _startHike,
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1E9A35)),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
             icon: const Icon(Icons.play_arrow, size: 28),
             label: const Text('Commencer le Trail', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
@@ -718,8 +734,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFDDD7CE),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+            : const Color(0xFFDDD7CE),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -729,7 +747,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             width: 44,
             height: 3,
             decoration: BoxDecoration(
-              color: const Color(0xFFC5B49A),
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(20),
             ),
           ),
@@ -788,7 +806,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
         ),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF585858)),
+          style: TextStyle(
+            fontSize: 12, 
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+          ),
         ),
       ],
     );
