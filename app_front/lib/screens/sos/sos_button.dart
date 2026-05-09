@@ -252,7 +252,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF9F6),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -263,10 +263,10 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               const SizedBox(height: 32),
               _buildSosButton(),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Maintenez 3 secondes pour alerter',
                 style: TextStyle(
-                  color: Color(0xFF111111),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
@@ -301,20 +301,20 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: const Color(0xFFEFE8DD),
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(14),
           ),
           child: IconButton(
-            icon: const Icon(Icons.close, color: Color(0xFF111111), size: 22),
+            icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface, size: 22),
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        const Text(
+        Text(
           'Urgence SOS',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF111111),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(width: 44), // To balance the back button
@@ -433,9 +433,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF2ECE2),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDCCFBF)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,12 +445,12 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Votre Position GPS',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF111111),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 Container(
@@ -494,7 +494,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFDCCFBF)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -544,8 +544,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                       ),
                       child: Text(
                         '${latDegrees.toStringAsFixed(4)}° $latDirection, ${lngDegrees.toStringAsFixed(4)}° $lngDirection',
-                        style: const TextStyle(
-                          color: Color(0xFF111111),
+                        style: TextStyle(
+                          color: const Color(0xFF111111),
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
@@ -591,19 +591,19 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF4B5563),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF111111),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
@@ -614,12 +614,12 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Contacts d\'urgence',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF111111),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 16),
@@ -656,19 +656,19 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2ECE2),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDCCFBF)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: const Color(0xFF5D4037), size: 20),
+            child: Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -677,19 +677,19 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF111111),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF4B5563),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -699,8 +699,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             onTap: () => _callNumber(number),
             child: Container(
               padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
                 shape: BoxShape.circle,
               ),
               child: const Icon(

@@ -65,7 +65,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     final provider = context.watch<LocalServiceProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF9F6),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -123,7 +123,6 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF111111),
                 ),
               ),
               const SizedBox(height: 4),
@@ -132,7 +131,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -141,11 +140,11 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFEFE8DD),
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(14),
             ),
             child: IconButton(
-              icon: const Icon(Icons.search, color: Color(0xFF111111), size: 22),
+              icon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface, size: 22),
               onPressed: () {},
             ),
           ),
@@ -172,10 +171,10 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF2E7D32) : const Color(0xFFF6F3ED),
+                  color: isSelected ? const Color(0xFF2E7D32) : Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? const Color(0xFF2E7D32) : const Color(0xFFDCCFBF),
+                    color: isSelected ? const Color(0xFF2E7D32) : Theme.of(context).dividerColor.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -193,7 +192,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : const Color(0xFF111111),
+                        color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -212,26 +211,25 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: const [
-          Expanded(
+        children: [
+          const Expanded(
             child: Text(
               'Établissements Éco-responsables',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF111111),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Text(
             'Voir tout',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF111111),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],
@@ -385,7 +383,6 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF111111),
             ),
           ),
           const SizedBox(height: 16),
@@ -393,7 +390,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             height: 160,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFDCCFBF)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Stack(
               children: [
@@ -433,7 +430,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF6F3ED).withValues(alpha: 0.9),
+                        color: Theme.of(context).cardColor.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
@@ -445,15 +442,15 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.map, size: 16, color: Color(0xFF111111)),
-                          SizedBox(width: 8),
+                        children: [
+                          Icon(Icons.map, size: 16, color: Theme.of(context).colorScheme.onSurface),
+                          const SizedBox(width: 8),
                           Text(
                             'Ouvrir la carte interactive',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF111111),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -513,9 +510,9 @@ class _ServiceCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F3ED),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8DFD0)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -549,7 +546,7 @@ class _ServiceCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -559,10 +556,10 @@ class _ServiceCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             service.rating!.toStringAsFixed(1),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF111111),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -579,13 +576,13 @@ class _ServiceCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
+                       Expanded(
                         child: Text(
                           service.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF111111),
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -593,10 +590,10 @@ class _ServiceCard extends StatelessWidget {
                       ),
                       Text(
                         _getPriceTag(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF2E7D32),
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
                     ],
@@ -606,34 +603,34 @@ class _ServiceCard extends StatelessWidget {
                     service.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF4B5563),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF4B5563)),
+                      Icon(Icons.location_on_outlined, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                       const SizedBox(width: 4),
-                      const Text(
+                      Text(
                         "2km d'ici", 
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF4B5563),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                       const SizedBox(width: 16),
-                      Icon(_getCategoryIcon(service.category), size: 14, color: const Color(0xFF4B5563)),
+                      Icon(_getCategoryIcon(service.category), size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                       const SizedBox(width: 4),
                       Text(
                         service.categoryDisplayName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF4B5563),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],

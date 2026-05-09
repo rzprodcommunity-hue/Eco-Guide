@@ -9,6 +9,7 @@ import 'providers/poi_provider.dart';
 import 'providers/quiz_provider.dart';
 import 'providers/local_service_provider.dart';
 import 'providers/weather_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -68,12 +69,22 @@ class EcoGuideApp extends StatelessWidget {
           update: (_, apiClient, previous) =>
               previous ?? WeatherProvider(apiClient),
         ),
+        // Theme Provider
+        ChangeNotifierProvider<ThemeProvider>(
+          create: (_) => ThemeProvider(),
+        ),
       ],
-      child: MaterialApp(
-        title: 'Eco-Guide',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const AppWrapper(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Eco-Guide',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            home: const AppWrapper(),
+          );
+        },
       ),
     );
   }

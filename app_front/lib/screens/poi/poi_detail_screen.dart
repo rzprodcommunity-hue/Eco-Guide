@@ -111,7 +111,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
     final poiColor = _getPoiColor(poi.type);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F2EC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       bottomNavigationBar: EcoShortcutBadge(
         currentTab: EcoShortcutTab.map,
         onTabSelected: (tab) {
@@ -200,6 +200,13 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                           fontWeight: FontWeight.w800,
                           fontSize: 32,
                           height: 1.06,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black45,
+                              offset: Offset(0, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -218,9 +225,9 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAE3D8),
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFDCCFBF)),
+                      border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
                     ),
                     child: Row(
                       children: [
@@ -246,19 +253,19 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  const Text(
+                  Text(
                     'A propos du point',
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF111111),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     poi.description,
-                    style: const TextStyle(
-                      color: Color(0xFF555555),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       fontSize: 16,
                       height: 1.55,
                     ),
@@ -284,12 +291,12 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  const Text(
+                  Text(
                     'Localisation',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF111111),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -373,12 +380,12 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
 
                   if (poi.additionalMediaUrls != null &&
                       poi.additionalMediaUrls!.isNotEmpty) ...[
-                    const Text(
+                    Text(
                       'Galerie',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF111111),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -429,10 +436,10 @@ class _CircleIconButton extends StatelessWidget {
         width: 34,
         height: 34,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.92),
+          color: Theme.of(context).cardColor.withValues(alpha: 0.92),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 18, color: const Color(0xFF111111)),
+        child: Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurface),
       ),
     );
   }
@@ -456,9 +463,9 @@ class _FactBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2ECE2),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFD3C6B5)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -466,8 +473,8 @@ class _FactBox extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF777777),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -477,10 +484,10 @@ class _FactBox extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 14,
-              color: Color(0xFF171717),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

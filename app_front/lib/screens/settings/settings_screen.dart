@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/map_offline_service.dart';
 import '../profile/profile_screen.dart';
 import '../offline/offline_trails_screen.dart';
@@ -26,11 +27,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isDownloadingMap = false;
   String _offlineMapStatus = 'Vérification...';
 
-  static const Color _pageBg = Color(0xFFF6F5F2);
-  static const Color _cardBg = Color(0xFFEDE8DF);
-  static const Color _title = Color(0xFF222222);
-  static const Color _subtitle = Color(0xFF666666);
-  static const Color _muted = Color(0xFF8C8895);
+  Color _pageBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark ? const Color(0xFF121212) : const Color(0xFFF6F5F2);
+  Color _cardBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : const Color(0xFFEDE8DF);
+  Color _titleColor(BuildContext ctx) => Theme.of(ctx).colorScheme.onSurface;
+  Color _subtitleColor(BuildContext ctx) => Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6);
+  Color _mutedColor(BuildContext ctx) => Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.5);
 
   @override
   void initState() {
@@ -119,7 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user = context.watch<AuthProvider>().user;
 
     return Scaffold(
-      backgroundColor: _pageBg,
+      backgroundColor: _pageBg(context),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -134,7 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   iconColor: AppTheme.primaryColor,
                   title: user?.fullName ?? 'Mon profil',
                   subtitle: 'Voir profil et progression',
-                  trailing: const Icon(Icons.chevron_right_rounded, color: _muted),
+                  trailing: Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -146,25 +147,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSectionTitle('PREFERENCES REGIONALES'),
               const SizedBox(height: 10),
               _SettingCard(
-                child: _SettingTile(
-                  icon: Icons.language,
-                  iconColor: AppTheme.primaryColor,
-                  title: 'Langue de l\'application',
-                  subtitle: 'Choisissez votre langue preferee',
-                  trailing: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Francais (FR)',
-                        style: TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w700,
-                        ),
+                child: Column(
+                  children: [
+                    _SettingTile(
+                      icon: Icons.language,
+                      iconColor: AppTheme.primaryColor,
+                      title: 'Langue de l\'application',
+                      subtitle: 'Choisissez votre langue preferee',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Francais (FR)',
+                            style: TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
+                        ],
                       ),
-                      SizedBox(width: 8),
-                      Icon(Icons.chevron_right_rounded, color: _muted),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 10),
+                    Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, _) {
+                        return _SettingTile(
+                          icon: Icons.dark_mode,
+                          iconColor: AppTheme.primaryColor,
+                          title: 'Mode sombre',
+                          subtitle: 'Activer le theme fonce',
+                          trailing: _buildSwitch(
+                            value: themeProvider.isDarkMode,
+                            onChanged: (value) {
+                              themeProvider.toggleTheme(value);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
@@ -242,10 +264,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       iconColor: AppTheme.primaryColor,
                       title: 'Precision GPS',
                       subtitle: 'Equilibre entre batterie et precision',
-                      trailing: const Row(
+                      trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
+                          const Text(
                             'Elevee',
                             style: TextStyle(
                               color: AppTheme.primaryColor,
@@ -253,7 +275,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           SizedBox(width: 8),
-                          Icon(Icons.chevron_right_rounded, color: _muted),
+                          Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
                         ],
                       ),
                     ),
@@ -305,7 +327,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ),
                           const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right_rounded, color: _muted),
+                          Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
                         ],
                       ),
                     ),
@@ -316,7 +338,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: 'Vider le cache',
                       subtitle: 'Liberer de l\'espace local',
                       onTap: _handleClearCache,
-                      trailing: const Icon(Icons.chevron_right_rounded, color: _muted),
+                      trailing: Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
                     ),
                   ],
                 ),
@@ -326,21 +348,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 10),
               _SettingCard(
                 child: Column(
-                  children: const [
+                  children: [
                     _SettingTile(
                       icon: Icons.description,
                       iconColor: AppTheme.primaryColor,
                       title: 'Conditions d\'utilisation',
                       subtitle: 'Mentions legales et vie privee',
-                      trailing: Icon(Icons.chevron_right_rounded, color: _muted),
+                      trailing: Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     _SettingTile(
                       icon: Icons.info_outline,
                       iconColor: AppTheme.primaryColor,
                       title: 'Version',
                       subtitle: 'Eco-Guide v2.4.0',
-                      trailing: Icon(Icons.chevron_right_rounded, color: _muted),
+                      trailing: Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
                     ),
                   ],
                 ),
@@ -356,7 +378,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFD54A3A),
                   side: const BorderSide(color: Color(0xFFD54A3A), width: 1.5),
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).cardColor,
                   minimumSize: const Size.fromHeight(56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22),
@@ -381,16 +403,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.of(context).pop();
               }
             },
-            icon: const Icon(Icons.arrow_back, color: _title),
+            icon: Icon(Icons.arrow_back, color: _titleColor(context)),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Parametres',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
-                color: _title,
+                color: _titleColor(context),
               ),
             ),
           ),
@@ -400,7 +422,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SnackBar(content: Text('Centre d\'aide bientot disponible')),
               );
             },
-            icon: const Icon(Icons.help_outline, color: _title),
+            icon: Icon(Icons.help_outline, color: _titleColor(context)),
           ),
         ],
       ),
@@ -410,10 +432,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w800,
-        color: Color(0xFF4A4A4A),
+        color: _subtitleColor(context),
       ),
     );
   }
@@ -469,7 +491,7 @@ class _SettingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _SettingsScreenState._cardBg,
+        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : const Color(0xFFEDE8DF),
         borderRadius: BorderRadius.circular(24),
       ),
       child: child,
@@ -505,7 +527,7 @@ class _SettingTile extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.72),
+              color: (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.white).withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.1 : 0.72),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: iconColor, size: 28),
@@ -517,18 +539,18 @@ class _SettingTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: _SettingsScreenState._title,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: _SettingsScreenState._subtitle,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],

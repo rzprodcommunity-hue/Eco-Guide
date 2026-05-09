@@ -92,7 +92,7 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
     final showLoadMore = query.isEmpty && trailProvider.hasMore;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF9F6),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,20 +177,20 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text(
                 'Eco-Guide',
                 style: TextStyle(
-                  color: Color(0xFF6B7280),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Trouvez votre sentier',
                 style: TextStyle(
-                  color: Color(0xFF1F2937),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                 ),
@@ -229,9 +229,9 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
             child: Container(
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
               ),
               child: TextField(
                 controller: _searchController,
@@ -354,10 +354,10 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'Sentiers recommandés',
             style: TextStyle(
-              color: Color(0xFF1F2937),
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -408,10 +408,10 @@ class _DifficultyChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF2E7D32) : const Color(0xFFF6F3ED),
+          color: selected ? const Color(0xFF2E7D32) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: selected ? const Color(0xFF2E7D32) : const Color(0xFFE5E7EB),
+            color: selected ? const Color(0xFF2E7D32) : Theme.of(context).dividerColor.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -462,7 +462,7 @@ class _TrailCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFFF6F3ED),
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -516,7 +516,7 @@ class _TrailCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Theme.of(context).cardColor.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -526,7 +526,7 @@ class _TrailCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           trail.averageRating?.toStringAsFixed(1) ?? '4.8',
-                          style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -549,10 +549,10 @@ class _TrailCard extends StatelessWidget {
                           children: [
                             Text(
                               trail.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF1F2937),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -560,12 +560,12 @@ class _TrailCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.location_on, size: 14, color: Color(0xFF6B7280)),
+                                Icon(Icons.location_on, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
                                     trail.region ?? 'Parc National',
-                                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 13),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -641,7 +641,7 @@ class _StatColumn extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               value,
-              style: const TextStyle(color: Color(0xFF1F2937), fontSize: 13, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -678,8 +678,8 @@ class _FilterSheetState extends State<_FilterSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       padding: EdgeInsets.only(
@@ -696,12 +696,12 @@ class _FilterSheetState extends State<_FilterSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Filtres avancés',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               TextButton(
@@ -719,9 +719,9 @@ class _FilterSheetState extends State<_FilterSheet> {
           // const SizedBox(height: 5),
 
           // Difficulty Filter
-          const Text('Difficulté',
+          Text('Difficulté',
               style: TextStyle(
-                color: Color(0xFF111827), fontWeight: FontWeight.bold)),
+                color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
           const SizedBox(height: 0),
           Wrap(
             spacing: 8,
@@ -753,9 +753,9 @@ class _FilterSheetState extends State<_FilterSheet> {
           const SizedBox(height: 5),
 
           // Distance Filter
-          const Text('Distance (km)',
+          Text('Distance (km)',
               style: TextStyle(
-                color: Color(0xFF111827), fontWeight: FontWeight.bold)),
+                color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           RangeSlider(
             values: _distanceRange,
@@ -773,9 +773,9 @@ class _FilterSheetState extends State<_FilterSheet> {
           const SizedBox(height: 24),
 
           // Duration Filter
-          const Text('Durée maximale',
+          Text('Durée maximale',
               style: TextStyle(
-                color: Color(0xFF111827), fontWeight: FontWeight.bold)),
+                color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Slider(
             value: _selectedDuration.toDouble(),

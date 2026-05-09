@@ -1,0 +1,18 @@
+Analyzing trail_detail_screen.dart...
+
+  error - trail_detail_screen.dart:789:10 - The method 'moveTo' isn't defined for the type 'Path'. Try correcting the name to the name of an existing method, or defining a method named 'moveTo'. - undefined_method
+  error - trail_detail_screen.dart:792:12 - The method 'lineTo' isn't defined for the type 'Path'. Try correcting the name to the name of an existing method, or defining a method named 'lineTo'. - undefined_method
+  error - trail_detail_screen.dart:795:32 - The argument type 'Path<LatLng>' can't be assigned to the parameter type 'Iterable<LatLng>'.  - argument_type_not_assignable
+  error - trail_detail_screen.dart:796:14 - The method 'lineTo' isn't defined for the type 'Path'. Try correcting the name to the name of an existing method, or defining a method named 'lineTo'. - undefined_method
+  error - trail_detail_screen.dart:797:14 - The method 'lineTo' isn't defined for the type 'Path'. Try correcting the name to the name of an existing method, or defining a method named 'lineTo'. - undefined_method
+  error - trail_detail_screen.dart:798:14 - The method 'close' isn't defined for the type 'Path'. Try correcting the name to the name of an existing method, or defining a method named 'close'. - undefined_method
+  error - trail_detail_screen.dart:800:21 - The argument type 'Path<LatLng>' can't be assigned to the parameter type 'Path'.  - argument_type_not_assignable
+  error - trail_detail_screen.dart:801:21 - The argument type 'Path<LatLng>' can't be assigned to the parameter type 'Path'.  - argument_type_not_assignable
+warning - trail_detail_screen.dart:5:8 - Unused import: '../../core/theme/app_theme.dart'. Try removing the import directive. - unused_import
+warning - trail_detail_screen.dart:8:8 - Unused import: '../../models/poi.dart'. Try removing the import directive. - unused_import
+   info - trail_detail_screen.dart:104:36 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
+   info - trail_detail_screen.dart:105:36 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
+   info - trail_detail_screen.dart:105:40 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
+   info - trail_detail_screen.dart:397:37 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
+
+14 issues found.

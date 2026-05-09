@@ -138,7 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = authProvider.user;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       // appBar: const EcoPageHeader(
       //   title: 'Dashboard',
       //   showBackButton: false,
@@ -195,15 +195,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text(
                   'Welcome back,',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   displayName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -220,8 +220,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Center(
               child: Text(
                 initials,
-                style: const TextStyle(
-                  color: Color(0xFF1A1A1A),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -278,7 +278,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             decoration: BoxDecoration(
                               color: Colors.blue,
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
+                              border: Border.all(color: Theme.of(context).cardColor, width: 3),
                             ),
                           ),
                         ),
@@ -302,7 +302,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF6EBE1).withValues(alpha: 0.95),
+                        color: Theme.of(context).cardColor.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: Colors.black12),
                       ),
@@ -317,10 +317,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(width: 6),
                           Text(
                             _mapStyle.label,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1A1A1A),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -331,7 +331,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _buildMapButton(
                           icon: Icons.layers_outlined,
                           onTap: _cycleMapStyle,
-                          bgColor: const Color(0xFFF6EBE1),
+                          bgColor: Theme.of(context).cardColor,
                         ),
                         const SizedBox(height: 8),
                         _buildMapButton(
@@ -340,7 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             _mapController.move(_currentPosition, 14);
                           },
                           bgColor: const Color(0xFF2E7D32),
-                          iconColor: Colors.white,
+                          iconColor: Theme.of(context).cardColor,
                         ),
                       ],
                     ),
@@ -358,9 +358,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF6EBE1).withValues(alpha: 0.95),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.9)
+                        : Theme.of(context).cardColor.withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.black12),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+                          : Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -368,18 +374,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Container(
                         width: 8,
                         height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF2E7D32),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'Jbel Chitana',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -407,11 +413,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       SnackBar(
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF1F2937),
+        backgroundColor: Theme.of(context).colorScheme.onSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Row(
           children: [
-            Icon(nextStyle.icon, color: Colors.white, size: 18),
+            Icon(nextStyle.icon, color: Theme.of(context).cardColor, size: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -428,16 +434,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildMapButton({
     required IconData icon,
     required VoidCallback onTap,
-    Color bgColor = Colors.white,
-    Color iconColor = const Color(0xFF1A1A1A),
+    Color? bgColor,
+    Color? iconColor,
   }) {
+    final effectiveBgColor = bgColor ?? Theme.of(context).cardColor;
+    final effectiveIconColor = iconColor ?? Theme.of(context).colorScheme.onSurface;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: bgColor,
+          color: effectiveBgColor,
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
@@ -447,7 +455,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        child: Icon(icon, size: 20, color: iconColor),
+        child: Icon(icon, size: 20, color: effectiveIconColor),
       ),
     );
   }
@@ -494,12 +502,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Nearby POI',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               GestureDetector(
@@ -560,7 +568,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         width: 230,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -612,9 +620,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     poi.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -622,7 +630,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     poi.description,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? Colors.grey),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -646,13 +654,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.near_me, size: 13, color: Colors.grey[600]),
+                      Icon(Icons.near_me, size: 13, color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? Colors.grey),
                       const SizedBox(width: 4),
                       Text(
                         '${distanceKm.toStringAsFixed(1)} km',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -693,19 +701,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: 65,
             height: 65,
             decoration: BoxDecoration(
-              color: const Color(0xFFF6EBE1),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                  : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.brown.withValues(alpha: 0.1)),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
+                    : Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              ),
             ),
-            child: Icon(icon, color: const Color(0xFF2E7D32), size: 28),
+            child: Icon(
+              icon, 
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).primaryColor, 
+              size: 28
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF333333),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],
@@ -724,12 +744,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Nearby Trails',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               GestureDetector(
@@ -739,7 +759,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).primaryColor,
                   ),
                 ),
               ),
@@ -787,8 +809,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         width: 220,
         decoration: BoxDecoration(
-          color: const Color(0xFFF6EBE1),
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -903,10 +926,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     trail.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -915,14 +938,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Icon(
                         Icons.help_outline,
                         size: 15,
-                        color: Colors.grey[700],
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         trail.distanceText,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -930,14 +953,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Icon(
                         Icons.timer_outlined,
                         size: 15,
-                        color: Colors.grey[700],
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         trail.durationText,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1033,9 +1056,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFFF6EBE1),
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.brown.withValues(alpha: 0.1)),
+          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
         ),
         child: Row(
           children: [
@@ -1043,29 +1066,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Current Conditions',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.wb_sunny_outlined,
                         size: 36,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         temperature,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -1078,13 +1101,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.air, size: 16, color: Colors.black54),
+                    Icon(Icons.air, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                     const SizedBox(width: 4),
                     Text(
                       'Wind: $wind',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.black54,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1093,17 +1116,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.water_drop_outlined,
                       size: 16,
-                      color: Colors.black54,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       'Humidity: $humidity',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.black54,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1116,15 +1139,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Perfect for hiking',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E7D32),
+                      color: Theme.of(context).primaryColor,
                     ),
                   ),
                 ),
@@ -1147,12 +1170,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Discover Nature',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               GestureDetector(
@@ -1215,7 +1238,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         height: 100,
         decoration: BoxDecoration(
-          color: const Color(0xFFF6EBE1),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF2A2A2A)
+              : const Color(0xFFF6EBE1),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -1247,10 +1272,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Text(
                       poi.typeDisplayName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black54,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1258,10 +1283,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 2),
                     Text(
                       poi.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1269,9 +1294,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 4),
                     Text(
                       poi.description,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.black54,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -1293,7 +1318,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: FloatingActionButton.extended(
         heroTag: 'startTrekDashboard',
         onPressed: widget.onNavigateToTrails,
-        backgroundColor: const Color(0xFF2E7D32),
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).primaryColor.withValues(alpha: 0.9),
         icon: const Icon(Icons.add_location_alt, color: Colors.white),
         label: const Text(
           'Start Trek',

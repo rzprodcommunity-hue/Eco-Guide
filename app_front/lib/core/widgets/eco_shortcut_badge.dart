@@ -23,13 +23,16 @@ class EcoShortcutBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
       top: false,
       child: Container(
         margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          color: isDark ? const Color(0xFF1E1E1E) : null,
+          gradient: isDark ? null : const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [Color(0xFFFFFFFF), Color(0xFFF5FFF6)],
@@ -38,7 +41,7 @@ class EcoShortcutBadge extends StatelessWidget {
           border: Border.all(color: Colors.green.withValues(alpha: 0.24)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.07),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -112,6 +115,8 @@ class EcoShortcutBadge extends StatelessWidget {
     required String label,
   }) {
     final selected = currentTab == tab;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedColor = isDark ? Colors.grey[400] : const Color(0xFF64748B);
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -120,12 +125,12 @@ class EcoShortcutBadge extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? Colors.green.withValues(alpha: 0.16) : Colors.transparent,
+          color: selected ? Colors.green.withValues(alpha: isDark ? 0.2 : 0.16) : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: Colors.green.withValues(alpha: 0.16),
+                    color: Colors.green.withValues(alpha: isDark ? 0.2 : 0.16),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -138,7 +143,7 @@ class EcoShortcutBadge extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: selected ? Colors.green : const Color(0xFF64748B),
+              color: selected ? Colors.green : unselectedColor,
             ),
             const SizedBox(height: 1),
             Text(
@@ -146,7 +151,7 @@ class EcoShortcutBadge extends StatelessWidget {
               style: TextStyle(
                 fontSize: 9,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? Colors.green : const Color(0xFF64748B),
+                color: selected ? Colors.green : unselectedColor,
               ),
             ),
           ],

@@ -113,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F5F2),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const EcoPageHeader(
         title: 'Profil',
         showAccountBadge: false,
@@ -204,10 +204,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(
                 user.fullName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 36 / 2,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF222222),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),
@@ -598,10 +598,10 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             data.value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF222222),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 2),

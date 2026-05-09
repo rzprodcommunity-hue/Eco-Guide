@@ -13,13 +13,13 @@ class ApiConstants {
 
     // Android emulator cannot access localhost of the host machine directly.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return '192.168.229.79';
+      return '10.0.2.2';
     }
 
     return 'localhost';
   }
 
-  static String get _port => _configuredPort.isNotEmpty ? _configuredPort : '3000';
+  static String get _port => _configuredPort.isNotEmpty ? _configuredPort : '3001';
 
   static String get baseUrl => 'http://$_host:$_port/api';
 

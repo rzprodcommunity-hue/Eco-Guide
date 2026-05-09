@@ -373,7 +373,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F3),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: EcoPageHeader(
         title: 'Mode Hors Ligne',
         actions: [
@@ -452,7 +452,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1212),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).cardColor
+            : const Color(0xFF0E1212),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -533,10 +535,10 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
 
     return Text(
       'Telechargement complet du parc - $regionLabel',
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 17,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF141A1A),
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -556,9 +558,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4ECE4)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
@@ -578,9 +580,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF18201D),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -661,9 +663,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FCF7),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE0ECE0)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [

@@ -30,7 +30,7 @@ class EcoPageHeader extends StatelessWidget implements PreferredSizeWidget {
 
     return AppBar(
       automaticallyImplyLeading: false,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: centerTitle,
@@ -43,8 +43,8 @@ class EcoPageHeader extends StatelessWidget implements PreferredSizeWidget {
           : const SizedBox.shrink(),
       title: Text(
         title,
-        style: const TextStyle(
-          color: Color(0xFF1A1A1A),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface,
           fontWeight: FontWeight.w700,
           fontSize: 18,
         ),
@@ -113,10 +113,10 @@ class _AccountBadge extends StatelessWidget {
               child: Text(
                 shortName,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),

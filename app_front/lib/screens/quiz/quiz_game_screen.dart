@@ -29,7 +29,7 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
     final provider = context.watch<QuizProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF9F6),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: provider.isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -51,12 +51,12 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
           children: [
             Icon(Icons.quiz, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Aucun quiz disponible',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A1A),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
@@ -140,10 +140,10 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                   const SizedBox(height: 32),
                   Text(
                     isGreat ? 'Félicitations!' : 'Bien joué!',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -259,10 +259,10 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A1A1A),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         Text(
@@ -290,31 +290,31 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
             children: [
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.black87),
+                icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface),
               ),
               Column(
                 children: [
-                  const Text(
+                  Text(
                     'Nature Quiz',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: Colors.black87,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     'Question ${provider.currentIndex + 1} of ${provider.totalQuestions}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF4B5563),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
               ),
               IconButton(
                 onPressed: () => _showHelpDialog(),
-                icon: const Icon(Icons.help_outline, color: Colors.black87),
+                icon: Icon(Icons.help_outline, color: Theme.of(context).colorScheme.onSurface),
               ),
             ],
           ),
@@ -333,8 +333,8 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: index <= provider.currentIndex
-                      ? const Color(0xFF2E7D32)
-                      : const Color(0xFFDCCFBF),
+                      ? AppTheme.primaryColor
+                      : Theme.of(context).dividerColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -351,7 +351,7 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                 // Card Container for Image + Question + Answers
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF2ECE2),
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -419,10 +419,10 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                           children: [
                             Text(
                               quiz.question,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF111111),
+                                color: Theme.of(context).colorScheme.onSurface,
                                 height: 1.4,
                               ),
                             ),
@@ -433,29 +433,29 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                               final isCorrect = index == quiz.correctAnswerIndex;
                               final showResult = provider.answered;
 
-                              Color backgroundColor = const Color(0xFFEFE8DD);
-                              Color borderColor = const Color(0xFFDCCFBF);
-                              Color textColor = const Color(0xFF111111);
-                              Color letterBgColor = Colors.white;
-                              Color letterColor = const Color(0xFF111111);
+                              Color backgroundColor = Theme.of(context).cardColor;
+                              Color borderColor = Theme.of(context).dividerColor.withValues(alpha: 0.1);
+                              Color textColor = Theme.of(context).colorScheme.onSurface;
+                              Color letterBgColor = Theme.of(context).scaffoldBackgroundColor;
+                              Color letterColor = Theme.of(context).colorScheme.onSurface;
 
                               if (showResult) {
                                 if (isCorrect) {
-                                  backgroundColor = const Color(0xFFE8F5E9);
-                                  borderColor = const Color(0xFF4CAF50);
-                                  letterBgColor = const Color(0xFF4CAF50);
+                                  backgroundColor = Theme.of(context).primaryColor.withValues(alpha: 0.15);
+                                  borderColor = Theme.of(context).primaryColor;
+                                  letterBgColor = Theme.of(context).primaryColor;
                                   letterColor = Colors.white;
                                 } else if (isSelected && !isCorrect) {
-                                  backgroundColor = const Color(0xFFFFEBEE);
-                                  borderColor = const Color(0xFFE53935);
-                                  letterBgColor = const Color(0xFFE53935);
+                                  backgroundColor = Colors.red.withValues(alpha: 0.15);
+                                  borderColor = Colors.red;
+                                  letterBgColor = Colors.red;
                                   letterColor = Colors.white;
                                 }
                               } else if (isSelected) {
-                                backgroundColor = const Color(0xFFEFE8DD);
-                                borderColor = const Color(0xFF4B5563);
-                                letterBgColor = const Color(0xFF111111);
-                                letterColor = Colors.white;
+                                backgroundColor = Theme.of(context).cardColor;
+                                borderColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
+                                letterBgColor = Theme.of(context).colorScheme.onSurface;
+                                letterColor = Theme.of(context).colorScheme.surface;
                               }
 
                               return Padding(
@@ -504,9 +504,9 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                                           ),
                                         ),
                                         if (showResult && isCorrect)
-                                          const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 24),
+                                          Icon(Icons.check_circle, color: Theme.of(context).primaryColor, size: 24),
                                         if (showResult && isSelected && !isCorrect)
-                                          const Icon(Icons.cancel, color: Color(0xFFE53935), size: 24),
+                                          const Icon(Icons.cancel, color: Colors.red, size: 24),
                                       ],
                                     ),
                                   ),
@@ -526,16 +526,16 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
+                      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFC8E6C9), width: 1.5),
+                      border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.2), width: 1.5),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.lightbulb,
-                          color: Color(0xFF111111),
+                          color: Theme.of(context).colorScheme.onSurface,
                           size: 24,
                         ),
                         const SizedBox(width: 12),
@@ -543,20 +543,20 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Eco-Guide Tip',
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF111111),
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 quiz.explanation!,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF4B5563),
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                                   height: 1.4,
                                 ),
                               ),
@@ -588,11 +588,11 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24),
                         ),
-                        side: const BorderSide(color: Color(0xFF6B7280)),
+                        side: BorderSide(color: Theme.of(context).dividerColor),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Skip Question',
-                        style: TextStyle(color: Color(0xFF111111), fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -603,12 +603,12 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                           ? (provider.selectedAnswer != null ? provider.submitAnswer : null)
                           : (provider.hasNext ? provider.nextQuestion : () { provider.nextQuestion(); }),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
+                        backgroundColor: Theme.of(context).primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24),
                         ),
-                        disabledBackgroundColor: const Color(0xFF2E7D32).withValues(alpha: 0.5),
+                        disabledBackgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.5),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -632,15 +632,15 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.eco, size: 14, color: Color(0xFF111111)),
-                  SizedBox(width: 6),
+                children: [
+                  Icon(Icons.eco, size: 14, color: Theme.of(context).colorScheme.onSurface),
+                  const SizedBox(width: 6),
                   Text(
                     'Learn more about the park',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF111111),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],

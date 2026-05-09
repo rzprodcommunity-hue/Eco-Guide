@@ -44,7 +44,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     final poiProvider = context.watch<PoiProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF9F6),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           CustomScrollView(
@@ -178,6 +178,13 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                   fontWeight: FontWeight.w800,
                   fontSize: 32,
                   height: 1.1,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black45,
+                      offset: Offset(0, 2),
+                      blurRadius: 4,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),
@@ -215,14 +222,21 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
 
   Widget _buildStatsCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F3ED),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8DFD0)),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem(Icons.route_outlined, 'Distance', widget.trail.distanceText),
           _buildStatItem(Icons.access_time, 'Durée', widget.trail.durationText),
@@ -237,33 +251,46 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
   }
 
   Widget _buildStatItem(IconData icon, String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       children: [
         Container(
-          width: 48,
-          height: 48,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
-            color: const Color(0xFFF6F3ED),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE8DFD0)),
+            color: isDark 
+                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2)
+                : Theme.of(context).primaryColor.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark 
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
+                  : Theme.of(context).primaryColor.withValues(alpha: 0.1),
+            ),
           ),
-          child: Icon(icon, color: const Color(0xFF2E7D32), size: 24),
+          child: Icon(
+            icon, 
+            color: isDark ? Theme.of(context).colorScheme.primary : Theme.of(context).primaryColor, 
+            size: 26
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF6B7280),
-            fontSize: 11,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: 12,
             fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            color: Color(0xFF1F2937),
-            fontSize: 14,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -275,19 +302,19 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'À propos du sentier',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF1F2937),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 12),
         Text(
           widget.trail.description,
-          style: const TextStyle(
-            color: Color(0xFF4B5563),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 14,
             height: 1.6,
           ),
@@ -303,13 +330,13 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.end,
-          children: const [
+          children: [
             Text(
               "Profil d'altitude",
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1F2937),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             Text(
@@ -317,7 +344,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF4B5563),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -328,9 +355,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           width: double.infinity,
           padding: const EdgeInsets.only(top: 24, bottom: 8, left: 16, right: 16),
           decoration: BoxDecoration(
-            color: const Color(0xFFF6F3ED),
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE8DFD0)),
+            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
           ),
           child: CustomPaint(
             painter: _ElevationChartPainter(),
@@ -339,12 +366,12 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text("Départ", style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
-                    Text("2km", style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
-                    Text("4km", style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
-                    Text("6km", style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
-                    Text("Arrivée", style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+                  children: [
+                    Text("Départ", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+                    Text("2km", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+                    Text("4km", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+                    Text("6km", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+                    Text("Arrivée", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
                   ],
                 ),
               ],
@@ -363,20 +390,20 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            const Text(
+            Text(
               "Points d'intérêt",
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1F2937),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             Text(
               "${poiProvider.pois.length} lieux",
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF4B5563),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -385,7 +412,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         if (poiProvider.isLoading)
           const Center(child: CircularProgressIndicator())
         else if (poiProvider.pois.isEmpty)
-          const Text("Aucun point d'intérêt", style: TextStyle(color: Color(0xFF6B7280)))
+          Text("Aucun point d'intérêt", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)))
         else
           SizedBox(
             height: 176,
@@ -406,9 +433,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                   child: Container(
                     width: 160,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF6F3ED),
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE8DFD0)),
+                      border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -436,10 +463,10 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                             children: [
                               Text(
                                 poi.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
-                                  color: Color(0xFF1F2937),
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -447,14 +474,14 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  const Icon(Icons.eco, size: 12, color: Color(0xFF2E7D32)),
+                                  Icon(Icons.eco, size: 12, color: Theme.of(context).primaryColor),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
                                       poi.badge ?? poi.typeDisplayName,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
-                                        color: Color(0xFF4B5563),
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                         fontWeight: FontWeight.w500,
                                       ),
                                       maxLines: 1,
@@ -484,13 +511,13 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.end,
-          children: const [
+          children: [
             Text(
               "Avis de la communauté",
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1F2937),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             Text(
@@ -498,7 +525,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF4B5563),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -527,9 +554,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F3ED),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8DFD0)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,17 +584,17 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                     children: [
                       Text(
                         name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Color(0xFF1F2937),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       Text(
                         date,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF6B7280),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -577,7 +604,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -586,9 +613,10 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                     const SizedBox(width: 4),
                     Text(
                       rating,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -599,8 +627,8 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           const SizedBox(height: 12),
           Text(
             text,
-            style: const TextStyle(
-              color: Color(0xFF4B5563),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               fontSize: 13,
               height: 1.5,
             ),
@@ -623,7 +651,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           bottom: MediaQuery.of(context).padding.bottom > 0 ? MediaQuery.of(context).padding.bottom : 16,
         ),
         decoration: BoxDecoration(
-          color: const Color(0xFFFBF9F6),
+          color: Theme.of(context).scaffoldBackgroundColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -654,7 +682,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                         );
                       },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
+                  backgroundColor: Theme.of(context).primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
@@ -681,7 +709,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               height: 54,
               width: 54,
               decoration: BoxDecoration(
-                color: const Color(0xFFF6F3ED),
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
               ),
