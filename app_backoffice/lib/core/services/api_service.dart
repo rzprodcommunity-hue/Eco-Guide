@@ -1,9 +1,10 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ApiService {
   static String? _token;
+
+  static SupabaseClient get _supabase => Supabase.instance.client;
 
   static Future<void> loadToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -22,66 +23,188 @@ class ApiService {
     await prefs.remove('auth_token');
   }
 
-  static String? get token => _token;
+  static String? get token =>
+      _token ?? _supabase.auth.currentSession?.accessToken;
 
   static Map<String, String> get headers {
-    final headers = {
+    final currentToken = token;
+    return {
       'Content-Type': 'application/json',
+      if (currentToken != null) 'Authorization': 'Bearer $currentToken',
     };
-    if (_token != null) {
-      headers['Authorization'] = 'Bearer $_token';
-    }
-    return headers;
   }
 
-  static Future<dynamic> get(String url, {Map<String, String>? queryParams}) async {
-    var uri = Uri.parse(url);
-    if (queryParams != null && queryParams.isNotEmpty) {
-      uri = uri.replace(queryParameters: queryParams);
+  static Future<dynamic> get(
+    String url, {
+    Map<String, String>? queryParams,
+  }) async {
+    final path = _path(url);
+
+    if (path == '/admin/dashboard') {
+      return _supabase.rpc('admin_dashboard_overview');
     }
 
-    final response = await http.get(uri, headers: headers);
-    return _handleResponse(response);
+    if (path == '/users') {
+      return _list('profiles', queryParams ?? {});
+    }
+    if (path.startsWith('/users/')) {
+      return _single('profiles', path.split('/').last);
+    }
+
+    if (path == '/trails') return _list('trails', queryParams ?? {});
+    if (path.startsWith('/trails/'))
+      return _single('trails', path.split('/').last);
+
+    if (path == '/pois') return _list('pois', queryParams ?? {});
+    if (path.startsWith('/pois/')) return _single('pois', path.split('/').last);
+
+    if (path == '/quizzes') return _list('quizzes', queryParams ?? {});
+    if (path.startsWith('/quizzes/')) {
+      return _single('quizzes', path.split('/').last);
+    }
+
+    if (path == '/local-services') {
+      return _list('local_services', queryParams ?? {});
+    }
+    if (path.startsWith('/local-services/')) {
+      return _single('local_services', path.split('/').last);
+    }
+
+    if (path == '/sos/alerts/active') {
+      return _supabase
+          .from('sos_alerts')
+          .select()
+          .eq('status', 'active')
+          .order('createdAt', ascending: false);
+    }
+    if (path == '/sos/alerts') {
+      return _supabase
+          .from('sos_alerts')
+          .select()
+          .order('createdAt', ascending: false);
+    }
+
+    throw ApiException('Endpoint Supabase non supporte: $path', 404);
   }
 
   static Future<dynamic> post(String url, {dynamic body}) async {
-    final response = await http.post(
-      Uri.parse(url),
-      headers: headers,
-      body: body != null ? jsonEncode(body) : null,
-    );
-    return _handleResponse(response);
+    final table = _tableForPath(_path(url));
+    final payload = _cleanPayload(body);
+    return _supabase.from(table).insert(payload).select().single();
   }
 
   static Future<dynamic> patch(String url, {dynamic body}) async {
-    final response = await http.patch(
-      Uri.parse(url),
-      headers: headers,
-      body: body != null ? jsonEncode(body) : null,
-    );
-    return _handleResponse(response);
+    final path = _path(url);
+
+    if (path.startsWith('/sos/alerts/') && path.endsWith('/resolve')) {
+      final id = path.split('/')[3];
+      return _supabase.rpc('resolve_sos_alert', params: {'alert_id': id});
+    }
+
+    final segments = path.split('/').where((part) => part.isNotEmpty).toList();
+    if (segments.length < 2) {
+      throw ApiException('URL de mise a jour invalide: $path', 400);
+    }
+
+    final table = _tableForCollection(segments.first);
+    final id = segments.last;
+    return _supabase
+        .from(table)
+        .update(_cleanPayload(body))
+        .eq('id', id)
+        .select()
+        .single();
   }
 
   static Future<dynamic> delete(String url) async {
-    final response = await http.delete(Uri.parse(url), headers: headers);
-    return _handleResponse(response);
+    final path = _path(url);
+    final segments = path.split('/').where((part) => part.isNotEmpty).toList();
+    if (segments.length < 2) {
+      throw ApiException('URL de suppression invalide: $path', 400);
+    }
+
+    final table = _tableForCollection(segments.first);
+    final id = segments.last;
+    await _supabase.from(table).delete().eq('id', id);
+    return null;
   }
 
-  static dynamic _handleResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (response.body.isEmpty) return null;
-      return jsonDecode(response.body);
-    } else if (response.statusCode == 401) {
-      throw ApiException('Non autorise', 401);
-    } else if (response.statusCode == 403) {
-      throw ApiException('Acces interdit', 403);
-    } else if (response.statusCode == 404) {
-      throw ApiException('Ressource non trouvee', 404);
-    } else {
-      final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
-      final message = body['message'] ?? 'Erreur inconnue';
-      throw ApiException(message is List ? message.join(', ') : message.toString(), response.statusCode);
+  static Future<Map<String, dynamic>> _list(
+    String table,
+    Map<String, String> params,
+  ) async {
+    final page = int.tryParse(params['page'] ?? '') ?? 1;
+    final limit = int.tryParse(params['limit'] ?? '') ?? 10;
+    final from = (page - 1) * limit;
+    final to = from + limit - 1;
+
+    dynamic query = _supabase.from(table).select();
+
+    if (params['difficulty'] != null)
+      query = query.eq('difficulty', params['difficulty']!);
+    if (params['region'] != null)
+      query = query.ilike('region', '%${params['region']}%');
+    if (params['type'] != null) query = query.eq('type', params['type']!);
+    if (params['trailId'] != null)
+      query = query.eq('trailId', params['trailId']!);
+    if (params['category'] != null)
+      query = query.eq('category', params['category']!);
+    if (params['minDistance'] != null) {
+      query = query.gte('distance', double.parse(params['minDistance']!));
     }
+    if (params['maxDistance'] != null) {
+      query = query.lte('distance', double.parse(params['maxDistance']!));
+    }
+    if (params['maxDuration'] != null) {
+      query = query.lte('estimatedDuration', int.parse(params['maxDuration']!));
+    }
+
+    final rows = await query
+        .order('createdAt', ascending: false)
+        .range(from, to);
+
+    return {
+      'data': rows,
+      'meta': {
+        'total': rows.length,
+        'page': page,
+        'limit': limit,
+        'totalPages': rows.isEmpty ? 0 : 1,
+      },
+    };
+  }
+
+  static Future<dynamic> _single(String table, String id) {
+    return _supabase.from(table).select().eq('id', id).single();
+  }
+
+  static Map<String, dynamic> _cleanPayload(dynamic body) {
+    final payload = Map<String, dynamic>.from(body as Map? ?? const {});
+    payload.removeWhere((_, value) => value == null);
+    return payload;
+  }
+
+  static String _path(String url) {
+    final parsed = Uri.parse(url);
+    final path = parsed.path;
+    final apiIndex = path.indexOf('/api');
+    return apiIndex >= 0 ? path.substring(apiIndex + 4) : path;
+  }
+
+  static String _tableForPath(String path) {
+    final collection = path.split('/').where((part) => part.isNotEmpty).first;
+    return _tableForCollection(collection);
+  }
+
+  static String _tableForCollection(String collection) {
+    return switch (collection) {
+      'users' => 'profiles',
+      'trails' => 'trails',
+      'pois' => 'pois',
+      'quizzes' => 'quizzes',
+      'local-services' => 'local_services',
+      _ => throw ApiException('Collection Supabase inconnue: $collection', 404),
+    };
   }
 }
 

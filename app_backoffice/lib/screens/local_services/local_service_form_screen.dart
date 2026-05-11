@@ -47,7 +47,9 @@ class _LocalServiceFormScreenState extends State<LocalServiceFormScreen> {
   Future<void> _loadService() async {
     setState(() => _isLoadingService = true);
     try {
-      final service = await LocalServiceApiService.getService(widget.serviceId!);
+      final service = await LocalServiceApiService.getService(
+        widget.serviceId!,
+      );
       _nameController.text = service.name;
       _descriptionController.text = service.description;
       _contactController.text = service.contact ?? '';
@@ -64,7 +66,10 @@ class _LocalServiceFormScreenState extends State<LocalServiceFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -141,7 +146,10 @@ class _LocalServiceFormScreenState extends State<LocalServiceFormScreen> {
       context.go('/local-services');
     } else if (provider.error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error!), backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text(provider.error!),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
@@ -166,7 +174,10 @@ class _LocalServiceFormScreenState extends State<LocalServiceFormScreen> {
               const SizedBox(width: 8),
               Text(
                 isEditing ? 'Modifier le service' : 'Nouveau service',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -270,35 +281,48 @@ class _LocalServiceFormScreenState extends State<LocalServiceFormScreen> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: ['Francais', 'Arabe', 'Anglais', 'Espagnol', 'Allemand']
-                          .map((lang) => FilterChip(
-                                label: Text(lang),
-                                selected: _languages.contains(lang),
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _languages.add(lang);
-                                    } else {
-                                      _languages.remove(lang);
-                                    }
-                                  });
-                                },
-                              ))
-                          .toList(),
+                      children:
+                          [
+                                'Francais',
+                                'Arabe',
+                                'Anglais',
+                                'Espagnol',
+                                'Allemand',
+                              ]
+                              .map(
+                                (lang) => FilterChip(
+                                  label: Text(lang),
+                                  selected: _languages.contains(lang),
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        _languages.add(lang);
+                                      } else {
+                                        _languages.remove(lang);
+                                      }
+                                    });
+                                  },
+                                ),
+                              )
+                              .toList(),
                     ),
                   ]),
                   const SizedBox(height: 24),
                   _buildSection('Statut', [
                     SwitchListTile(
                       title: const Text('Service verifie'),
-                      subtitle: const Text('Indique que le service a ete verifie'),
+                      subtitle: const Text(
+                        'Indique que le service a ete verifie',
+                      ),
                       value: _isVerified,
                       onChanged: (v) => setState(() => _isVerified = v),
                       activeColor: AppColors.primary,
                     ),
                     SwitchListTile(
                       title: const Text('Service actif'),
-                      subtitle: const Text('Les services inactifs ne sont pas visibles'),
+                      subtitle: const Text(
+                        'Les services inactifs ne sont pas visibles',
+                      ),
                       value: _isActive,
                       onChanged: (v) => setState(() => _isActive = v),
                       activeColor: AppColors.primary,
@@ -318,13 +342,19 @@ class _LocalServiceFormScreenState extends State<LocalServiceFormScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
                         ),
                         child: _isLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Text(isEditing ? 'Enregistrer' : 'Creer'),
                       ),

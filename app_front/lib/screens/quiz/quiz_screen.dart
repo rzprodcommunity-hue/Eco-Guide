@@ -30,51 +30,49 @@ class _QuizScreenState extends State<QuizScreen> {
       'name': 'Flore',
       'icon': Icons.local_florist,
       'color': const Color(0xFF4CAF50),
-      'description': 'Decouvrez la vegetation'
+      'description': 'Decouvrez la vegetation',
     },
     {
       'key': 'fauna',
       'name': 'Faune',
       'icon': Icons.pets,
       'color': const Color(0xFFFF9800),
-      'description': 'Apprenez sur les animaux'
+      'description': 'Apprenez sur les animaux',
     },
     {
       'key': 'ecology',
       'name': 'Ecologie',
       'icon': Icons.eco,
       'color': const Color(0xFF2196F3),
-      'description': 'Protegez l\'environnement'
+      'description': 'Protegez l\'environnement',
     },
     {
       'key': 'geography',
       'name': 'Geographie',
       'icon': Icons.terrain,
       'color': const Color(0xFF795548),
-      'description': 'Explorez les paysages'
+      'description': 'Explorez les paysages',
     },
     {
       'key': 'history',
       'name': 'Histoire',
       'icon': Icons.history_edu,
       'color': const Color(0xFF9C27B0),
-      'description': 'Voyagez dans le temps'
+      'description': 'Voyagez dans le temps',
     },
     {
       'key': 'safety',
       'name': 'Securite',
       'icon': Icons.shield,
       'color': const Color(0xFFE53935),
-      'description': 'Randonnez en securite'
+      'description': 'Randonnez en securite',
     },
   ];
 
   void _startQuiz({String? category}) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => QuizGameScreen(category: category),
-      ),
+      MaterialPageRoute(builder: (_) => QuizGameScreen(category: category)),
     );
   }
 
@@ -84,10 +82,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const EcoPageHeader(
-        title: 'Nature Quiz',
-        showBackButton: false,
-      ),
+      appBar: const EcoPageHeader(title: 'Nature Quiz', showBackButton: false),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -110,9 +105,7 @@ class _QuizScreenState extends State<QuizScreen> {
   Widget _buildHeader(dynamic user) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: const BoxDecoration(color: Colors.white),
       child: Row(
         children: [
           Container(
@@ -121,11 +114,7 @@ class _QuizScreenState extends State<QuizScreen> {
               color: AppTheme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(
-              Icons.quiz,
-              color: AppTheme.primaryColor,
-              size: 28,
-            ),
+            child: Icon(Icons.quiz, color: AppTheme.primaryColor, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -142,10 +131,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 ),
                 Text(
                   'Testez vos connaissances',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -172,8 +158,9 @@ class _QuizScreenState extends State<QuizScreen> {
       0,
       (sum, score) => sum + score.totalQuestions,
     );
-    final avgPercentage =
-        totalQuestions > 0 ? (totalCorrect / totalQuestions * 100).round() : 0;
+    final avgPercentage = totalQuestions > 0
+        ? (totalCorrect / totalQuestions * 100).round()
+        : 0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -220,10 +207,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     children: [
                       const Text(
                         'Votre Score Total',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                       Text(
                         '$totalScore pts',
@@ -247,21 +231,13 @@ class _QuizScreenState extends State<QuizScreen> {
                   value: '$totalQuizzes',
                   label: 'Quiz joues',
                 ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.white24,
-                ),
+                Container(width: 1, height: 40, color: Colors.white24),
                 _buildScoreStat(
                   icon: Icons.percent,
                   value: '$avgPercentage%',
                   label: 'Moyenne',
                 ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.white24,
-                ),
+                Container(width: 1, height: 40, color: Colors.white24),
                 _buildScoreStat(
                   icon: Icons.star,
                   value: '$totalCorrect',
@@ -294,10 +270,7 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 11,
-          ),
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
         ),
       ],
     );
@@ -350,19 +323,12 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     Text(
                       '10 questions - Toutes categories',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[500],
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.grey[400],
-                size: 20,
-              ),
+              Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 20),
             ],
           ),
         ),
@@ -438,11 +404,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                category['icon'] as IconData,
-                color: color,
-                size: 28,
-              ),
+              child: Icon(category['icon'] as IconData, color: color, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -460,10 +422,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   const SizedBox(height: 2),
                   Text(
                     category['description'] as String,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                   if (score != null) ...[
                     const SizedBox(height: 8),
@@ -480,8 +439,11 @@ class _QuizScreenState extends State<QuizScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Icon(Icons.check_circle,
-                            size: 14, color: AppTheme.primaryColor),
+                        Icon(
+                          Icons.check_circle,
+                          size: 14,
+                          color: AppTheme.primaryColor,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${score.bestPercentage.round()}% best',
@@ -497,11 +459,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.grey[400],
-              size: 18,
-            ),
+            Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 18),
           ],
         ),
       ),

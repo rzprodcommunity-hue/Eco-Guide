@@ -75,9 +75,7 @@ class _AccountBadge extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const HomeScreen(initialIndex: 7),
-          ),
+          MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 7)),
           (route) => false,
         );
       },

@@ -17,7 +17,6 @@ import '../../models/trail.dart';
 import '../../providers/local_service_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
-import '../sos/sos_button.dart';
 
 class NavigationSosScreen extends StatefulWidget {
   final LatLng? destination;
@@ -39,6 +38,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   static const Distance _distance = Distance();
 
   final MapController _mapController = MapController();
+  final MapOfflineService _mapOfflineService = MapOfflineService();
   Timer? _gpsTimer;
 
   LatLng _currentPosition = LatLng(
@@ -87,6 +87,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   @override
   void initState() {
     super.initState();
+    _mapOfflineService.initialize();
     _activeDestination = widget.destination;
     _activeDestinationLabel = widget.destinationLabel;
 
@@ -160,11 +161,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     });
   }
 
-  void _stopHike() {
-    // Return to the home screen
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
   Future<void> _detectUserPosition() async {
     final enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) return;
@@ -197,15 +193,21 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   Future<void> _updatePositionSilently() async {
     try {
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       if (!mounted) return;
 
       final newPos = LatLng(position.latitude, position.longitude);
-      
+
       setState(() {
         if (_hikeStatus == _HikeStatus.inProgress) {
-          final distanceMoved = _distance.as(LengthUnit.Meter, _currentPosition, newPos);
+          final distanceMoved = _distance.as(
+            LengthUnit.Meter,
+            _currentPosition,
+            newPos,
+          );
           // Only add to distance if it's a significant movement (e.g. > 2 meters) to avoid GPS jitter
           if (distanceMoved > 2 && distanceMoved < 100) {
             _distanceTraveled += (distanceMoved / 1000); // km
@@ -410,7 +412,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               TileLayer(
                 urlTemplate: _mapStyle.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
-                tileProvider: LocalFirstTileProvider(),
+                tileProvider: LocalFirstTileProvider(
+                  service: _mapOfflineService,
+                ),
                 // Disable caching if users change the tile url to force refresh
                 reset: StreamController<void>().stream,
               ),
@@ -441,7 +445,11 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                     height: 34,
                     child: const CircleAvatar(
                       backgroundColor: Colors.blue,
-                      child: Icon(Icons.navigation, color: Colors.white, size: 18),
+                      child: Icon(
+                        Icons.navigation,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
                   ),
                   if (hasDestination)
@@ -463,7 +471,11 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                         onTap: () => _selectDestination(point),
                         child: CircleAvatar(
                           backgroundColor: point.color,
-                          child: Icon(point.icon, color: Colors.white, size: 14),
+                          child: Icon(
+                            point.icon,
+                            color: Colors.white,
+                            size: 14,
+                          ),
                         ),
                       ),
                     ),
@@ -478,7 +490,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               left: 16,
               right: 16,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).primaryColor,
                   borderRadius: BorderRadius.circular(14),
@@ -531,7 +546,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               left: 16,
               right: 16,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).brightness == Brightness.dark
                       ? const Color(0xFF3D201E)
@@ -545,7 +563,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE65245)),
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFE65245),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -554,7 +575,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                           Text(
                             'Off-Trail Alert',
                             style: TextStyle(
-                              color: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Colors.redAccent
                                   : const Color(0xFFD64A3A),
                               fontWeight: FontWeight.w700,
@@ -564,7 +587,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                             'You are away from the path.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Colors.redAccent.withValues(alpha: 0.8)
                                   : const Color(0xFFD64A3A),
                             ),
@@ -613,7 +638,11 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -639,8 +668,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                           Text(
                             _featuredPoint!.subtitle,
                             style: TextStyle(
-                              fontSize: 12, 
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -650,44 +681,48 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                     ),
                     IconButton(
                       onPressed: () => _selectDestination(_featuredPoint!),
-                      icon: Icon(Icons.gps_fixed, color: Theme.of(context).primaryColor),
+                      icon: Icon(
+                        Icons.gps_fixed,
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-          Positioned(
-            right: 16,
-            bottom: 146,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SosScreen(),
-                    fullscreenDialog: true,
-                  ),
-                );
-              },
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFD84B3C),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'SOS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-          ),
+
+          // Positioned(
+          //   right: 16,
+          //   bottom: 146,
+          //   child: GestureDetector(
+          //     onTap: () {
+          //       Navigator.push(
+          //         context,
+          //         MaterialPageRoute(
+          //           builder: (_) => const SosScreen(),
+          //           fullscreenDialog: true,
+          //         ),
+          //       );
+          //     },
+          //     child: Container(
+          //       width: 56,
+          //       height: 56,
+          //       decoration: const BoxDecoration(
+          //         color: Color(0xFFD84B3C),
+          //         shape: BoxShape.circle,
+          //       ),
+          //       alignment: Alignment.center,
+          //       child: const Text(
+          //         'SOS',
+          //         style: TextStyle(
+          //           color: Colors.white,
+          //           fontWeight: FontWeight.w900,
+          //           fontSize: 16,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ),
           Positioned(
             left: 0,
             right: 0,
@@ -719,24 +754,32 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
           height: 56,
           child: FilledButton.icon(
             onPressed: _startHike,
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+            ),
             icon: const Icon(Icons.play_arrow, size: 28),
-            label: const Text('Commencer le Trail', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            label: const Text(
+              'Commencer le Trail',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
       );
     }
 
-    final durationStr = '${_elapsedTime.inHours}h ${(_elapsedTime.inMinutes % 60).toString().padLeft(2, '0')}m';
-    final pace = _distanceTraveled > 0 && _elapsedTime.inMinutes > 0 
-        ? (_distanceTraveled / (_elapsedTime.inMinutes / 60)).toStringAsFixed(1) 
+    final durationStr =
+        '${_elapsedTime.inHours}h ${(_elapsedTime.inMinutes % 60).toString().padLeft(2, '0')}m';
+    final pace = _distanceTraveled > 0 && _elapsedTime.inMinutes > 0
+        ? (_distanceTraveled / (_elapsedTime.inMinutes / 60)).toStringAsFixed(1)
         : '0.0';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+            ? Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
             : const Color(0xFFDDD7CE),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -756,7 +799,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _metricItem(durationStr, 'Temps'),
-              _metricItem('${_distanceTraveled.toStringAsFixed(2)} km', 'Distance'),
+              _metricItem(
+                '${_distanceTraveled.toStringAsFixed(2)} km',
+                'Distance',
+              ),
               _metricItem('$pace km/h', 'Vitesse'),
             ],
           ),
@@ -767,7 +813,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: _pauseHike,
-                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6E431F)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF6E431F),
+                    ),
                     icon: const Icon(Icons.pause, size: 16),
                     label: const Text('Pause'),
                   ),
@@ -776,20 +824,14 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: _resumeHike,
-                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD68227)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD68227),
+                    ),
                     icon: const Icon(Icons.play_arrow, size: 16),
                     label: const Text('Reprendre'),
                   ),
                 ),
               const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _stopHike,
-                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD84B3C)),
-                  icon: const Icon(Icons.stop, size: 16),
-                  label: const Text('Stop & Quitter'),
-                ),
-              ),
             ],
           ),
         ],
@@ -807,8 +849,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 12, 
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+            fontSize: 12,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
       ],
@@ -848,9 +892,4 @@ enum _MapVisualStyle {
   const _MapVisualStyle(this.label, this.urlTemplate);
 }
 
-enum _HikeStatus {
-  notStarted,
-  inProgress,
-  paused,
-  finished,
-}
+enum _HikeStatus { notStarted, inProgress, paused, finished }

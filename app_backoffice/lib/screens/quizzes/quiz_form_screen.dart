@@ -67,7 +67,10 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -142,7 +145,10 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
       context.go('/quizzes');
     } else if (provider.error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error!), backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text(provider.error!),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
@@ -167,7 +173,10 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
               const SizedBox(width: 8),
               Text(
                 isEditing ? 'Modifier le quiz' : 'Nouveau quiz',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -225,7 +234,8 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                             Radio<int>(
                               value: index,
                               groupValue: _correctAnswerIndex,
-                              onChanged: (v) => setState(() => _correctAnswerIndex = v ?? 0),
+                              onChanged: (v) =>
+                                  setState(() => _correctAnswerIndex = v ?? 0),
                               activeColor: AppColors.success,
                             ),
                             Expanded(
@@ -238,11 +248,17 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                                   ),
                                   suffixIcon: index >= 2
                                       ? IconButton(
-                                          icon: const Icon(Icons.remove_circle, color: AppColors.error),
+                                          icon: const Icon(
+                                            Icons.remove_circle,
+                                            color: AppColors.error,
+                                          ),
                                           onPressed: () {
                                             setState(() {
-                                              _answerControllers.removeAt(index);
-                                              if (_correctAnswerIndex >= _answerControllers.length) {
+                                              _answerControllers.removeAt(
+                                                index,
+                                              );
+                                              if (_correctAnswerIndex >=
+                                                  _answerControllers.length) {
                                                 _correctAnswerIndex = 0;
                                               }
                                             });
@@ -304,7 +320,9 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                   _buildSection('Statut', [
                     SwitchListTile(
                       title: const Text('Quiz actif'),
-                      subtitle: const Text('Les quiz inactifs ne sont pas visibles'),
+                      subtitle: const Text(
+                        'Les quiz inactifs ne sont pas visibles',
+                      ),
                       value: _isActive,
                       onChanged: (v) => setState(() => _isActive = v),
                       activeColor: AppColors.primary,
@@ -324,13 +342,19 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
                         ),
                         child: _isLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Text(isEditing ? 'Enregistrer' : 'Creer'),
                       ),
@@ -401,7 +425,10 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
       items: [
         const DropdownMenuItem(value: null, child: Text('Aucune')),
         ...QuizCategory.values.map((c) {
-          return DropdownMenuItem(value: c, child: Text(categories[c] ?? c.name));
+          return DropdownMenuItem(
+            value: c,
+            child: Text(categories[c] ?? c.name),
+          );
         }),
       ],
       onChanged: (v) => setState(() => _category = v),

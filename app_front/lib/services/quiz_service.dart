@@ -39,7 +39,8 @@ class QuizScore {
       totalQuestions: json['totalQuestions'] as int? ?? 0,
       bestPercentage: (json['bestPercentage'] as num?)?.toDouble() ?? 0,
       lastPlayedAt: DateTime.parse(
-          json['lastPlayedAt'] as String? ?? DateTime.now().toIso8601String()),
+        json['lastPlayedAt'] as String? ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 }
@@ -110,9 +111,8 @@ class QuizBadgeModel {
       color: json['color'] as String?,
       threshold: int.tryParse(json['threshold'].toString()) ?? 0,
       category: json['category'] as String?,
-      unlockedAt: DateTime.tryParse(
-            json['unlockedAt'] as String? ?? '',
-          ) ??
+      unlockedAt:
+          DateTime.tryParse(json['unlockedAt'] as String? ?? '') ??
           DateTime.now(),
     );
   }
@@ -153,7 +153,8 @@ class QuizSummary {
 
     return QuizSummary(
       totalScore: int.tryParse(totals['totalScore'].toString()) ?? 0,
-      quizzesCompleted: int.tryParse(totals['quizzesCompleted'].toString()) ?? 0,
+      quizzesCompleted:
+          int.tryParse(totals['quizzesCompleted'].toString()) ?? 0,
       correctAnswers: int.tryParse(totals['correctAnswers'].toString()) ?? 0,
       totalQuestions: int.tryParse(totals['totalQuestions'].toString()) ?? 0,
       averagePercentage:
@@ -176,9 +177,14 @@ class QuizService {
       'limit': limit.toString(),
     };
 
-    final response =
-        await _client.get(ApiConstants.quizzes, queryParams: queryParams);
-    final data = _extractList(response, candidateKeys: const ['data', 'items', 'results']);
+    final response = await _client.get(
+      ApiConstants.quizzes,
+      queryParams: queryParams,
+    );
+    final data = _extractList(
+      response,
+      candidateKeys: const ['data', 'items', 'results'],
+    );
     return data
         .map((json) => Quiz.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -189,27 +195,40 @@ class QuizService {
       'count': count.toString(),
       if (category != null) 'category': category,
     };
-    final response =
-        await _client.get(ApiConstants.quizzesRandom, queryParams: queryParams);
-    final data = _extractList(response, candidateKeys: const ['data', 'items', 'results']);
+    final response = await _client.get(
+      ApiConstants.quizzesRandom,
+      queryParams: queryParams,
+    );
+    final data = _extractList(
+      response,
+      candidateKeys: const ['data', 'items', 'results'],
+    );
     return data
         .map((json) => Quiz.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
   Future<List<Quiz>> getQuizzesByCategory(String category) async {
-    final response =
-        await _client.get('${ApiConstants.quizzes}/category/$category');
-    final data = _extractList(response, candidateKeys: const ['data', 'items', 'results']);
+    final response = await _client.get(
+      '${ApiConstants.quizzes}/category/$category',
+    );
+    final data = _extractList(
+      response,
+      candidateKeys: const ['data', 'items', 'results'],
+    );
     return data
         .map((json) => Quiz.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
   Future<List<Quiz>> getQuizzesByTrail(String trailId) async {
-    final response =
-        await _client.get('${ApiConstants.quizzes}/trail/$trailId');
-    final data = _extractList(response, candidateKeys: const ['data', 'items', 'results']);
+    final response = await _client.get(
+      '${ApiConstants.quizzes}/trail/$trailId',
+    );
+    final data = _extractList(
+      response,
+      candidateKeys: const ['data', 'items', 'results'],
+    );
     return data
         .map((json) => Quiz.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -280,18 +299,24 @@ class QuizService {
   }
 
   Future<QuizSummary> getMySummary() async {
-    final response =
-        await _client.get('${ApiConstants.quizzes}/scores/me/summary');
+    final response = await _client.get(
+      '${ApiConstants.quizzes}/scores/me/summary',
+    );
     return QuizSummary.fromJson(response as Map<String, dynamic>);
   }
 
-  Future<List<QuizScore>> getLeaderboard({String? category, int limit = 10}) async {
+  Future<List<QuizScore>> getLeaderboard({
+    String? category,
+    int limit = 10,
+  }) async {
     final queryParams = <String, String>{
       'limit': limit.toString(),
       if (category != null) 'category': category,
     };
-    final response = await _client
-        .get('${ApiConstants.quizzes}/scores/leaderboard', queryParams: queryParams);
+    final response = await _client.get(
+      '${ApiConstants.quizzes}/scores/leaderboard',
+      queryParams: queryParams,
+    );
     final data = _extractList(
       response,
       candidateKeys: const ['data', 'scores', 'items', 'results'],

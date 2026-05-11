@@ -12,7 +12,8 @@ class SosAlertsProvider extends ChangeNotifier {
   bool _isAlarmPlaying = false;
 
   List<SosAlertModel> get alerts => _alerts;
-  List<SosAlertModel> get activeAlerts => _alerts.where((a) => !a.isResolved).toList();
+  List<SosAlertModel> get activeAlerts =>
+      _alerts.where((a) => !a.isResolved).toList();
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAlarmPlaying => _isAlarmPlaying;
@@ -25,7 +26,7 @@ class SosAlertsProvider extends ChangeNotifier {
     SocketService.on('sos_alert_created', (data) async {
       // Auto-refresh using standard function when new alert comes
       loadAlerts();
-      
+
       // Play alert sound (louder alarm loop)
       try {
         if (_audioPlayer == null) {
@@ -36,8 +37,14 @@ class SosAlertsProvider extends ChangeNotifier {
           });
         }
         await _audioPlayer!.setVolume(1.0);
-        await _audioPlayer!.setReleaseMode(ReleaseMode.loop); // Keep ringing until stopped
-        await _audioPlayer!.play(UrlSource('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg'));
+        await _audioPlayer!.setReleaseMode(
+          ReleaseMode.loop,
+        ); // Keep ringing until stopped
+        await _audioPlayer!.play(
+          UrlSource(
+            'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg',
+          ),
+        );
       } catch (e) {
         print('Error playing sound: $e');
       }

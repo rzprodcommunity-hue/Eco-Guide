@@ -51,9 +51,7 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          right: BorderSide(color: AppColors.divider, width: 1),
-        ),
+        border: Border(right: BorderSide(color: AppColors.divider, width: 1)),
       ),
       child: Column(
         children: [
@@ -183,8 +181,9 @@ class _MainLayoutState extends State<MainLayout> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
-              mainAxisAlignment:
-                  _isExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+              mainAxisAlignment: _isExpanded
+                  ? MainAxisAlignment.start
+                  : MainAxisAlignment.center,
               children: [
                 Icon(
                   icon,
@@ -198,8 +197,9 @@ class _MainLayoutState extends State<MainLayout> {
                       label,
                       style: TextStyle(
                         color: isSelected ? selectedColor : unselectedColor,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                         fontSize: 14,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -277,7 +277,11 @@ class _MainLayoutState extends State<MainLayout> {
                   context.go('/login');
                 }
               },
-              icon: const Icon(Icons.logout, color: AppColors.textSecondary, size: 20),
+              icon: const Icon(
+                Icons.logout,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
               tooltip: 'Deconnexion',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),

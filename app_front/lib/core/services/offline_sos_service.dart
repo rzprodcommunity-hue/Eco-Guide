@@ -5,7 +5,11 @@ import '../../services/sos_service.dart';
 class OfflineSosService {
   static const String _queueKey = 'offline_sos_queue';
 
-  static Future<void> saveOfflineAlert(double latitude, double longitude, String message) async {
+  static Future<void> saveOfflineAlert(
+    double latitude,
+    double longitude,
+    String message,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final queueStr = prefs.getString(_queueKey) ?? '[]';
     final List<dynamic> queue = json.decode(queueStr);
@@ -24,14 +28,14 @@ class OfflineSosService {
   static Future<void> syncOfflineAlerts(SosService sosService) async {
     final prefs = await SharedPreferences.getInstance();
     final queueStr = prefs.getString(_queueKey);
-    
+
     if (queueStr == null) return;
-    
+
     final List<dynamic> queue = json.decode(queueStr);
     if (queue.isEmpty) return;
 
     print('📡 Attempting to sync ${queue.length} offline SOS alerts...');
-    
+
     List<dynamic> failedQueue = [];
 
     for (var alert in queue) {
@@ -39,7 +43,8 @@ class OfflineSosService {
         await sosService.sendAlert(
           latitude: alert['latitude'],
           longitude: alert['longitude'],
-          message: '${alert['message']} (Envoi differe suite a une perte de reseau. Initie le ${alert['timestamp']})',
+          message:
+              '${alert['message']} (Envoi differe suite a une perte de reseau. Initie le ${alert['timestamp']})',
         );
         print('✅ Offline SOS Alert synced successfully.');
       } catch (e) {

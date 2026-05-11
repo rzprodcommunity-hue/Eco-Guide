@@ -39,8 +39,14 @@ class PoiService {
     return PoiModel.fromJson(response);
   }
 
-  static Future<PoiModel> updatePoi(String id, Map<String, dynamic> data) async {
-    final response = await ApiService.patch('${ApiConstants.pois}/$id', body: data);
+  static Future<PoiModel> updatePoi(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await ApiService.patch(
+      '${ApiConstants.pois}/$id',
+      body: data,
+    );
     return PoiModel.fromJson(response);
   }
 

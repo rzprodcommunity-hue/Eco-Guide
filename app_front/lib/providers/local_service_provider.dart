@@ -13,6 +13,7 @@ class LocalServiceProvider extends ChangeNotifier {
   String? _error;
   String? _filterCategory;
   String? _searchQuery;
+  bool _lastLoadUsedOffline = false;
 
   LocalServiceProvider(ApiClient apiClient)
     : _service = LocalServiceService(apiClient);
@@ -23,18 +24,53 @@ class LocalServiceProvider extends ChangeNotifier {
   String? get error => _error;
   String? get filterCategory => _filterCategory;
   String? get searchQuery => _searchQuery;
+  bool get lastLoadUsedOffline => _lastLoadUsedOffline;
 
-  Future<void> loadServices({String? category, String? search}) async {
+  Future<void> loadServices({
+    String? category,
+    String? search,
+    bool forceOffline = false,
+  }) async {
     _isLoading = true;
     _error = null;
     _searchQuery = search;
     notifyListeners();
 
     try {
+      if (forceOffline) {
+        final cached = await OfflineCacheService.instance
+            .getOfflineLocalServices();
+        final selectedCategory = category ?? _filterCategory;
+        final selectedSearch = (search ?? _searchQuery)?.trim().toLowerCase();
+
+        _services = cached.where((service) {
+          if (selectedCategory != null &&
+              service.category != selectedCategory) {
+            return false;
+          }
+
+          if (selectedSearch != null && selectedSearch.isNotEmpty) {
+            final inName = service.name.toLowerCase().contains(selectedSearch);
+            final inDesc = service.description.toLowerCase().contains(
+              selectedSearch,
+            );
+            if (!inName && !inDesc) return false;
+          }
+
+          return true;
+        }).toList();
+        _lastLoadUsedOffline = true;
+        return;
+      }
+
       _services = await _service.getServices(
         category: category ?? _filterCategory,
         search: search ?? _searchQuery,
       );
+      _lastLoadUsedOffline = false;
+      if (_services.isNotEmpty) {
+        await OfflineCacheService.instance.saveLocalServices(_services);
+      }
     } catch (e) {
       final cached = await OfflineCacheService.instance
           .getOfflineLocalServices();
@@ -59,6 +95,7 @@ class LocalServiceProvider extends ChangeNotifier {
           return true;
         }).toList();
         _error = null;
+        _lastLoadUsedOffline = true;
       } else {
         _error = e.toString();
       }

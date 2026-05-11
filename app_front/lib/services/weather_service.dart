@@ -6,7 +6,8 @@ import 'api_client.dart';
 
 class WeatherService {
   final ApiClient _client;
-  static const String _openMeteoBaseUrl = 'https://api.open-meteo.com/v1/forecast';
+  static const String _openMeteoBaseUrl =
+      'https://api.open-meteo.com/v1/forecast';
 
   WeatherService(this._client);
 
@@ -34,15 +35,18 @@ class WeatherService {
 
   /// Direct call to Open-Meteo free API for real-time weather data.
   Future<Weather> _fetchFromOpenMeteo(double? lat, double? lng) async {
-    final latitude = lat ?? 36.7544;  // Default: Tabarka, Tunisia
+    final latitude = lat ?? 36.7544; // Default: Tabarka, Tunisia
     final longitude = lng ?? 8.7580;
 
-    final uri = Uri.parse(_openMeteoBaseUrl).replace(queryParameters: {
-      'latitude': latitude.toString(),
-      'longitude': longitude.toString(),
-      'current': 'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day',
-      'timezone': 'auto',
-    });
+    final uri = Uri.parse(_openMeteoBaseUrl).replace(
+      queryParameters: {
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+        'current':
+            'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day',
+        'timezone': 'auto',
+      },
+    );
 
     final response = await http.get(uri);
 

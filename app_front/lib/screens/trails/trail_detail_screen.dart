@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../models/trail.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/poi_provider.dart';
+import '../../services/map_offline_service.dart';
 import '../map/navigation_sos_screen.dart';
 import '../poi/poi_detail_screen.dart';
 
@@ -18,9 +21,30 @@ class TrailDetailScreen extends StatefulWidget {
 }
 
 class _TrailDetailScreenState extends State<TrailDetailScreen> {
+  final MapOfflineService _mapOfflineService = MapOfflineService();
+  late final List<_TrailReview> _reviews = [
+    const _TrailReview(
+      initials: 'ML',
+      name: 'Marc L.',
+      date: 'il y a 2 jours',
+      rating: 5,
+      text:
+          'Sentier tres bien balise. La montee finale est un peu raide mais la vue en vaut vraiment la peine ! Prevoyez de bonnes chaussures.',
+    ),
+    const _TrailReview(
+      initials: 'SG',
+      name: 'Sophie G.',
+      date: 'il y a 1 semaine',
+      rating: 4.5,
+      text:
+          'Magnifique en cette saison. Attention, certains passages sont glissants s il a plu la veille. Les batons sont recommandes.',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
+    _mapOfflineService.initialize();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PoiProvider>().loadPoisByTrail(widget.trail.id);
     });
@@ -39,6 +63,177 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     }
   }
 
+  Future<void> _openAddCommentSheet() async {
+    final authProvider = context.read<AuthProvider>();
+    final fullName = authProvider.user?.fullName ?? '';
+    final nameController = TextEditingController(
+      text: fullName == authProvider.user?.email ? '' : fullName,
+    );
+    final commentController = TextEditingController();
+    double rating = 5;
+
+    final created = await showModalBottomSheet<_TrailReview>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          sheetContext,
+                        ).dividerColor.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Commenter ce sentier',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(sheetContext).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Partagez votre experience avec la communaute.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(
+                        sheetContext,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Note',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(sheetContext).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    children: List.generate(5, (index) {
+                      final starValue = index + 1;
+                      return IconButton(
+                        onPressed: () {
+                          setSheetState(() {
+                            rating = starValue.toDouble();
+                          });
+                        },
+                        icon: Icon(
+                          starValue <= rating ? Icons.star : Icons.star_border,
+                          color: Colors.orange,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: commentController,
+                    minLines: 4,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'Votre commentaire',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final comment = commentController.text.trim();
+                        final name = nameController.text.trim();
+                        if (comment.isEmpty) {
+                          ScaffoldMessenger.of(sheetContext).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Ajoutez un commentaire avant d envoyer.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final displayName = name.isEmpty ? 'Guest' : name;
+                        Navigator.of(sheetContext).pop(
+                          _TrailReview(
+                            initials: _initialsFromName(displayName),
+                            name: displayName,
+                            date: 'A l instant',
+                            rating: rating,
+                            text: comment,
+                          ),
+                        );
+                      },
+                      child: const Text('Publier mon commentaire'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    commentController.dispose();
+
+    if (created != null && mounted) {
+      setState(() {
+        _reviews.insert(0, created);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Commentaire ajoute au sentier.')),
+      );
+    }
+  }
+
+  String _initialsFromName(String value) {
+    final words = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList();
+
+    if (words.isEmpty) return 'G';
+    if (words.length == 1) return words.first[0].toUpperCase();
+    return (words.first[0] + words.last[0]).toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final poiProvider = context.watch<PoiProvider>();
@@ -49,9 +244,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         children: [
           CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(
-                child: _buildHeroImage(),
-              ),
+              SliverToBoxAdapter(child: _buildHeroImage()),
               if (poiProvider.error != null && poiProvider.error!.isNotEmpty)
                 SliverToBoxAdapter(
                   child: ErrorBanner(
@@ -70,6 +263,10 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                       _buildStatsCard(),
                       const SizedBox(height: 32),
                       _buildAboutSection(),
+                      const SizedBox(height: 32),
+                      _buildTrailGallery(),
+                      const SizedBox(height: 32),
+                      _buildTrailMapSection(),
                       const SizedBox(height: 32),
                       _buildElevationProfile(),
                       const SizedBox(height: 32),
@@ -95,7 +292,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         SizedBox(
           height: 380,
           width: double.infinity,
-          child: widget.trail.imageUrls != null && widget.trail.imageUrls!.isNotEmpty
+          child:
+              widget.trail.imageUrls != null &&
+                  widget.trail.imageUrls!.isNotEmpty
               ? CachedNetworkImage(
                   imageUrl: widget.trail.imageUrls!.first,
                   fit: BoxFit.cover,
@@ -107,7 +306,11 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                 )
               : Container(
                   color: Colors.grey[300],
-                  child: const Icon(Icons.landscape, size: 64, color: Colors.white),
+                  child: const Icon(
+                    Icons.landscape,
+                    size: 64,
+                    color: Colors.white,
+                  ),
                 ),
         ),
         Container(
@@ -139,10 +342,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                     onTap: () {},
                   ),
                   const SizedBox(width: 12),
-                  _CircleIconButton(
-                    icon: Icons.favorite_border,
-                    onTap: () {},
-                  ),
+                  _CircleIconButton(icon: Icons.favorite_border, onTap: () {}),
                 ],
               ),
             ],
@@ -156,7 +356,10 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF2E7D32),
                   borderRadius: BorderRadius.circular(20),
@@ -190,7 +393,11 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Icon(Icons.location_on, color: Colors.white70, size: 14),
+                  const Icon(
+                    Icons.location_on,
+                    color: Colors.white70,
+                    size: 14,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     widget.trail.region ?? 'Région inconnue',
@@ -226,7 +433,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -238,12 +447,18 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem(Icons.route_outlined, 'Distance', widget.trail.distanceText),
+          _buildStatItem(
+            Icons.route_outlined,
+            'Distance',
+            widget.trail.distanceText,
+          ),
           _buildStatItem(Icons.access_time, 'Durée', widget.trail.durationText),
           _buildStatItem(
             Icons.terrain,
             'Dénivelé',
-            widget.trail.elevationGain != null ? '+${widget.trail.elevationGain!.toInt()} m' : '+450 m',
+            widget.trail.elevationGain != null
+                ? '+${widget.trail.elevationGain!.toInt()} m'
+                : '+450 m',
           ),
         ],
       ),
@@ -252,34 +467,40 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
 
   Widget _buildStatItem(IconData icon, String label, String value) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       children: [
         Container(
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: isDark 
-                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2)
+            color: isDark
+                ? Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.2)
                 : Theme.of(context).primaryColor.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isDark 
+              color: isDark
                   ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
                   : Theme.of(context).primaryColor.withValues(alpha: 0.1),
             ),
           ),
           child: Icon(
-            icon, 
-            color: isDark ? Theme.of(context).colorScheme.primary : Theme.of(context).primaryColor, 
-            size: 26
+            icon,
+            color: isDark
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).primaryColor,
+            size: 26,
           ),
         ),
         const SizedBox(height: 10),
         Text(
           label,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
@@ -314,13 +535,173 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         Text(
           widget.trail.description,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 14,
             height: 1.6,
           ),
         ),
       ],
     );
+  }
+
+  Widget _buildTrailGallery() {
+    final images = widget.trail.imageUrls ?? const <String>[];
+    if (images.length < 2) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Photos du sentier',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 128,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: images.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: CachedNetworkImage(
+                  imageUrl: images[index],
+                  width: 170,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) =>
+                      Container(width: 170, color: Colors.grey[300]),
+                  errorWidget: (_, __, ___) => Container(
+                    width: 170,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.broken_image),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrailMapSection() {
+    final routePoints = _trailRoutePoints();
+    final startPoint =
+        widget.trail.startLatitude != null &&
+            widget.trail.startLongitude != null
+        ? LatLng(widget.trail.startLatitude!, widget.trail.startLongitude!)
+        : routePoints.isNotEmpty
+        ? routePoints.first
+        : null;
+
+    if (startPoint == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Carte du sentier',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 180,
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: startPoint,
+                initialZoom: routePoints.length > 1 ? 13 : 14,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.none,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                  userAgentPackageName: 'com.ecoguide.app',
+                  tileProvider: LocalFirstTileProvider(
+                    service: _mapOfflineService,
+                  ),
+                ),
+                if (routePoints.length > 1)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: routePoints,
+                        strokeWidth: 4,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ],
+                  ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: startPoint,
+                      width: 38,
+                      height: 38,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.hiking,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<LatLng> _trailRoutePoints() {
+    final points = <LatLng>[];
+    final geojson = widget.trail.geojson;
+    if (geojson == null) return points;
+
+    try {
+      final features = geojson['features'] as List?;
+      if (features == null || features.isEmpty) return points;
+
+      final geometry = features.first['geometry'] as Map<String, dynamic>?;
+      final coordinates = geometry?['coordinates'] as List?;
+      if (geometry?['type'] != 'LineString' || coordinates == null) {
+        return points;
+      }
+
+      for (final coord in coordinates) {
+        if (coord is List && coord.length >= 2) {
+          points.add(
+            LatLng((coord[1] as num).toDouble(), (coord[0] as num).toDouble()),
+          );
+        }
+      }
+    } catch (_) {
+      return const [];
+    }
+
+    return points;
   }
 
   Widget _buildElevationProfile() {
@@ -344,7 +725,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -353,11 +736,18 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         Container(
           height: 160,
           width: double.infinity,
-          padding: const EdgeInsets.only(top: 24, bottom: 8, left: 16, right: 16),
+          padding: const EdgeInsets.only(
+            top: 24,
+            bottom: 8,
+            left: 16,
+            right: 16,
+          ),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+            ),
           ),
           child: CustomPaint(
             painter: _ElevationChartPainter(),
@@ -367,11 +757,51 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("Départ", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
-                    Text("2km", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
-                    Text("4km", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
-                    Text("6km", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
-                    Text("Arrivée", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+                    Text(
+                      "Départ",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    Text(
+                      "2km",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    Text(
+                      "4km",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    Text(
+                      "6km",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    Text(
+                      "Arrivée",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -403,7 +833,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -412,7 +844,14 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         if (poiProvider.isLoading)
           const Center(child: CircularProgressIndicator())
         else if (poiProvider.pois.isEmpty)
-          Text("Aucun point d'intérêt", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)))
+          Text(
+            "Aucun point d'intérêt",
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          )
         else
           SizedBox(
             height: 176,
@@ -426,7 +865,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => PoiDetailScreen(poi: poi)),
+                      MaterialPageRoute(
+                        builder: (_) => PoiDetailScreen(poi: poi),
+                      ),
                     );
                   },
                   borderRadius: BorderRadius.circular(16),
@@ -435,17 +876,24 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).dividerColor.withValues(alpha: 0.15),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
                           child: SizedBox(
                             height: 100,
                             width: double.infinity,
-                            child: poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty
+                            child:
+                                poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty
                                 ? CachedNetworkImage(
                                     imageUrl: poi.mediaUrl!,
                                     fit: BoxFit.cover,
@@ -466,7 +914,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -474,14 +924,21 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  Icon(Icons.eco, size: 12, color: Theme.of(context).primaryColor),
+                                  Icon(
+                                    Icons.eco,
+                                    size: 12,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
                                       poi.badge ?? poi.typeDisplayName,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.7),
                                         fontWeight: FontWeight.w500,
                                       ),
                                       maxLines: 1,
@@ -504,7 +961,8 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     );
   }
 
-  Widget _buildReviewsSection() {
+  // ignore: unused_element
+  Widget _buildLegacyReviewsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -525,7 +983,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -550,13 +1010,75 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     );
   }
 
-  Widget _buildReviewCard(String initials, String name, String date, String rating, String text) {
+  Widget _buildReviewsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'Avis de la communaute',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            Text(
+              'Voir tout',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: _openAddCommentSheet,
+          icon: const Icon(Icons.rate_review_outlined),
+          label: const Text('Commenter'),
+        ),
+        const SizedBox(height: 16),
+        ..._reviews.asMap().entries.map((entry) {
+          final review = entry.value;
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: entry.key == _reviews.length - 1 ? 0 : 12,
+            ),
+            child: _buildReviewCard(
+              review.initials,
+              review.name,
+              review.date,
+              review.rating.toStringAsFixed(1),
+              review.text,
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildReviewCard(
+    String initials,
+    String name,
+    String date,
+    String rating,
+    String text,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,7 +1116,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                         date,
                         style: TextStyle(
                           fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -628,7 +1152,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           Text(
             text,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
               fontSize: 13,
               height: 1.5,
             ),
@@ -648,7 +1174,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           top: 16,
           left: 16,
           right: 16,
-          bottom: MediaQuery.of(context).padding.bottom > 0 ? MediaQuery.of(context).padding.bottom : 16,
+          bottom: MediaQuery.of(context).padding.bottom > 0
+              ? MediaQuery.of(context).padding.bottom
+              : 16,
         ),
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -664,7 +1192,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           children: [
             Expanded(
               child: ElevatedButton(
-                onPressed: widget.trail.startLatitude == null || widget.trail.startLongitude == null
+                onPressed:
+                    widget.trail.startLatitude == null ||
+                        widget.trail.startLongitude == null
                     ? null
                     : () {
                         Navigator.push(
@@ -684,7 +1214,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 0,
                 ),
                 child: Row(
@@ -781,6 +1313,22 @@ class _CircleIconButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TrailReview {
+  final String initials;
+  final String name;
+  final String date;
+  final double rating;
+  final String text;
+
+  const _TrailReview({
+    required this.initials,
+    required this.name,
+    required this.date,
+    required this.rating,
+    required this.text,
+  });
 }
 
 class _ElevationChartPainter extends CustomPainter {

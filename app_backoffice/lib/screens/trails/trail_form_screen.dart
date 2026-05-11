@@ -69,7 +69,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -106,7 +109,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: Fichier GeoJSON invalide'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Erreur: Fichier GeoJSON invalide'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -129,16 +135,21 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       request.headers['Authorization'] = 'Bearer ${ApiService.token}';
       String mimeType = 'jpeg';
       String ext = file.name.split('.').last.toLowerCase();
-      if (ext == 'png') mimeType = 'png';
-      else if (ext == 'gif') mimeType = 'gif';
-      else if (ext == 'webp') mimeType = 'webp';
+      if (ext == 'png')
+        mimeType = 'png';
+      else if (ext == 'gif')
+        mimeType = 'gif';
+      else if (ext == 'webp')
+        mimeType = 'webp';
 
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        file.bytes!,
-        filename: file.name,
-        contentType: MediaType('image', mimeType),
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          file.bytes!,
+          filename: file.name,
+          contentType: MediaType('image', mimeType),
+        ),
+      );
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -151,14 +162,20 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image uploadée avec succès!'), backgroundColor: AppColors.success),
+            const SnackBar(
+              content: Text('Image uploadée avec succès!'),
+              backgroundColor: AppColors.success,
+            ),
           );
         }
       } else {
         setState(() => _isUploadingImage = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload échoué: ${response.body}'), backgroundColor: AppColors.error),
+            SnackBar(
+              content: Text('Upload échoué: ${response.body}'),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -166,7 +183,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       setState(() => _isUploadingImage = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur upload: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Erreur upload: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -229,7 +249,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       context.go('/trails');
     } else if (provider.error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error!), backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text(provider.error!),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
@@ -312,7 +335,8 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
                             controller: _distanceController,
                             label: 'Distance (km)',
                             keyboardType: TextInputType.number,
-                            validator: (v) => v?.isEmpty == true ? 'Requis' : null,
+                            validator: (v) =>
+                                v?.isEmpty == true ? 'Requis' : null,
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -370,7 +394,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
                         const SizedBox(width: 16),
                         if (_geojson != null)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.success.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -378,9 +405,16 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.check_circle, color: AppColors.success, size: 18),
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.success,
+                                  size: 18,
+                                ),
                                 SizedBox(width: 8),
-                                Text('GeoJSON charge', style: TextStyle(color: AppColors.success)),
+                                Text(
+                                  'GeoJSON charge',
+                                  style: TextStyle(color: AppColors.success),
+                                ),
                               ],
                             ),
                           ),
@@ -391,7 +425,9 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
                   _buildSection('Statut', [
                     SwitchListTile(
                       title: const Text('Sentier actif'),
-                      subtitle: const Text('Les sentiers inactifs ne sont pas visibles'),
+                      subtitle: const Text(
+                        'Les sentiers inactifs ne sont pas visibles',
+                      ),
                       value: _isActive,
                       onChanged: (v) => setState(() => _isActive = v),
                       activeThumbColor: AppColors.primary,
@@ -411,13 +447,19 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
                         ),
                         child: _isLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Text(isEditing ? 'Enregistrer' : 'Creer'),
                       ),
@@ -461,7 +503,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               '${_imageUrls.length} image${_imageUrls.length > 1 ? 's' : ''} ajoutée${_imageUrls.length > 1 ? 's' : ''}',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
             ),
           ),
       ],
@@ -490,7 +535,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
                 children: [
                   Icon(Icons.broken_image, color: AppColors.textHint, size: 28),
                   SizedBox(height: 4),
-                  Text('Erreur', style: TextStyle(fontSize: 10, color: AppColors.textHint)),
+                  Text(
+                    'Erreur',
+                    style: TextStyle(fontSize: 10, color: AppColors.textHint),
+                  ),
                 ],
               ),
             ),
@@ -525,7 +573,11 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
               ),
               child: const Text(
                 'Principale',
-                style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -559,7 +611,11 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary, size: 32),
+                  Icon(
+                    Icons.add_photo_alternate_outlined,
+                    color: AppColors.primary,
+                    size: 32,
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     'Ajouter',
@@ -622,14 +678,17 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       items: TrailDifficulty.values.map((d) {
         return DropdownMenuItem(
           value: d,
-          child: Text(d == TrailDifficulty.easy
-              ? 'Facile'
-              : d == TrailDifficulty.moderate
-                  ? 'Modere'
-                  : 'Difficile'),
+          child: Text(
+            d == TrailDifficulty.easy
+                ? 'Facile'
+                : d == TrailDifficulty.moderate
+                ? 'Modere'
+                : 'Difficile',
+          ),
         );
       }).toList(),
-      onChanged: (v) => setState(() => _difficulty = v ?? TrailDifficulty.moderate),
+      onChanged: (v) =>
+          setState(() => _difficulty = v ?? TrailDifficulty.moderate),
     );
   }
 }

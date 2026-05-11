@@ -40,6 +40,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   static const Distance _distance = Distance();
 
   final MapController _mapController = MapController();
+  final MapOfflineService _mapOfflineService = MapOfflineService();
   Timer? _gpsTimer;
 
   LatLng _currentPosition = LatLng(
@@ -63,6 +64,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   @override
   void initState() {
     super.initState();
+    _mapOfflineService.initialize();
     _activeOrigin = _currentPosition;
     _activeOriginLabel = 'Ma position';
     _activeDestination = widget.destination;
@@ -134,7 +136,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   Future<void> _updatePositionSilently() async {
     try {
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       if (!mounted) return;
       setState(() {
@@ -181,7 +185,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
       final points = coordinates
           .whereType<List>()
           .where((p) => p.length >= 2)
-          .map((p) => LatLng((p[1] as num).toDouble(), (p[0] as num).toDouble()))
+          .map(
+            (p) => LatLng((p[1] as num).toDouble(), (p[0] as num).toDouble()),
+          )
           .toList();
 
       if (!mounted) return;
@@ -226,7 +232,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               TileLayer(
                 urlTemplate: _mapStyle.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
-                tileProvider: LocalFirstTileProvider(),
+                tileProvider: LocalFirstTileProvider(
+                  service: _mapOfflineService,
+                ),
               ),
               if (hasDestination)
                 PolylineLayer(
@@ -268,7 +276,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               ),
             ],
           ),
-          
+
           Positioned(
             top: 0,
             left: 0,
@@ -286,11 +294,18 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                         color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
                       ),
                       child: IconButton(
-                        icon: Icon(Icons.menu, color: Theme.of(context).colorScheme.onSurface),
+                        icon: Icon(
+                          Icons.menu,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                         onPressed: () => Scaffold.of(context).openDrawer(),
                       ),
                     ),
@@ -301,7 +316,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => MapSearchResultsScreen(currentPosition: _currentPosition),
+                              builder: (_) => MapSearchResultsScreen(
+                                currentPosition: _currentPosition,
+                              ),
                             ),
                           );
                         },
@@ -312,19 +329,31 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                             color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
                             ],
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                              Icon(
+                                Icons.search,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.54),
+                              ),
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Search trails or POIs...',
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), 
-                                    fontSize: 14
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.54),
+                                    fontSize: 14,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -342,11 +371,18 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                         color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
                       ),
                       child: IconButton(
-                        icon: Icon(Icons.filter_list, color: Theme.of(context).colorScheme.onSurface),
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                         onPressed: () {},
                       ),
                     ),
@@ -355,7 +391,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               ),
             ),
           ),
-          
+
           if (hasDestination)
             Positioned(
               left: 12,
@@ -363,7 +399,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               top: 120,
               child: SafeArea(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
@@ -385,8 +424,8 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontWeight: FontWeight.w600, 
-                            color: Theme.of(context).colorScheme.onSurface
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -395,7 +434,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                 ),
               ),
             ),
-            
+
           Positioned(
             left: 0,
             right: 0,
@@ -419,16 +458,18 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if (notifications.isNotEmpty)
-                  _buildNearbyPanel(notifications),
-                if (notifications.isNotEmpty)
-                  const SizedBox(height: 16),
+                if (notifications.isNotEmpty) _buildNearbyPanel(notifications),
+                if (notifications.isNotEmpty) const SizedBox(height: 16),
                 _buildBottomNavigationBlock(context),
               ],
             ),
           ),
-          
-          if (_isLoading || _isRouting || trailProvider.isLoading || poiProvider.isLoading || localServiceProvider.isLoading)
+
+          if (_isLoading ||
+              _isRouting ||
+              trailProvider.isLoading ||
+              poiProvider.isLoading ||
+              localServiceProvider.isLoading)
             const Positioned.fill(
               child: Center(child: CircularProgressIndicator()),
             ),
@@ -441,15 +482,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildRoundButton(
-          icon: Icons.layers,
-          onPressed: _cycleMapStyle,
-        ),
+        _buildRoundButton(icon: Icons.layers, onPressed: _cycleMapStyle),
         const SizedBox(height: 8),
-        _buildRoundButton(
-          icon: Icons.explore,
-          onPressed: () {},
-        ),
+        _buildRoundButton(icon: Icons.explore, onPressed: () {}),
         const SizedBox(height: 8),
         _buildRoundButton(
           icon: Icons.my_location,
@@ -458,18 +493,27 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
         const SizedBox(height: 8),
         _buildRoundButton(
           icon: Icons.add,
-          onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
+          onPressed: () => _mapController.move(
+            _mapController.camera.center,
+            _mapController.camera.zoom + 1,
+          ),
         ),
         const SizedBox(height: 8),
         _buildRoundButton(
           icon: Icons.remove,
-          onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1),
+          onPressed: () => _mapController.move(
+            _mapController.camera.center,
+            _mapController.camera.zoom - 1,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildRoundButton({required IconData icon, required VoidCallback onPressed}) {
+  Widget _buildRoundButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
     return Container(
       width: 46,
       height: 46,
@@ -551,8 +595,8 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
         border: Border.all(
           color: Theme.of(context).brightness == Brightness.dark
               ? Colors.green.withValues(alpha: 0.3)
-              : Colors.green.shade300, 
-          width: 1
+              : Colors.green.shade300,
+          width: 1,
         ),
       ),
       child: Row(
@@ -589,7 +633,12 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
           topRight: Radius.circular(24),
         ),
       ),
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 20),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.of(context).padding.bottom + 20,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -601,23 +650,29 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                 Text(
                   'Current Position',
                   style: TextStyle(
-                    fontSize: 12, 
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54), 
-                    fontWeight: FontWeight.w600
+                    fontSize: 12,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.location_on, size: 18, color: Theme.of(context).colorScheme.onSurface),
+                    Icon(
+                      Icons.location_on,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         _activeOriginLabel ?? 'Massif du Mont-Blanc',
                         style: TextStyle(
-                          fontSize: 16, 
-                          fontWeight: FontWeight.w800, 
-                          color: Theme.of(context).colorScheme.onSurface
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -645,7 +700,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
-              textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
           ),
         ],
@@ -664,13 +722,13 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   Widget _buildNearbyPanel(List<_NearbyItem> items) {
     if (items.isEmpty) return const SizedBox.shrink();
     final item = items.first;
-    
+
     String difficulty = 'Moderate';
     int durationMins = 135;
     List<String> images = [
-      'https://images.unsplash.com/photo-1551632811-561f3222ef86?q=80&w=400&auto=format&fit=crop'
+      'https://images.unsplash.com/photo-1551632811-561f3222ef86?q=80&w=400&auto=format&fit=crop',
     ];
-    
+
     if (item.trail != null) {
       difficulty = item.trail!.difficulty;
       durationMins = item.trail!.estimatedDuration ?? 135;
@@ -709,8 +767,13 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                 height: 80,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  width: 80, height: 80, color: Colors.grey.shade300,
-                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                  width: 80,
+                  height: 80,
+                  color: Colors.grey.shade300,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ),
@@ -725,22 +788,26 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontWeight: FontWeight.w800, 
-                      fontSize: 16, 
-                      color: Theme.of(context).colorScheme.onSurface
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(Icons.terrain, size: 14, color: Colors.black54),
+                      const Icon(
+                        Icons.terrain,
+                        size: 14,
+                        color: Colors.black54,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         difficulty,
                         style: TextStyle(
-                          fontSize: 12, 
-                          color: Theme.of(context).colorScheme.onSurface, 
-                          fontWeight: FontWeight.w600
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -748,25 +815,33 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(Icons.access_time, size: 14, color: Colors.green),
+                      const Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: Colors.green,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         durationStr,
                         style: TextStyle(
-                          fontSize: 12, 
-                          fontWeight: FontWeight.w600, 
-                          color: Theme.of(context).colorScheme.onSurface
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Icon(Icons.straighten, size: 14, color: Colors.green),
+                      const Icon(
+                        Icons.straighten,
+                        size: 14,
+                        color: Colors.green,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${item.distanceKm.toStringAsFixed(1)} km',
                         style: TextStyle(
-                          fontSize: 12, 
-                          fontWeight: FontWeight.w600, 
-                          color: Theme.of(context).colorScheme.onSurface
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -833,7 +908,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     if (options.length < 2) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pas assez de points pour planifier un itineraire.')),
+        const SnackBar(
+          content: Text('Pas assez de points pour planifier un itineraire.'),
+        ),
       );
       return;
     }
@@ -912,10 +989,15 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                       ),
                     ),
                     items: options
-                        .map((o) => DropdownMenuItem<_RoutePointOption>(
-                              value: o,
-                              child: Text(o.label, overflow: TextOverflow.ellipsis),
-                            ))
+                        .map(
+                          (o) => DropdownMenuItem<_RoutePointOption>(
+                            value: o,
+                            child: Text(
+                              o.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
                         .toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -961,10 +1043,15 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                       ),
                     ),
                     items: options
-                        .map((o) => DropdownMenuItem<_RoutePointOption>(
-                              value: o,
-                              child: Text(o.label, overflow: TextOverflow.ellipsis),
-                            ))
+                        .map(
+                          (o) => DropdownMenuItem<_RoutePointOption>(
+                            value: o,
+                            child: Text(
+                              o.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
                         .toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -1074,10 +1161,15 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
             height: 38,
             child: GestureDetector(
               onTap: () {
-                _mapController.move(LatLng(trail.startLatitude!, trail.startLongitude!), 15);
+                _mapController.move(
+                  LatLng(trail.startLatitude!, trail.startLongitude!),
+                  15,
+                );
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => TrailDetailScreen(trail: trail)),
+                  MaterialPageRoute(
+                    builder: (_) => TrailDetailScreen(trail: trail),
+                  ),
                 );
               },
               child: const CircleAvatar(
@@ -1125,7 +1217,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
             height: 30,
             child: GestureDetector(
               onTap: () {
-                _mapController.move(LatLng(service.latitude!, service.longitude!), 15);
+                _mapController.move(
+                  LatLng(service.latitude!, service.longitude!),
+                  15,
+                );
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -1233,7 +1328,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
         if (item.trail == null) return;
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => TrailDetailScreen(trail: item.trail!)),
+          MaterialPageRoute(
+            builder: (_) => TrailDetailScreen(trail: item.trail!),
+          ),
         );
         return;
       case _NearbyType.poi:
@@ -1314,7 +1411,10 @@ enum _MapVisualStyle {
   standard('Normal', 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'),
   relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png'),
   dark('Dark', 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'),
-  satellite('Satellite', 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+  satellite(
+    'Satellite',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  );
 
   final String label;
   final String urlTemplate;

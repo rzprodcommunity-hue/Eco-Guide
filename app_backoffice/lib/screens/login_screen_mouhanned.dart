@@ -38,6 +38,15 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleGoogleLogin() async {
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.loginWithGoogle();
+
+    if (success && mounted && authProvider.isAuthenticated) {
+      context.go('/dashboard');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -93,9 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 8),
                         const Text(
                           'Connectez-vous pour acceder au backoffice',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                          ),
+                          style: TextStyle(color: AppColors.textSecondary),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 32),
@@ -103,19 +110,24 @@ class _LoginScreenState extends State<LoginScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.error.withOpacity(0.1),
+                              color: AppColors.error.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: AppColors.error),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline,
-                                    color: AppColors.error, size: 20),
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: AppColors.error,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     authProvider.error!,
-                                    style: const TextStyle(color: AppColors.error),
+                                    style: const TextStyle(
+                                      color: AppColors.error,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -157,7 +169,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : Icons.visibility_off_outlined,
                               ),
                               onPressed: () => setState(
-                                  () => _obscurePassword = !_obscurePassword),
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -175,7 +188,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: authProvider.isLoading ? null : _handleLogin,
+                            onPressed: authProvider.isLoading
+                                ? null
+                                : _handleLogin,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -199,6 +214,37 @@ class _LoginScreenState extends State<LoginScreen> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: authProvider.isLoading
+                                ? null
+                                : _handleGoogleLogin,
+                            icon: Image.network(
+                              'https://www.google.com/favicon.ico',
+                              width: 20,
+                              height: 20,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.g_mobiledata, size: 24),
+                            ),
+                            label: const Text(
+                              'Se connecter avec Google',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.textPrimary,
+                              side: const BorderSide(color: AppColors.divider),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                         ),
                       ],

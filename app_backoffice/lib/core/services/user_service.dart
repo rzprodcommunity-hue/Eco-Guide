@@ -7,10 +7,7 @@ class UserService {
     int page = 1,
     int limit = 10,
   }) async {
-    final queryParams = {
-      'page': page.toString(),
-      'limit': limit.toString(),
-    };
+    final queryParams = {'page': page.toString(), 'limit': limit.toString()};
 
     final response = await ApiService.get(
       ApiConstants.users,
@@ -22,7 +19,9 @@ class UserService {
 
     return {
       'users': users,
-      'meta': response['meta'] ?? {'total': users.length, 'page': page, 'limit': limit},
+      'meta':
+          response['meta'] ??
+          {'total': users.length, 'page': page, 'limit': limit},
     };
   }
 
@@ -31,8 +30,14 @@ class UserService {
     return UserModel.fromJson(response);
   }
 
-  static Future<UserModel> updateUser(String id, Map<String, dynamic> data) async {
-    final response = await ApiService.patch('${ApiConstants.users}/$id', body: data);
+  static Future<UserModel> updateUser(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await ApiService.patch(
+      '${ApiConstants.users}/$id',
+      body: data,
+    );
     return UserModel.fromJson(response);
   }
 

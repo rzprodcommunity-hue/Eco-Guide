@@ -35,8 +35,14 @@ class QuizService {
     return QuizModel.fromJson(response);
   }
 
-  static Future<QuizModel> updateQuiz(String id, Map<String, dynamic> data) async {
-    final response = await ApiService.patch('${ApiConstants.quizzes}/$id', body: data);
+  static Future<QuizModel> updateQuiz(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await ApiService.patch(
+      '${ApiConstants.quizzes}/$id',
+      body: data,
+    );
     return QuizModel.fromJson(response);
   }
 

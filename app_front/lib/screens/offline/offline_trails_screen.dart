@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import '../../core/services/network_service.dart';
 
 import '../../core/widgets/eco_page_header.dart';
 import '../../models/trail.dart';
@@ -64,10 +65,16 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final isOnline = await NetworkService.hasInternetConnection();
       await Future.wait([
-        context.read<TrailProvider>().loadTrails(refresh: true),
-        context.read<PoiProvider>().loadPois(),
-        context.read<LocalServiceProvider>().loadServices(),
+        context.read<TrailProvider>().loadTrails(
+          refresh: true,
+          forceOffline: !isOnline,
+        ),
+        context.read<PoiProvider>().loadPois(forceOffline: !isOnline),
+        context.read<LocalServiceProvider>().loadServices(
+          forceOffline: !isOnline,
+        ),
         _mapOfflineService.initialize(),
       ]);
 
@@ -168,6 +175,14 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
   }
 
   Future<void> _installPackage(String packageId) async {
+    final isOnline = await NetworkService.hasInternetConnection();
+    if (!isOnline) {
+      _showMessage(
+        'Connexion internet requise pour telecharger les cartes hors ligne.',
+      );
+      return;
+    }
+
     if (_regionTrails.isEmpty) {
       _showMessage(
         'Aucune donnee regionale disponible pour le telechargement.',
@@ -184,28 +199,35 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     try {
       final poiProvider = context.read<PoiProvider>();
       final localServiceProvider = context.read<LocalServiceProvider>();
-      
+
       // Téléchargement de TOUTE la table (Trails) au lieu d'une seule région
       // Téléchargement de TOUTE la table (POIs)
       final allPois = poiProvider.pois;
 
       final bytesPerTrail =
-          ((packageSizeMb * 1024 * 1024) / (_allTrails.isNotEmpty ? _allTrails.length : 1)).round();
+          ((packageSizeMb * 1024 * 1024) /
+                  (_allTrails.isNotEmpty ? _allTrails.length : 1))
+              .round();
 
       if (packageId == 'topo') {
         int totalTilesToMap = 0;
-        final zoomsToDownload = _resolution == 'Basse' ? [11, 12, 13] : (_resolution == 'Haute' ? [11, 12, 13, 14, 15, 16] : [11, 12, 13, 14, 15]);
+        final zoomsToDownload = _resolution == 'Basse'
+            ? [11, 12, 13]
+            : (_resolution == 'Haute'
+                  ? [11, 12, 13, 14, 15, 16]
+                  : [11, 12, 13, 14, 15]);
         for (final z in zoomsToDownload) {
           totalTilesToMap += _mapOfflineService.estimateTileCount(zooms: [z]);
         }
-        
+
         final mapResult = await _mapOfflineService.downloadTabarkaTiles(
           zooms: zoomsToDownload,
           onProgress: (progress, downloaded, total) {
             if (mounted) {
               setState(() {
                 _downloadProgress[packageId] = progress;
-                _downloadStatusText[packageId] = 'Tuiles: $downloaded / $totalTilesToMap';
+                _downloadStatusText[packageId] =
+                    'Tuiles: $downloaded / $totalTilesToMap';
               });
             }
           },
@@ -217,7 +239,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
             for (final url in trail.imageUrls!) {
               try {
                 await DefaultCacheManager().downloadFile(url);
-              } catch (_) {} 
+              } catch (_) {}
             }
           }
 
@@ -225,7 +247,8 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
             trail: trail,
             pois: allPois.where((poi) => poi.trailId == trail.id).toList(),
             quality: _resolution,
-            sizeMb: packageSizeMb / (_allTrails.isNotEmpty ? _allTrails.length : 1),
+            sizeMb:
+                packageSizeMb / (_allTrails.isNotEmpty ? _allTrails.length : 1),
           );
 
           try {
@@ -235,31 +258,37 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
               sizeBytes: bytesPerTrail,
             );
           } catch (e) {
-            debugPrint('Could not track offline download in backend for trail: $e');
+            debugPrint(
+              'Could not track offline download in backend for trail: $e',
+            );
           }
         }
 
         if (mapResult.failed > 0 && mounted) {
-          _showMessage(
-            'Carte: ${mapResult.downloaded} tuiles telechargees.',
-          );
+          _showMessage('Carte: ${mapResult.downloaded} tuiles telechargees.');
         }
       } else if (packageId == 'poi_flora') {
         // Téléchargement physique des Tsawer (Images) pour les POIs
         for (final poi in allPois) {
           if (poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty) {
-            try { await DefaultCacheManager().downloadFile(poi.mediaUrl!); } catch (_) {}
+            try {
+              await DefaultCacheManager().downloadFile(poi.mediaUrl!);
+            } catch (_) {}
           }
           if (poi.additionalMediaUrls != null) {
             for (final url in poi.additionalMediaUrls!) {
-              try { await DefaultCacheManager().downloadFile(url); } catch (_) {}
+              try {
+                await DefaultCacheManager().downloadFile(url);
+              } catch (_) {}
             }
           }
         }
 
         await OfflineCacheService.instance.savePois(allPois);
 
-        final representativeTrail = _allTrails.isNotEmpty ? _allTrails.first.id : 'global';
+        final representativeTrail = _allTrails.isNotEmpty
+            ? _allTrails.first.id
+            : 'global';
         try {
           await _offlineService.markDownloaded(
             resourceType: 'poi',
@@ -280,18 +309,24 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
         // Téléchargement physique des Tsawer (Images) pour les Services
         for (final service in allServices) {
           if (service.imageUrl != null && service.imageUrl!.isNotEmpty) {
-            try { await DefaultCacheManager().downloadFile(service.imageUrl!); } catch (_) {}
+            try {
+              await DefaultCacheManager().downloadFile(service.imageUrl!);
+            } catch (_) {}
           }
           if (service.additionalImages != null) {
             for (final url in service.additionalImages!) {
-              try { await DefaultCacheManager().downloadFile(url); } catch (_) {}
+              try {
+                await DefaultCacheManager().downloadFile(url);
+              } catch (_) {}
             }
           }
         }
 
         await OfflineCacheService.instance.saveLocalServices(allServices);
 
-        final representativeTrail = _allTrails.isNotEmpty ? _allTrails.first.id : 'global';
+        final representativeTrail = _allTrails.isNotEmpty
+            ? _allTrails.first.id
+            : 'global';
         try {
           await _offlineService.markDownloaded(
             resourceType: 'service',
@@ -299,7 +334,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
             sizeBytes: packageSizeMb * 1024 * 1024,
           );
         } catch (e) {
-          debugPrint('Could not track offline download in backend for service: $e');
+          debugPrint(
+            'Could not track offline download in backend for service: $e',
+          );
         }
       }
 
@@ -331,9 +368,10 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     try {
       if (packageId == 'topo') {
         await _mapOfflineService.clearTabarkaTiles();
-        for (final trail in _regionTrails) {
-          await OfflineCacheService.instance.removeTrailPackage(trail.id);
-        }
+        await OfflineCacheService.instance.clearOfflineTrails();
+        await OfflineCacheService.instance.clearOfflinePois();
+      } else if (packageId == 'poi_flora') {
+        await OfflineCacheService.instance.clearOfflinePois();
       } else if (packageId == 'services') {
         await OfflineCacheService.instance.clearOfflineLocalServices();
       }
@@ -379,7 +417,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
         actions: [
           IconButton(
             onPressed: _isLoading ? null : _initialize,
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.refresh),
           ),
         ],
       ),
@@ -560,7 +598,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+        ),
       ),
       child: Row(
         children: [
@@ -597,11 +637,18 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
                     children: [
                       Text(
                         statusText,
-                        style: const TextStyle(fontSize: 11, color: Colors.blue),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.blue,
+                        ),
                       ),
                       Text(
                         '${(progress * 100).toStringAsFixed(1)}%',
-                        style: const TextStyle(fontSize: 11, color: Colors.blue, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -612,7 +659,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
                       value: progress,
                       minHeight: 4,
                       backgroundColor: Colors.blue.withValues(alpha: 0.2),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.blue,
+                      ),
                     ),
                   ),
                 ] else
@@ -641,7 +690,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
                   minimumSize: const Size(130, 34),
                 ),
                 child: Text(
-                  isDownloading ? 'En cours...' : (isInstalled ? 'Mise a jour' : 'Telecharger'),
+                  isDownloading
+                      ? 'En cours...'
+                      : (isInstalled ? 'Mise a jour' : 'Telecharger'),
                   style: const TextStyle(fontSize: 12),
                 ),
               ),
@@ -665,7 +716,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+        ),
       ),
       child: Row(
         children: [

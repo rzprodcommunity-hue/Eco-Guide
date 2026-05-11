@@ -35,7 +35,9 @@ class User {
       lastName: json['lastName'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 

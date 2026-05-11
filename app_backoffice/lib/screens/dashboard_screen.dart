@@ -35,7 +35,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             const Icon(Icons.error_outline, size: 64, color: AppColors.error),
             const SizedBox(height: 16),
-            Text(provider.error!, style: const TextStyle(color: AppColors.error)),
+            Text(
+              provider.error!,
+              style: const TextStyle(color: AppColors.error),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => provider.loadDashboard(),
@@ -58,14 +61,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 2,
-                child: _buildChartCard(stats),
-              ),
+              Expanded(flex: 2, child: _buildChartCard(stats)),
               const SizedBox(width: 24),
-              Expanded(
-                child: _buildSosAlertCard(stats?.activeSosAlerts ?? 0),
-              ),
+              Expanded(child: _buildSosAlertCard(stats?.activeSosAlerts ?? 0)),
             ],
           ),
         ],
@@ -208,11 +206,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 alignment: BarChartAlignment.spaceAround,
                 maxY: _getMaxValue(stats) * 1.2,
                 barGroups: [
-                  _makeBarGroup(0, (stats?.users ?? 0).toDouble(), AppColors.secondary),
-                  _makeBarGroup(1, (stats?.trails ?? 0).toDouble(), AppColors.primary),
-                  _makeBarGroup(2, (stats?.pois ?? 0).toDouble(), AppColors.warning),
-                  _makeBarGroup(3, (stats?.quizzes ?? 0).toDouble(), Colors.purple),
-                  _makeBarGroup(4, (stats?.localServices ?? 0).toDouble(), Colors.teal),
+                  _makeBarGroup(
+                    0,
+                    (stats?.users ?? 0).toDouble(),
+                    AppColors.secondary,
+                  ),
+                  _makeBarGroup(
+                    1,
+                    (stats?.trails ?? 0).toDouble(),
+                    AppColors.primary,
+                  ),
+                  _makeBarGroup(
+                    2,
+                    (stats?.pois ?? 0).toDouble(),
+                    AppColors.warning,
+                  ),
+                  _makeBarGroup(
+                    3,
+                    (stats?.quizzes ?? 0).toDouble(),
+                    Colors.purple,
+                  ),
+                  _makeBarGroup(
+                    4,
+                    (stats?.localServices ?? 0).toDouble(),
+                    Colors.teal,
+                  ),
                 ],
                 titlesData: FlTitlesData(
                   show: true,
@@ -220,7 +238,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const titles = ['Users', 'Trails', 'POIs', 'Quiz', 'Services'];
+                        const titles = [
+                          'Users',
+                          'Trails',
+                          'POIs',
+                          'Quiz',
+                          'Services',
+                        ];
                         if (value.toInt() < titles.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
@@ -235,13 +259,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                    ),
+                    sideTitles: SideTitles(showTitles: true, reservedSize: 40),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 gridData: FlGridData(
@@ -288,9 +313,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: activeAlerts > 0 ? AppColors.error.withOpacity(0.1) : Colors.white,
+        color: activeAlerts > 0
+            ? AppColors.error.withOpacity(0.1)
+            : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: activeAlerts > 0 ? Border.all(color: AppColors.error, width: 2) : null,
+        border: activeAlerts > 0
+            ? Border.all(color: AppColors.error, width: 2)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -320,7 +349,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'Alertes SOS actives',
             style: TextStyle(
               fontSize: 16,
-              color: activeAlerts > 0 ? AppColors.error : AppColors.textSecondary,
+              color: activeAlerts > 0
+                  ? AppColors.error
+                  : AppColors.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),

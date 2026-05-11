@@ -17,10 +17,7 @@ import '../trails/trail_detail_screen.dart';
 class MapSearchResultsScreen extends StatefulWidget {
   final LatLng currentPosition;
 
-  const MapSearchResultsScreen({
-    super.key,
-    required this.currentPosition,
-  });
+  const MapSearchResultsScreen({super.key, required this.currentPosition});
 
   @override
   State<MapSearchResultsScreen> createState() => _MapSearchResultsScreenState();
@@ -186,21 +183,27 @@ class _MapSearchResultsScreenState extends State<MapSearchResultsScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : filtered.isEmpty
-                    ? const Center(child: Text('No result found'))
-                    : ListView.separated(
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final item = filtered[index];
-                          return ListTile(
-                            leading: CircleAvatar(child: Icon(item.icon)),
-                            title: Text(item.name),
-                            subtitle: Text(item.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            trailing: Text('${item.distanceKm.toStringAsFixed(1)} km'),
-                            onTap: () => _openItem(item),
-                          );
-                        },
-                      ),
+                ? const Center(child: Text('No result found'))
+                : ListView.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final item = filtered[index];
+                      return ListTile(
+                        leading: CircleAvatar(child: Icon(item.icon)),
+                        title: Text(item.name),
+                        subtitle: Text(
+                          item.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          '${item.distanceKm.toStringAsFixed(1)} km',
+                        ),
+                        onTap: () => _openItem(item),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -225,7 +228,9 @@ class _MapSearchResultsScreenState extends State<MapSearchResultsScreen> {
         if (item.trail == null) return;
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => TrailDetailScreen(trail: item.trail!)),
+          MaterialPageRoute(
+            builder: (_) => TrailDetailScreen(trail: item.trail!),
+          ),
         );
         return;
       case _SearchCategory.poi:

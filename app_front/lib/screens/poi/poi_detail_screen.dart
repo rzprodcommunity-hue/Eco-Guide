@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../models/poi.dart';
@@ -20,11 +21,13 @@ class PoiDetailScreen extends StatefulWidget {
 }
 
 class _PoiDetailScreenState extends State<PoiDetailScreen> {
+  final MapOfflineService _mapOfflineService = MapOfflineService();
   LatLng? _currentPosition;
 
   @override
   void initState() {
     super.initState();
+    _mapOfflineService.initialize();
     _detectUserPosition();
   }
 
@@ -43,7 +46,9 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
 
       if (!mounted) return;
@@ -141,15 +146,24 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                       ? CachedNetworkImage(
                           imageUrl: poi.mediaUrl!,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: Colors.grey[300]),
+                          placeholder: (_, __) =>
+                              Container(color: Colors.grey[300]),
                           errorWidget: (_, __, ___) => Container(
                             color: poiColor.withValues(alpha: 0.2),
-                            child: Icon(_getPoiIcon(poi.type), size: 64, color: Colors.white),
+                            child: Icon(
+                              _getPoiIcon(poi.type),
+                              size: 64,
+                              color: Colors.white,
+                            ),
                           ),
                         )
                       : Container(
                           color: poiColor.withValues(alpha: 0.2),
-                          child: Icon(_getPoiIcon(poi.type), size: 64, color: Colors.white),
+                          child: Icon(
+                            _getPoiIcon(poi.type),
+                            size: 64,
+                            color: Colors.white,
+                          ),
                         ),
                 ),
                 Container(
@@ -178,7 +192,10 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: poiColor,
                           borderRadius: BorderRadius.circular(999),
@@ -223,11 +240,18 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).dividerColor.withValues(alpha: 0.1),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -244,7 +268,8 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                           child: _FactBox(
                             icon: Icons.location_on,
                             label: 'Coordonnees',
-                            value: '${poi.latitude.toStringAsFixed(4)}, ${poi.longitude.toStringAsFixed(4)}',
+                            value:
+                                '${poi.latitude.toStringAsFixed(4)}, ${poi.longitude.toStringAsFixed(4)}',
                             color: AppTheme.primaryColor,
                           ),
                         ),
@@ -265,7 +290,9 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                   Text(
                     poi.description,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
                       fontSize: 16,
                       height: 1.55,
                     ),
@@ -314,13 +341,18 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                             urlTemplate:
                                 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                             userAgentPackageName: 'com.ecoguide.app',
-                            tileProvider: LocalFirstTileProvider(),
+                            tileProvider: LocalFirstTileProvider(
+                              service: _mapOfflineService,
+                            ),
                           ),
                           if (_currentPosition != null)
                             PolylineLayer(
                               polylines: [
                                 Polyline(
-                                  points: [_currentPosition!, LatLng(poi.latitude, poi.longitude)],
+                                  points: [
+                                    _currentPosition!,
+                                    LatLng(poi.latitude, poi.longitude),
+                                  ],
                                   strokeWidth: 4,
                                   color: Colors.green,
                                 ),
@@ -335,10 +367,17 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                                     decoration: BoxDecoration(
                                       color: Colors.blue,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
                                     ),
                                     padding: const EdgeInsets.all(7),
-                                    child: const Icon(Icons.person, color: Colors.white, size: 14),
+                                    child: const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 14,
+                                    ),
                                   ),
                                 ),
                               Marker(
@@ -347,7 +386,10 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                                   decoration: BoxDecoration(
                                     color: poiColor,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
                                   ),
                                   padding: const EdgeInsets.all(8),
                                   child: Icon(
@@ -378,45 +420,226 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                     ),
                   const SizedBox(height: 24),
 
-                  if (poi.additionalMediaUrls != null &&
-                      poi.additionalMediaUrls!.isNotEmpty) ...[
-                    Text(
-                      'Galerie',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: poi.additionalMediaUrls!.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: CachedNetworkImage(
-                                imageUrl: poi.additionalMediaUrls![index],
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                  _buildPoiMediaSection(poi),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPoiMediaSection(Poi poi) {
+    final images = _poiImageUrls(poi);
+    final videos = _poiVideoUrls(poi);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (images.isNotEmpty) ...[
+          Text(
+            'Galerie',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 112,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: images.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: images[index],
+                    width: 148,
+                    height: 112,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) =>
+                        Container(width: 148, color: Colors.grey[300]),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 148,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.broken_image),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+        Text(
+          'Video',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (videos.isNotEmpty)
+          SizedBox(
+            height: 92,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: videos.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                return _MediaActionCard(
+                  icon: Icons.play_circle_fill,
+                  title: 'Video ${index + 1}',
+                  subtitle: 'Ouvrir la video',
+                  enabled: true,
+                  onTap: () => _openMediaUrl(videos[index]),
+                );
+              },
+            ),
+          )
+        else
+          _MediaActionCard(
+            icon: Icons.play_circle_outline,
+            title: 'Video',
+            subtitle: 'Aucune video disponible',
+            enabled: false,
+            onTap: null,
+          ),
+        const SizedBox(height: 24),
+        Text(
+          'Voix off',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _MediaActionCard(
+          icon: Icons.volume_up,
+          title: 'Guide audio',
+          subtitle: poi.audioGuideUrl != null && poi.audioGuideUrl!.isNotEmpty
+              ? 'Ecouter la voix off'
+              : 'Voix off non disponible',
+          enabled: poi.audioGuideUrl != null && poi.audioGuideUrl!.isNotEmpty,
+          onTap: poi.audioGuideUrl != null && poi.audioGuideUrl!.isNotEmpty
+              ? () => _openMediaUrl(poi.audioGuideUrl!)
+              : null,
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  List<String> _poiImageUrls(Poi poi) {
+    final urls = <String>[
+      if (poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty) poi.mediaUrl!,
+      ...?poi.additionalMediaUrls,
+    ];
+
+    return urls.where((url) => !_isVideoUrl(url)).toSet().toList();
+  }
+
+  List<String> _poiVideoUrls(Poi poi) {
+    final urls = <String>[
+      ...?poi.videoUrls,
+      ...?poi.additionalMediaUrls,
+      if (poi.learnMoreUrl != null && _isVideoUrl(poi.learnMoreUrl!))
+        poi.learnMoreUrl!,
+    ];
+
+    return urls.where(_isVideoUrl).toSet().toList();
+  }
+
+  bool _isVideoUrl(String url) {
+    final lower = url.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.webm') ||
+        lower.contains('youtube.com') ||
+        lower.contains('youtu.be') ||
+        lower.contains('vimeo.com');
+  }
+
+  Future<void> _openMediaUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+class _MediaActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  const _MediaActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = enabled ? AppTheme.primaryColor : Colors.grey;
+
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 170,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 30),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.62),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -439,7 +662,11 @@ class _CircleIconButton extends StatelessWidget {
           color: Theme.of(context).cardColor.withValues(alpha: 0.92),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurface),
+        child: Icon(
+          icon,
+          size: 18,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
@@ -465,7 +692,9 @@ class _FactBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
       ),
       child: Column(
         children: [
@@ -474,7 +703,9 @@ class _FactBox extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),

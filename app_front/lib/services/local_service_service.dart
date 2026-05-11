@@ -20,9 +20,14 @@ class LocalServiceService {
       if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
     };
 
-    final response = await _client.get(ApiConstants.localServices, queryParams: queryParams);
+    final response = await _client.get(
+      ApiConstants.localServices,
+      queryParams: queryParams,
+    );
     final data = response['data'] as List? ?? [];
-    return data.map((json) => LocalService.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => LocalService.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<LocalService>> getNearbyServices({
@@ -38,9 +43,14 @@ class LocalServiceService {
       if (category != null) 'category': category,
     };
 
-    final response = await _client.get(ApiConstants.localServicesNearby, queryParams: queryParams);
+    final response = await _client.get(
+      ApiConstants.localServicesNearby,
+      queryParams: queryParams,
+    );
     final data = response['data'] as List? ?? response as List;
-    return data.map((json) => LocalService.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => LocalService.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<LocalService> getServiceById(String id) async {

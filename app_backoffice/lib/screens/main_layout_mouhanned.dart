@@ -175,8 +175,9 @@ class _MainLayoutState extends State<MainLayout> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
-              mainAxisAlignment:
-                  _isExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+              mainAxisAlignment: _isExpanded
+                  ? MainAxisAlignment.start
+                  : MainAxisAlignment.center,
               children: [
                 Icon(
                   icon,
@@ -190,8 +191,9 @@ class _MainLayoutState extends State<MainLayout> {
                       label,
                       style: TextStyle(
                         color: isSelected ? Colors.white : Colors.white70,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -249,7 +251,8 @@ class _MainLayoutState extends State<MainLayout> {
                 backgroundColor: AppColors.primary,
                 radius: 18,
                 child: Text(
-                  authProvider.user?.fullName.substring(0, 1).toUpperCase() ?? 'A',
+                  authProvider.user?.fullName.substring(0, 1).toUpperCase() ??
+                      'A',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),

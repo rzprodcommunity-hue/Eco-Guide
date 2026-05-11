@@ -45,18 +45,30 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                       margin: const EdgeInsets.only(right: 16),
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.volume_off, color: Colors.white),
-                        label: const Text('COUPER L\'ALARME', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        label: const Text(
+                          'COUPER L\'ALARME',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.redAccent,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
                         ),
                         onPressed: () => provider.stopAlarm(),
                       ),
                     ),
                   if (provider.activeAlerts.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       margin: const EdgeInsets.only(right: 16),
                       decoration: BoxDecoration(
                         color: AppColors.error.withOpacity(0.1),
@@ -65,7 +77,11 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.warning, color: AppColors.error, size: 20),
+                          const Icon(
+                            Icons.warning,
+                            color: AppColors.error,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             '${provider.activeAlerts.length} alerte(s) active(s)',
@@ -100,7 +116,8 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                   ),
                   const SizedBox(width: 16),
                   IconButton(
-                    onPressed: () => provider.loadAlerts(activeOnly: _showActiveOnly),
+                    onPressed: () =>
+                        provider.loadAlerts(activeOnly: _showActiveOnly),
                     icon: const Icon(Icons.refresh),
                     tooltip: 'Rafraichir',
                   ),
@@ -113,8 +130,8 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             child: provider.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : provider.alerts.isEmpty
-                    ? _buildEmptyState()
-                    : _buildAlertsList(provider),
+                ? _buildEmptyState()
+                : _buildAlertsList(provider),
           ),
         ],
       ),
@@ -187,7 +204,9 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
               color: isActive
                   ? AppColors.error.withOpacity(0.1)
                   : AppColors.background,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
             ),
             child: Row(
               children: [
@@ -259,7 +278,8 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                 _buildInfoItem(
                   icon: Icons.location_on,
                   label: 'Coordonnees GPS',
-                  value: '${alert.latitude.toStringAsFixed(6)}, ${alert.longitude.toStringAsFixed(6)}',
+                  value:
+                      '${alert.latitude.toStringAsFixed(6)}, ${alert.longitude.toStringAsFixed(6)}',
                 ),
                 if (alert.message != null && alert.message!.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -274,7 +294,9 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                   _buildInfoItem(
                     icon: Icons.access_time,
                     label: 'Resolue le',
-                    value: DateFormat('dd/MM/yyyy a HH:mm').format(alert.resolvedAt!),
+                    value: DateFormat(
+                      'dd/MM/yyyy a HH:mm',
+                    ).format(alert.resolvedAt!),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -386,14 +408,25 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
               children: [
                 // Header
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.error.withOpacity(0.1),
-                    border: Border(bottom: BorderSide(color: AppColors.error.withOpacity(0.3))),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.error.withOpacity(0.3),
+                      ),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.location_on, color: AppColors.error, size: 24),
+                      const Icon(
+                        Icons.location_on,
+                        color: AppColors.error,
+                        size: 24,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -401,12 +434,19 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                           children: [
                             const Text(
                               'Localisation de l\'alerte SOS',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Lat: ${alert.latitude.toStringAsFixed(6)}  |  Lng: ${alert.longitude.toStringAsFixed(6)}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ),
@@ -427,7 +467,8 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.ecoguide.backoffice',
                       ),
                       MarkerLayer(
@@ -461,7 +502,10 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: AppColors.error,
-                                    border: Border.all(color: Colors.white, width: 3),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 3,
+                                    ),
                                     boxShadow: [
                                       BoxShadow(
                                         color: AppColors.error.withOpacity(0.5),
@@ -491,10 +535,16 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                     children: [
                       OutlinedButton.icon(
                         onPressed: () {
-                          Clipboard.setData(ClipboardData(text: '${alert.latitude}, ${alert.longitude}'));
+                          Clipboard.setData(
+                            ClipboardData(
+                              text: '${alert.latitude}, ${alert.longitude}',
+                            ),
+                          );
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Coordonnees copiees dans le presse-papiers'),
+                              content: Text(
+                                'Coordonnees copiees dans le presse-papiers',
+                              ),
                               backgroundColor: AppColors.success,
                             ),
                           );
@@ -524,7 +574,9 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
   }
 
   void _copyCoordinates(SosAlertModel alert) {
-    Clipboard.setData(ClipboardData(text: '${alert.latitude}, ${alert.longitude}'));
+    Clipboard.setData(
+      ClipboardData(text: '${alert.latitude}, ${alert.longitude}'),
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Coordonnees copiees dans le presse-papiers'),

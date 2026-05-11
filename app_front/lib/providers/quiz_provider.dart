@@ -47,7 +47,10 @@ class QuizProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _quizzes = await _service.getRandomQuizzes(count: count, category: category);
+      _quizzes = await _service.getRandomQuizzes(
+        count: count,
+        category: category,
+      );
       if (_quizzes.isNotEmpty) {
         _currentQuiz = _quizzes[0];
       }

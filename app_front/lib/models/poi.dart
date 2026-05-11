@@ -9,6 +9,7 @@ class Poi {
   final double longitude;
   final String? mediaUrl;
   final List<String>? additionalMediaUrls;
+  final List<String>? videoUrls;
   final String? audioGuideUrl;
   final String? trailId;
   final bool isActive;
@@ -25,6 +26,7 @@ class Poi {
     required this.longitude,
     this.mediaUrl,
     this.additionalMediaUrls,
+    this.videoUrls,
     this.audioGuideUrl,
     this.trailId,
     required this.isActive,
@@ -86,6 +88,7 @@ class Poi {
       longitude: _parseDouble(json['longitude']),
       mediaUrl: json['mediaUrl'] as String?,
       additionalMediaUrls: _parseStringList(json['additionalMediaUrls']),
+      videoUrls: _parseStringList(json['videoUrls'] ?? json['videos']),
       audioGuideUrl: json['audioGuideUrl'] as String?,
       trailId: json['trailId'] as String?,
       isActive: json['isActive'] as bool? ?? true,
@@ -107,6 +110,7 @@ class Poi {
       'longitude': longitude,
       'mediaUrl': mediaUrl,
       'additionalMediaUrls': additionalMediaUrls,
+      'videoUrls': videoUrls,
       'audioGuideUrl': audioGuideUrl,
       'trailId': trailId,
       'isActive': isActive,

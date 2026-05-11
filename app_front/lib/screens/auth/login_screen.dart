@@ -54,9 +54,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _continueWithGoogle() async {
     final authProvider = context.read<AuthProvider>();
-    await authProvider.loginAsStaticUser();
+    final success = await authProvider.loginWithGoogle();
 
-    if (authProvider.error != null && mounted) {
+    if (!success && authProvider.error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authProvider.error!),
@@ -64,6 +64,10 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       );
     }
+  }
+
+  Future<void> _continueWithoutSignIn() async {
+    await context.read<AuthProvider>().continueAsGuest();
   }
 
   @override
@@ -175,7 +179,9 @@ class _LoginScreenState extends State<LoginScreen>
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2C2C2C) : Colors.grey[100],
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF2C2C2C)
+                      : Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TabBar(
@@ -241,7 +247,10 @@ class _LoginScreenState extends State<LoginScreen>
                           color: Colors.grey[400],
                         ),
                         filled: true,
-                        fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2C2C2C) : Colors.grey[50],
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF2C2C2C)
+                            : Colors.grey[50],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -299,7 +308,10 @@ class _LoginScreenState extends State<LoginScreen>
                           },
                         ),
                         filled: true,
-                        fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2C2C2C) : Colors.grey[50],
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF2C2C2C)
+                            : Colors.grey[50],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -373,6 +385,29 @@ class _LoginScreenState extends State<LoginScreen>
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    OutlinedButton(
+                      onPressed: authProvider.isLoading
+                          ? null
+                          : _continueWithoutSignIn,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        side: const BorderSide(color: AppTheme.primaryColor),
+                        foregroundColor: AppTheme.primaryColor,
+                      ),
+                      child: const Text(
+                        'Continue without sign in',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 32),

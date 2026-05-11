@@ -91,6 +91,23 @@ class OfflineCacheService {
     await batch.commit(noResult: true);
   }
 
+  Future<void> saveTrails(List<Trail> trails) async {
+    final db = await _db;
+    final batch = db.batch();
+
+    for (final trail in trails) {
+      batch.insert('offline_trails', {
+        'id': trail.id,
+        'payload': jsonEncode(trail.toJson()),
+        'downloadedAt': DateTime.now().toIso8601String(),
+        'quality': 'sync',
+        'sizeMb': 0.0,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+
+    await batch.commit(noResult: true);
+  }
+
   Future<List<Trail>> getOfflineTrails() async {
     final db = await _db;
     final rows = await db.query('offline_trails', orderBy: 'downloadedAt DESC');
@@ -170,6 +187,16 @@ class OfflineCacheService {
   Future<void> clearOfflineLocalServices() async {
     final db = await _db;
     await db.delete('offline_local_services');
+  }
+
+  Future<void> clearOfflinePois() async {
+    final db = await _db;
+    await db.delete('offline_pois');
+  }
+
+  Future<void> clearOfflineTrails() async {
+    final db = await _db;
+    await db.delete('offline_trails');
   }
 
   Future<double> getTotalUsageMb() async {

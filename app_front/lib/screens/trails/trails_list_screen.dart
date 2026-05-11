@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/services/network_service.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/trail_provider.dart';
 import '../../models/trail.dart';
@@ -39,6 +40,27 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
         _scrollController.position.maxScrollExtent - 200) {
       context.read<TrailProvider>().loadMore();
     }
+  }
+
+  Future<void> _refreshTrails() async {
+    final isOnline = await NetworkService.hasInternetConnection();
+    if (!mounted) return;
+
+    await context.read<TrailProvider>().loadTrails(
+      refresh: true,
+      forceOffline: !isOnline,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isOnline
+              ? 'Sentiers recharges depuis Supabase.'
+              : 'Mode hors ligne: sentiers recharges depuis SQL.',
+        ),
+      ),
+    );
   }
 
   Color _getDifficultyColor(String difficulty) {
@@ -108,58 +130,65 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
               ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () async {
-                  await trailProvider.loadTrails(refresh: true);
-                },
+                onRefresh: _refreshTrails,
                 child: trailProvider.isLoading && trailProvider.trails.isEmpty
                     ? const Center(child: CircularProgressIndicator())
                     : displayedTrails.isEmpty
-                        ? ListView(
-                            children: [
-                              _buildOfflineBanner(),
-                              Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const SizedBox(height: 64),
-                                    const Icon(Icons.hiking, size: 64, color: Colors.grey),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      query.isEmpty
-                                          ? 'Aucun sentier trouvé'
-                                          : 'Aucun résultat pour "$_searchQuery"',
-                                      style: const TextStyle(color: Colors.grey),
-                                    ),
-                                  ],
+                    ? ListView(
+                        children: [
+                          _buildOfflineBanner(),
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(height: 64),
+                                const Icon(
+                                  Icons.hiking,
+                                  size: 64,
+                                  color: Colors.grey,
                                 ),
-                              ),
-                            ],
-                          )
-                        : ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.only(top: 8, bottom: 20),
-                            itemCount: displayedTrails.length + (showLoadMore ? 1 : 0) + 2,
-                            itemBuilder: (context, index) {
-                              if (index == 0) return _buildOfflineBanner();
-                              if (index == 1) return _buildSectionTitle();
-
-                              final trailIndex = index - 2;
-                              if (trailIndex >= displayedTrails.length) {
-                                return const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              }
-                              final trail = displayedTrails[trailIndex];
-                              return _TrailCard(
-                                trail: trail,
-                                difficultyColor: _getDifficultyColor(trail.difficulty),
-                                difficultyText: _getDifficultyText(trail.difficulty),
-                              );
-                            },
+                                const SizedBox(height: 16),
+                                Text(
+                                  query.isEmpty
+                                      ? 'Aucun sentier trouvé'
+                                      : 'Aucun résultat pour "$_searchQuery"',
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
                           ),
+                        ],
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.only(top: 8, bottom: 20),
+                        itemCount:
+                            displayedTrails.length + (showLoadMore ? 1 : 0) + 2,
+                        itemBuilder: (context, index) {
+                          if (index == 0) return _buildOfflineBanner();
+                          if (index == 1) return _buildSectionTitle();
+
+                          final trailIndex = index - 2;
+                          if (trailIndex >= displayedTrails.length) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
+                          final trail = displayedTrails[trailIndex];
+                          return _TrailCard(
+                            trail: trail,
+                            difficultyColor: _getDifficultyColor(
+                              trail.difficulty,
+                            ),
+                            difficultyText: _getDifficultyText(
+                              trail.difficulty,
+                            ),
+                          );
+                        },
+                      ),
               ),
             ),
           ],
@@ -181,7 +210,9 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
               Text(
                 'Eco-Guide',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -197,23 +228,10 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
               ),
             ],
           ),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: Color(0xFF2E7D32),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Text(
-                'JD',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
+          IconButton(
+            onPressed: _refreshTrails,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Actualiser',
           ),
         ],
       ),
@@ -231,7 +249,9 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                ),
               ),
               child: TextField(
                 controller: _searchController,
@@ -239,8 +259,15 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
                   hintText: 'Où voulez-vous marcher ?',
                   hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
                   border: InputBorder.none,
-                  prefixIcon: Icon(Icons.search, color: Color(0xFF6B7280), size: 20),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Color(0xFF6B7280),
+                    size: 20,
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
                 onChanged: (value) => setState(() => _searchQuery = value),
               ),
@@ -324,23 +351,29 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
           const SizedBox(height: 4),
           const Text(
             "Téléchargez les cartes pour un accès hors-ligne complet.",
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () {},
-            icon: const Icon(Icons.download, size: 16, color: Color(0xFF2E7D32)),
+            icon: const Icon(
+              Icons.download,
+              size: 16,
+              color: Color(0xFF2E7D32),
+            ),
             label: const Text(
               "Télécharger les cartes",
-              style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Color(0xFF2E7D32),
+                fontWeight: FontWeight.bold,
+              ),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
           ),
         ],
@@ -369,7 +402,10 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
               'Trier',
               style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
             ),
-            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+            ),
           ),
         ],
       ),
@@ -408,10 +444,14 @@ class _DifficultyChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF2E7D32) : Theme.of(context).cardColor,
+          color: selected
+              ? const Color(0xFF2E7D32)
+              : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: selected ? const Color(0xFF2E7D32) : Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            color: selected
+                ? const Color(0xFF2E7D32)
+                : Theme.of(context).dividerColor.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -419,7 +459,11 @@ class _DifficultyChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: selected ? Colors.white : const Color(0xFF4B5563)),
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? Colors.white : const Color(0xFF4B5563),
+              ),
               const SizedBox(width: 6),
             ],
             Text(
@@ -454,9 +498,7 @@ class _TrailCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => TrailDetailScreen(trail: trail),
-          ),
+          MaterialPageRoute(builder: (_) => TrailDetailScreen(trail: trail)),
         );
       },
       child: Container(
@@ -471,28 +513,42 @@ class _TrailCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                   child: trail.imageUrls != null && trail.imageUrls!.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: trail.imageUrls!.first,
                           height: 180,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(height: 180, color: Colors.grey[300]),
-                          errorWidget: (_, __, ___) => Container(height: 180, color: Colors.grey[300], child: const Icon(Icons.image_not_supported)),
+                          placeholder: (_, __) =>
+                              Container(height: 180, color: Colors.grey[300]),
+                          errorWidget: (_, __, ___) => Container(
+                            height: 180,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.image_not_supported),
+                          ),
                         )
                       : Container(
                           height: 180,
                           width: double.infinity,
                           color: Colors.grey[300],
-                          child: const Icon(Icons.landscape, size: 48, color: Colors.grey),
+                          child: const Icon(
+                            Icons.landscape,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
                         ),
                 ),
                 Positioned(
                   top: 12,
                   left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
@@ -504,7 +560,11 @@ class _TrailCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           difficultyText,
-                          style: TextStyle(color: difficultyColor, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: difficultyColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -514,7 +574,10 @@ class _TrailCard extends StatelessWidget {
                   bottom: 12,
                   left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
@@ -526,7 +589,11 @@ class _TrailCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           trail.averageRating?.toStringAsFixed(1) ?? '4.8',
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -534,7 +601,7 @@ class _TrailCard extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -560,12 +627,23 @@ class _TrailCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Icon(Icons.location_on, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                                Icon(
+                                  Icons.location_on,
+                                  size: 14,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
                                     trail.region ?? 'Parc National',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 13),
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
+                                      fontSize: 13,
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -575,7 +653,11 @@ class _TrailCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Icon(Icons.favorite_border, color: Color(0xFF6B7280), size: 24),
+                      const Icon(
+                        Icons.favorite_border,
+                        color: Color(0xFF6B7280),
+                        size: 24,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -596,7 +678,9 @@ class _TrailCard extends StatelessWidget {
                       ),
                       _StatColumn(
                         label: 'Dénivelé',
-                        value: trail.elevationGain != null ? '+${trail.elevationGain!.toInt()} m' : '+430 m',
+                        value: trail.elevationGain != null
+                            ? '+${trail.elevationGain!.toInt()} m'
+                            : '+430 m',
                         icon: Icons.trending_up,
                         iconColor: Colors.green,
                       ),
@@ -641,7 +725,11 @@ class _StatColumn extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               value,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -719,9 +807,13 @@ class _FilterSheetState extends State<_FilterSheet> {
           // const SizedBox(height: 5),
 
           // Difficulty Filter
-          Text('Difficulté',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
+          Text(
+            'Difficulté',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 0),
           Wrap(
             spacing: 8,
@@ -753,9 +845,13 @@ class _FilterSheetState extends State<_FilterSheet> {
           const SizedBox(height: 5),
 
           // Distance Filter
-          Text('Distance (km)',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
+          Text(
+            'Distance (km)',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 8),
           RangeSlider(
             values: _distanceRange,
@@ -773,9 +869,13 @@ class _FilterSheetState extends State<_FilterSheet> {
           const SizedBox(height: 24),
 
           // Duration Filter
-          Text('Durée maximale',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
+          Text(
+            'Durée maximale',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 8),
           Slider(
             value: _selectedDuration.toDouble(),
@@ -855,7 +955,6 @@ class _FilterChip extends StatelessWidget {
     );
   }
 }
-
 
 // class _TrailCard extends StatelessWidget {
 //   final Trail trail;
@@ -994,4 +1093,3 @@ class _FilterChip extends StatelessWidget {
 //     );
 //   }
 // }
-

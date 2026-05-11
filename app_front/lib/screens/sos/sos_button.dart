@@ -151,7 +151,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
       // Check Network Connectivity First
       final connectivityResult = await (Connectivity().checkConnectivity());
-      final isOffline = connectivityResult.contains(ConnectivityResult.none) || connectivityResult.isEmpty;
+      final isOffline =
+          connectivityResult.contains(ConnectivityResult.none) ||
+          connectivityResult.isEmpty;
 
       if (isOffline) {
         // Save to offline queue
@@ -205,9 +207,15 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.signal_cellular_connected_no_internet_4_bar, color: AppTheme.errorColor),
+            Icon(
+              Icons.signal_cellular_connected_no_internet_4_bar,
+              color: AppTheme.errorColor,
+            ),
             SizedBox(width: 8),
-            Text('Aucun Réseau Détecté', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'Aucun Réseau Détecté',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: const Text(
@@ -230,7 +238,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             ),
             onPressed: () async {
               Navigator.pop(context);
-              final link = 'sms:112?body=${Uri.encodeComponent("URGENCE ECO-GUIDE - Je suis à la position GPS : ${_currentPosition.latitude}, ${_currentPosition.longitude}. Envoyez des secours.")}';
+              final link =
+                  'sms:112?body=${Uri.encodeComponent("URGENCE ECO-GUIDE - Je suis à la position GPS : ${_currentPosition.latitude}, ${_currentPosition.longitude}. Envoyez des secours.")}';
               final uri = Uri.parse(link);
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri);
@@ -245,7 +254,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   Future<void> _callNumber(String number) async {
     final uri = Uri.parse('tel:$number');
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -274,10 +283,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               const SizedBox(height: 4),
               Text(
                 'Les secours recevront votre position exacte',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
               const SizedBox(height: 32),
               _buildGpsCard(),
@@ -295,18 +301,27 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
   Widget _buildHeader() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: IconButton(
-            icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface, size: 22),
-            onPressed: () => Navigator.pop(context),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.close,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  size: 22,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
           ),
         ),
         Text(
@@ -317,7 +332,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        const SizedBox(width: 44), // To balance the back button
+        const Expanded(child: SizedBox()),
       ],
     );
   }
@@ -366,7 +381,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                   child: CircularProgressIndicator(
                     value: _holdProgress,
                     strokeWidth: 8,
-                    backgroundColor: const Color(0xFFC83226).withValues(alpha: 0.2),
+                    backgroundColor: const Color(
+                      0xFFC83226,
+                    ).withValues(alpha: 0.2),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       Color(0xFFC83226),
                     ),
@@ -381,8 +398,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                   color: _isSending
                       ? Colors.grey
                       : (_isHolding
-                          ? const Color(0xFFC83226).withValues(alpha: 0.9)
-                          : const Color(0xFFC83226)),
+                            ? const Color(0xFFC83226).withValues(alpha: 0.9)
+                            : const Color(0xFFC83226)),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFC83226).withValues(alpha: 0.4),
@@ -393,9 +410,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                 ),
                 child: _isSending
                     ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                        ),
+                        child: CircularProgressIndicator(color: Colors.white),
                       )
                     : const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -435,7 +450,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,7 +478,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     border: Border.all(
-                      color: _hasGoodSignal ? const Color(0xFF2E7D32).withValues(alpha: 0.3) : Colors.orange.withValues(alpha: 0.3),
+                      color: _hasGoodSignal
+                          ? const Color(0xFF2E7D32).withValues(alpha: 0.3)
+                          : Colors.orange.withValues(alpha: 0.3),
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -471,7 +490,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                       Icon(
                         Icons.my_location,
                         size: 14,
-                        color: _hasGoodSignal ? const Color(0xFF2E7D32) : Colors.orange,
+                        color: _hasGoodSignal
+                            ? const Color(0xFF2E7D32)
+                            : Colors.orange,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -479,7 +500,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: _hasGoodSignal ? const Color(0xFF2E7D32) : Colors.orange,
+                          color: _hasGoodSignal
+                              ? const Color(0xFF2E7D32)
+                              : Colors.orange,
                         ),
                       ),
                     ],
@@ -494,7 +517,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              ),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -510,7 +535,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.ecoguide.app',
                       ),
                       MarkerLayer(
@@ -520,7 +546,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                             width: 24,
                             height: 24,
                             child: const Icon(
-                              Icons.change_history, // Triangle icon used in screenshot instead of person
+                              Icons
+                                  .change_history, // Triangle icon used in screenshot instead of person
                               color: Color(0xFFD84B3C),
                               size: 24,
                             ),
@@ -575,8 +602,14 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildInfoColumn('Altitude', '${_altitude.toStringAsFixed(0)} m'),
-                _buildInfoColumn('Précision', '+/- ${_accuracy.toStringAsFixed(0)} mètres'),
+                _buildInfoColumn(
+                  'Altitude',
+                  '${_altitude.toStringAsFixed(0)} m',
+                ),
+                _buildInfoColumn(
+                  'Précision',
+                  '+/- ${_accuracy.toStringAsFixed(0)} mètres',
+                ),
               ],
             ),
           ),
@@ -594,7 +627,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 4),
@@ -658,7 +693,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
       ),
       child: Row(
         children: [
@@ -668,7 +705,11 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               color: Theme.of(context).scaffoldBackgroundColor,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 20),
+            child: Icon(
+              icon,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -689,7 +730,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -726,7 +769,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         border: Border.all(
           color: Theme.of(context).brightness == Brightness.dark
               ? Colors.red.withValues(alpha: 0.3)
-              : const Color(0xFFFFD4D4)
+              : const Color(0xFFFFD4D4),
         ),
       ),
       child: Row(

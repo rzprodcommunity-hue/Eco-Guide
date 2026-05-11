@@ -24,9 +24,17 @@ class TrailsProvider extends ChangeNotifier {
   double? get minDistance => _minDistance;
   double? get maxDistance => _maxDistance;
   int? get maxDuration => _maxDuration;
-  bool get hasActiveFilters => _filterDifficulty != null || _minDistance != null || _maxDistance != null || _maxDuration != null;
+  bool get hasActiveFilters =>
+      _filterDifficulty != null ||
+      _minDistance != null ||
+      _maxDistance != null ||
+      _maxDuration != null;
 
-  Future<void> loadTrails({int page = 1, String? difficulty, String? region}) async {
+  Future<void> loadTrails({
+    int page = 1,
+    String? difficulty,
+    String? region,
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();

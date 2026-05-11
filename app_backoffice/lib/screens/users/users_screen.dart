@@ -37,7 +37,9 @@ class _UsersScreenState extends State<UsersScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text('Modifier ${user.fullName}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -51,7 +53,8 @@ class _UsersScreenState extends State<UsersScreen> {
                   DropdownMenuItem(value: 'guide', child: Text('Guide')),
                   DropdownMenuItem(value: 'artisan', child: Text('Artisan')),
                 ],
-                onChanged: (v) => setDialogState(() => selectedRole = v ?? 'user'),
+                onChanged: (v) =>
+                    setDialogState(() => selectedRole = v ?? 'user'),
               ),
               const SizedBox(height: 16),
               SwitchListTile(
@@ -64,7 +67,10 @@ class _UsersScreenState extends State<UsersScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler', style: TextStyle(color: AppColors.textSecondary)),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -75,11 +81,17 @@ class _UsersScreenState extends State<UsersScreen> {
                 });
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('User updated'), backgroundColor: AppColors.success),
+                    const SnackBar(
+                      content: Text('User updated'),
+                      backgroundColor: AppColors.success,
+                    ),
                   );
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Enregistrer'),
             ),
           ],
@@ -94,20 +106,26 @@ class _UsersScreenState extends State<UsersScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Ban User'),
-        content: Text('Are you sure you want to ${user.isActive ? 'ban' : 'unban'} ${user.fullName}?'),
+        content: Text(
+          'Are you sure you want to ${user.isActive ? 'ban' : 'unban'} ${user.fullName}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              await provider.updateUser(user.id, {
-                'isActive': !user.isActive,
-              });
+              await provider.updateUser(user.id, {'isActive': !user.isActive});
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             child: Text(user.isActive ? 'Ban User' : 'Unban User'),
           ),
         ],
@@ -121,7 +139,9 @@ class _UsersScreenState extends State<UsersScreen> {
 
     // Calculate approx stats from current page for mockup purposes
     final activeUsersCount = provider.users.where((u) => u.isActive).length;
-    final newerUsersCount = provider.users.where((u) => DateTime.now().difference(u.createdAt).inDays <= 7).length;
+    final newerUsersCount = provider.users
+        .where((u) => DateTime.now().difference(u.createdAt).inDays <= 7)
+        .length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
@@ -136,11 +156,22 @@ class _UsersScreenState extends State<UsersScreen> {
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('User Management',
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  Text(
+                    'User Management',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                   SizedBox(height: 6),
-                  Text('Manage hiker accounts, roles, and access permissions',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                  Text(
+                    'Manage hiker accounts, roles, and access permissions',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
               Row(
@@ -152,26 +183,55 @@ class _UsersScreenState extends State<UsersScreen> {
                       controller: _searchController,
                       decoration: InputDecoration(
                         hintText: 'Search by name or email...',
-                        hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 13),
-                        prefixIcon: const Icon(Icons.search, color: AppColors.textHint, size: 18),
+                        hintStyle: const TextStyle(
+                          color: AppColors.textHint,
+                          fontSize: 13,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: AppColors.textHint,
+                          size: 18,
+                        ),
                         filled: true,
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.divider),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.divider),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   OutlinedButton.icon(
                     onPressed: () {},
-                    icon: const Icon(Icons.download, size: 16, color: AppColors.textPrimary),
-                    label: const Text('Export CSV', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                    icon: const Icon(
+                      Icons.download,
+                      size: 16,
+                      color: AppColors.textPrimary,
+                    ),
+                    label: const Text(
+                      'Export CSV',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.white,
                       side: BorderSide(color: AppColors.divider),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                     ),
                   ),
                 ],
@@ -183,11 +243,25 @@ class _UsersScreenState extends State<UsersScreen> {
           // ── Stats Cards ──
           Row(
             children: [
-              Expanded(child: _buildStatCard('Total Users', '${provider.total}', null)),
+              Expanded(
+                child: _buildStatCard('Total Users', '${provider.total}', null),
+              ),
               const SizedBox(width: 20),
-              Expanded(child: _buildStatCard('Active Now', '${provider.total > 0 ? provider.total - 2 : 0}', '+12%')),
+              Expanded(
+                child: _buildStatCard(
+                  'Active Now',
+                  '${provider.total > 0 ? provider.total - 2 : 0}',
+                  '+12%',
+                ),
+              ),
               const SizedBox(width: 20),
-              Expanded(child: _buildStatCard('New This Week', '${newerUsersCount > 0 ? newerUsersCount : 42}', null)),
+              Expanded(
+                child: _buildStatCard(
+                  'New This Week',
+                  '${newerUsersCount > 0 ? newerUsersCount : 42}',
+                  null,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -199,21 +273,44 @@ class _UsersScreenState extends State<UsersScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.divider.withOpacity(0.5)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (provider.isLoading)
-                  const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+                  const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
                 else if (provider.error != null)
-                  Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(provider.error!, style: const TextStyle(color: AppColors.error))))
+                  Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Center(
+                      child: Text(
+                        provider.error!,
+                        style: const TextStyle(color: AppColors.error),
+                      ),
+                    ),
+                  )
                 else if (provider.users.isEmpty)
-                  const Padding(padding: EdgeInsets.all(40), child: Center(child: Text('No users found.', style: TextStyle(color: AppColors.textSecondary))))
+                  const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(
+                      child: Text(
+                        'No users found.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  )
                 else
                   _buildTable(provider),
-                
+
                 // Pagination Footer
                 if (!provider.isLoading && provider.users.isNotEmpty)
                   _buildPaginationFooter(provider),
@@ -236,20 +333,44 @@ class _UsersScreenState extends State<UsersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
               if (percentage != null) ...[
                 const SizedBox(width: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text(percentage, style: const TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    percentage,
+                    style: const TextStyle(
+                      color: AppColors.success,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -270,16 +391,61 @@ class _UsersScreenState extends State<UsersScreen> {
         dataRowMaxHeight: 76,
         dataRowMinHeight: 76,
         columns: const [
-          DataColumn(label: Text('User Details', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13))),
-          DataColumn(label: Text('Role', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13))),
-          DataColumn(label: Text('Status', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13))),
-          DataColumn(label: Text('Joined Date', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13))),
-          DataColumn(label: Text('Actions', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13))),
+          DataColumn(
+            label: Text(
+              'User Details',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Role',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Status',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Joined Date',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Actions',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
         ],
         rows: provider.users.map((user) {
           final initials = _getInitials(user.fullName);
           final color = _getAvatarColor(user.fullName);
-          
+
           return DataRow(
             cells: [
               // User Details
@@ -289,9 +455,18 @@ class _UsersScreenState extends State<UsersScreen> {
                     CircleAvatar(
                       backgroundColor: color.withOpacity(0.2),
                       radius: 20,
-                      backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                      backgroundImage: user.avatarUrl != null
+                          ? NetworkImage(user.avatarUrl!)
+                          : null,
                       child: user.avatarUrl == null
-                          ? Text(initials, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14))
+                          ? Text(
+                              initials,
+                              style: TextStyle(
+                                color: color,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            )
                           : null,
                     ),
                     const SizedBox(width: 14),
@@ -299,9 +474,22 @@ class _UsersScreenState extends State<UsersScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user.fullName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
+                        Text(
+                          user.fullName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(user.email, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        Text(
+                          user.email,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -310,7 +498,10 @@ class _UsersScreenState extends State<UsersScreen> {
               // Role
               DataCell(
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: AppColors.divider),
@@ -318,7 +509,11 @@ class _UsersScreenState extends State<UsersScreen> {
                   ),
                   child: Text(
                     _formatRole(user.role),
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ),
@@ -331,14 +526,19 @@ class _UsersScreenState extends State<UsersScreen> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: user.isActive ? AppColors.success : Colors.grey[400],
+                        color: user.isActive
+                            ? AppColors.success
+                            : Colors.grey[400],
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       user.isActive ? 'Active' : 'Inactive',
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -347,7 +547,10 @@ class _UsersScreenState extends State<UsersScreen> {
               DataCell(
                 Text(
                   DateFormat('MMM dd, yyyy').format(user.createdAt),
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               // Actions
@@ -356,12 +559,20 @@ class _UsersScreenState extends State<UsersScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.edit, size: 18, color: AppColors.textSecondary),
+                      icon: const Icon(
+                        Icons.edit,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
                       onPressed: () => _showEditDialog(user, provider),
                       tooltip: 'Edit',
                     ),
                     IconButton(
-                      icon: const Icon(Icons.block, size: 18, color: AppColors.error),
+                      icon: const Icon(
+                        Icons.block,
+                        size: 18,
+                        color: AppColors.error,
+                      ),
                       onPressed: () => _confirmBanUser(user, provider),
                       tooltip: user.isActive ? 'Ban' : 'Unban',
                     ),
@@ -386,38 +597,59 @@ class _UsersScreenState extends State<UsersScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.divider.withOpacity(0.5))),
+        border: Border(
+          top: BorderSide(color: AppColors.divider.withOpacity(0.5)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             'Showing $startIdx-$endIdx of ${NumberFormat("#,###").format(provider.total)} users',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
           Row(
             children: [
               _buildPageButton(
                 icon: Icons.chevron_left,
-                onPressed: provider.currentPage > 1 ? () => provider.loadUsers(page: provider.currentPage - 1) : null,
+                onPressed: provider.currentPage > 1
+                    ? () => provider.loadUsers(page: provider.currentPage - 1)
+                    : null,
               ),
               const SizedBox(width: 8),
               // Small pagination numbers (approx for mockup)
               if (provider.totalPages > 0) ...[
-                _buildPageNumber(1, provider.currentPage == 1, () => provider.loadUsers(page: 1)),
+                _buildPageNumber(
+                  1,
+                  provider.currentPage == 1,
+                  () => provider.loadUsers(page: 1),
+                ),
                 if (provider.totalPages > 1) ...[
                   const SizedBox(width: 4),
-                  _buildPageNumber(2, provider.currentPage == 2, () => provider.loadUsers(page: 2)),
+                  _buildPageNumber(
+                    2,
+                    provider.currentPage == 2,
+                    () => provider.loadUsers(page: 2),
+                  ),
                 ],
                 if (provider.totalPages > 2) ...[
                   const SizedBox(width: 4),
-                  _buildPageNumber(3, provider.currentPage == 3, () => provider.loadUsers(page: 3)),
+                  _buildPageNumber(
+                    3,
+                    provider.currentPage == 3,
+                    () => provider.loadUsers(page: 3),
+                  ),
                 ],
               ],
               const SizedBox(width: 8),
               _buildPageButton(
                 icon: Icons.chevron_right,
-                onPressed: provider.currentPage < provider.totalPages ? () => provider.loadUsers(page: provider.currentPage + 1) : null,
+                onPressed: provider.currentPage < provider.totalPages
+                    ? () => provider.loadUsers(page: provider.currentPage + 1)
+                    : null,
               ),
             ],
           ),
@@ -437,7 +669,11 @@ class _UsersScreenState extends State<UsersScreen> {
           border: Border.all(color: AppColors.divider),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, size: 16, color: onPressed == null ? AppColors.textHint : AppColors.textPrimary),
+        child: Icon(
+          icon,
+          size: 16,
+          color: onPressed == null ? AppColors.textHint : AppColors.textPrimary,
+        ),
       ),
     );
   }

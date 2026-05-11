@@ -27,11 +27,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isDownloadingMap = false;
   String _offlineMapStatus = 'Vérification...';
 
-  Color _pageBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark ? const Color(0xFF121212) : const Color(0xFFF6F5F2);
-  Color _cardBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : const Color(0xFFEDE8DF);
+  Color _pageBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark
+      ? const Color(0xFF121212)
+      : const Color(0xFFF6F5F2);
+  Color _cardBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark
+      ? const Color(0xFF1E1E1E)
+      : const Color(0xFFEDE8DF);
   Color _titleColor(BuildContext ctx) => Theme.of(ctx).colorScheme.onSurface;
-  Color _subtitleColor(BuildContext ctx) => Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6);
-  Color _mutedColor(BuildContext ctx) => Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.5);
+  Color _subtitleColor(BuildContext ctx) =>
+      Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6);
+  Color _mutedColor(BuildContext ctx) =>
+      Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.5);
 
   @override
   void initState() {
@@ -64,7 +70,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       setState(() {
         _hasOfflineMap = hasTiles;
-        _offlineMapStatus = hasTiles ? 'Disponible (Tabarka)' : 'Télécharger via WIFI';
+        _offlineMapStatus = hasTiles
+            ? 'Disponible (Tabarka)'
+            : 'Télécharger via WIFI';
       });
     }
   }
@@ -75,21 +83,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isDownloadingMap = true;
       _offlineMapStatus = 'Téléchargement en cours...';
     });
-    
+
     try {
       await _mapOfflineService.downloadTabarkaTiles();
       await _checkOfflineMap();
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carte de Tabarka téléchargée avec succès. Vous pouvez maintenant naviguer hors ligne !'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Carte de Tabarka téléchargée avec succès. Vous pouvez maintenant naviguer hors ligne !',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
       }
     } finally {
       if (mounted) {
-         setState(() => _isDownloadingMap = false);
-         _checkOfflineMap();
+        setState(() => _isDownloadingMap = false);
+        _checkOfflineMap();
       }
     }
   }
@@ -99,19 +116,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Vider le cache ?'),
-        content: const Text('Cela supprimera la carte hors ligne. Vous devrez la retélécharger avec une connexion Internet.'),
+        content: const Text(
+          'Cela supprimera la carte hors ligne. Vous devrez la retélécharger avec une connexion Internet.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Supprimer', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
         ],
-      )
+      ),
     );
     if (confirm != true) return;
 
     await _mapOfflineService.clearTabarkaTiles();
     await _checkOfflineMap();
     if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cache vidé avec succès')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cache vidé avec succès')));
     }
   }
 
@@ -135,7 +162,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   iconColor: AppTheme.primaryColor,
                   title: user?.fullName ?? 'Mon profil',
                   subtitle: 'Voir profil et progression',
-                  trailing: Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: _mutedColor(context),
+                  ),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -165,7 +195,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           SizedBox(width: 8),
-                          Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: _mutedColor(context),
+                          ),
                         ],
                       ),
                     ),
@@ -275,7 +308,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           SizedBox(width: 8),
-                          Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: _mutedColor(context),
+                          ),
                         ],
                       ),
                     ),
@@ -309,16 +345,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: _offlineMapStatus,
                       onTap: () async {
                         await Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const OfflineTrailsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const OfflineTrailsScreen(),
+                          ),
                         );
                         _checkOfflineMap();
                       },
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (_isDownloadingMap) 
-                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          else 
+                          if (_isDownloadingMap)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
                             Text(
                               _hasOfflineMap ? 'OK' : '12 MB',
                               style: const TextStyle(
@@ -327,7 +369,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ),
                           const SizedBox(width: 8),
-                          Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: _mutedColor(context),
+                          ),
                         ],
                       ),
                     ),
@@ -338,7 +383,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: 'Vider le cache',
                       subtitle: 'Liberer de l\'espace local',
                       onTap: _handleClearCache,
-                      trailing: Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: _mutedColor(context),
+                      ),
                     ),
                   ],
                 ),
@@ -354,7 +402,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       iconColor: AppTheme.primaryColor,
                       title: 'Conditions d\'utilisation',
                       subtitle: 'Mentions legales et vie privee',
-                      trailing: Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: _mutedColor(context),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     _SettingTile(
@@ -362,7 +413,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       iconColor: AppTheme.primaryColor,
                       title: 'Version',
                       subtitle: 'Eco-Guide v2.4.0',
-                      trailing: Icon(Icons.chevron_right_rounded, color: _mutedColor(context)),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: _mutedColor(context),
+                      ),
                     ),
                   ],
                 ),
@@ -419,7 +473,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           IconButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Centre d\'aide bientot disponible')),
+                const SnackBar(
+                  content: Text('Centre d\'aide bientot disponible'),
+                ),
               );
             },
             icon: Icon(Icons.help_outline, color: _titleColor(context)),
@@ -491,7 +547,9 @@ class _SettingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : const Color(0xFFEDE8DF),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF1E1E1E)
+            : const Color(0xFFEDE8DF),
         borderRadius: BorderRadius.circular(24),
       ),
       child: child,
@@ -527,7 +585,15 @@ class _SettingTile extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.white).withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.1 : 0.72),
+              color:
+                  (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.white)
+                      .withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? 0.1
+                            : 0.72,
+                      ),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: iconColor, size: 28),
@@ -550,7 +616,9 @@ class _SettingTile extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],
