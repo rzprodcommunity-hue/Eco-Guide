@@ -31,10 +31,7 @@ class ErrorBanner extends StatelessWidget {
               style: const TextStyle(color: AppTheme.errorColor),
             ),
           ),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Reessayer'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('Reessayer')),
           IconButton(
             tooltip: 'Fermer',
             onPressed: onDismiss,

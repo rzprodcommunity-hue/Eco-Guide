@@ -94,16 +94,18 @@ class LocalService {
       email: json['email'] as String?,
       website: json['website'] as String?,
       address: json['address'] as String?,
-        latitude: _parseNullableDouble(json['latitude']),
-        longitude: _parseNullableDouble(json['longitude']),
+      latitude: _parseNullableDouble(json['latitude']),
+      longitude: _parseNullableDouble(json['longitude']),
       imageUrl: json['imageUrl'] as String?,
-        additionalImages: _parseStringList(json['additionalImages']),
-        languages: _parseStringList(json['languages']),
-        rating: _parseNullableDouble(json['rating']),
-        reviewCount: _parseInt(json['reviewCount']),
+      additionalImages: _parseStringList(json['additionalImages']),
+      languages: _parseStringList(json['languages']),
+      rating: _parseNullableDouble(json['rating']),
+      reviewCount: _parseInt(json['reviewCount']),
       isVerified: json['isVerified'] as bool? ?? false,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 

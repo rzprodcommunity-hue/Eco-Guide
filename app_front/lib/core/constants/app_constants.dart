@@ -5,6 +5,7 @@ class AppConstants {
   // Storage keys
   static const String tokenKey = 'auth_token';
   static const String userKey = 'user_data';
+  static const String guestModeKey = 'guest_mode';
   static const String languageKey = 'language';
   static const String themeKey = 'theme_mode';
 
@@ -14,7 +15,7 @@ class AppConstants {
 
   // Map settings
   static const double defaultLatitude = 36.9544; // Tabarka Coast
-  static const double defaultLongitude = 8.7580;    // Tabarka, Tunisia
+  static const double defaultLongitude = 8.7580; // Tabarka, Tunisia
   static const double defaultZoom = 12.0;
 
   // Difficulties

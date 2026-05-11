@@ -38,11 +38,13 @@ class MapOfflineService {
   static const String _tileUrlTemplate = standardTileUrlTemplate;
 
   final http.Client _httpClient;
+  static String? _sharedBaseTilePath;
   String? _baseTilePath;
 
   Future<void> initialize() async {
     final baseDir = await _baseTileDirectory();
     _baseTilePath = baseDir.path;
+    _sharedBaseTilePath = baseDir.path;
   }
 
   Future<Directory> _baseTileDirectory() async {
@@ -60,7 +62,7 @@ class MapOfflineService {
   }
 
   File? tileFileSync({required int z, required int x, required int y}) {
-    final base = _baseTilePath;
+    final base = _baseTilePath ?? _sharedBaseTilePath;
     if (base == null) return null;
 
     final candidate = File(p.join(base, '$z', '$x', '$y.png'));

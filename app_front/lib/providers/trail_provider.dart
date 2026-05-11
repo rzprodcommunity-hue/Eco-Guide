@@ -18,6 +18,7 @@ class TrailProvider extends ChangeNotifier {
   double? _minDistance;
   double? _maxDistance;
   int? _maxDuration;
+  bool _lastLoadUsedOffline = false;
 
   TrailProvider(ApiClient apiClient) : _service = TrailService(apiClient);
 
@@ -33,7 +34,12 @@ class TrailProvider extends ChangeNotifier {
   double? get maxDistance => _maxDistance;
   int? get maxDuration => _maxDuration;
   bool get hasMore => _currentPage < _totalPages;
-  bool get hasActiveFilters => _filterDifficulty != null || _minDistance != null || _maxDistance != null || _maxDuration != null;
+  bool get lastLoadUsedOffline => _lastLoadUsedOffline;
+  bool get hasActiveFilters =>
+      _filterDifficulty != null ||
+      _minDistance != null ||
+      _maxDistance != null ||
+      _maxDuration != null;
 
   List<Trail> _applyOfflineFilters(List<Trail> trails) {
     final query = _searchQuery?.trim().toLowerCase();
@@ -57,7 +63,9 @@ class TrailProvider extends ChangeNotifier {
         return false;
       }
 
-      if (_maxDuration != null && trail.estimatedDuration != null && trail.estimatedDuration! > _maxDuration!) {
+      if (_maxDuration != null &&
+          trail.estimatedDuration != null &&
+          trail.estimatedDuration! > _maxDuration!) {
         return false;
       }
 
@@ -65,7 +73,11 @@ class TrailProvider extends ChangeNotifier {
     }).toList();
   }
 
-  Future<void> loadTrails({bool refresh = false, String? search}) async {
+  Future<void> loadTrails({
+    bool refresh = false,
+    String? search,
+    bool forceOffline = false,
+  }) async {
     if (refresh) {
       _currentPage = 1;
       _trails = [];
@@ -78,6 +90,16 @@ class TrailProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      if (forceOffline) {
+        final cached = await OfflineCacheService.instance.getOfflineTrails();
+        final filtered = _applyOfflineFilters(cached);
+        _trails = filtered;
+        _currentPage = 1;
+        _totalPages = 1;
+        _lastLoadUsedOffline = true;
+        return;
+      }
+
       final response = await _service.getTrails(
         page: _currentPage,
         search: _searchQuery,
@@ -88,6 +110,8 @@ class TrailProvider extends ChangeNotifier {
       );
       _trails = refresh ? response.data : [..._trails, ...response.data];
       _totalPages = response.totalPages;
+      _lastLoadUsedOffline = false;
+      await OfflineCacheService.instance.saveTrails(response.data);
     } catch (e) {
       final cached = await OfflineCacheService.instance.getOfflineTrails();
       if (cached.isNotEmpty) {
@@ -96,6 +120,7 @@ class TrailProvider extends ChangeNotifier {
         _currentPage = 1;
         _totalPages = 1;
         _error = null;
+        _lastLoadUsedOffline = true;
       } else {
         _error = e.toString();
       }

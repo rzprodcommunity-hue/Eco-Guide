@@ -17,7 +17,6 @@ import '../../models/trail.dart';
 import '../../providers/local_service_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
-import '../sos/sos_button.dart';
 
 class NavigationSosScreen extends StatefulWidget {
   final LatLng? destination;
@@ -39,6 +38,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   static const Distance _distance = Distance();
 
   final MapController _mapController = MapController();
+  final MapOfflineService _mapOfflineService = MapOfflineService();
   Timer? _gpsTimer;
 
   LatLng _currentPosition = LatLng(
@@ -87,6 +87,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   @override
   void initState() {
     super.initState();
+    _mapOfflineService.initialize();
     _activeDestination = widget.destination;
     _activeDestinationLabel = widget.destinationLabel;
 
@@ -158,40 +159,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       // Adjust start time so elapsed time continues smoothly
       _startTime = DateTime.now().subtract(_elapsedTime);
     });
-  }
-
-  Future<void> _stopHike() async {
-    final confirmed = await _showEndTrailConfirmation();
-    if (!confirmed || !mounted) return;
-
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
-  Future<bool> _showEndTrailConfirmation() async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Terminer le trail ?'),
-        content: const Text(
-          'Votre navigation active sera arretee et vous reviendrez a l\'accueil.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFD84B3C),
-            ),
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
   }
 
   Future<void> _detectUserPosition() async {
@@ -445,7 +412,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               TileLayer(
                 urlTemplate: _mapStyle.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
-                tileProvider: LocalFirstTileProvider(),
+                tileProvider: LocalFirstTileProvider(
+                  service: _mapOfflineService,
+                ),
                 // Disable caching if users change the tile url to force refresh
                 reset: StreamController<void>().stream,
               ),
@@ -721,38 +690,39 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 ),
               ),
             ),
-          Positioned(
-            right: 16,
-            bottom: 146,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SosScreen(),
-                    fullscreenDialog: true,
-                  ),
-                );
-              },
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFD84B3C),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'SOS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-          ),
+
+          // Positioned(
+          //   right: 16,
+          //   bottom: 146,
+          //   child: GestureDetector(
+          //     onTap: () {
+          //       Navigator.push(
+          //         context,
+          //         MaterialPageRoute(
+          //           builder: (_) => const SosScreen(),
+          //           fullscreenDialog: true,
+          //         ),
+          //       );
+          //     },
+          //     child: Container(
+          //       width: 56,
+          //       height: 56,
+          //       decoration: const BoxDecoration(
+          //         color: Color(0xFFD84B3C),
+          //         shape: BoxShape.circle,
+          //       ),
+          //       alignment: Alignment.center,
+          //       child: const Text(
+          //         'SOS',
+          //         style: TextStyle(
+          //           color: Colors.white,
+          //           fontWeight: FontWeight.w900,
+          //           fontSize: 16,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ),
           Positioned(
             left: 0,
             right: 0,
@@ -862,16 +832,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                   ),
                 ),
               const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _stopHike,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFD84B3C),
-                  ),
-                  icon: const Icon(Icons.stop, size: 16),
-                  label: const Text('End Trail'),
-                ),
-              ),
             ],
           ),
         ],

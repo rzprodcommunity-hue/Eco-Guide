@@ -22,9 +22,14 @@ class PoiService {
       if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
     };
 
-    final response = await _client.get(ApiConstants.pois, queryParams: queryParams);
+    final response = await _client.get(
+      ApiConstants.pois,
+      queryParams: queryParams,
+    );
     final data = response['data'] as List? ?? [];
-    return data.map((json) => Poi.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Poi.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<Poi>> getNearbyPois({
@@ -40,15 +45,22 @@ class PoiService {
       if (type != null) 'type': type,
     };
 
-    final response = await _client.get(ApiConstants.poisNearby, queryParams: queryParams);
+    final response = await _client.get(
+      ApiConstants.poisNearby,
+      queryParams: queryParams,
+    );
     final data = response['data'] as List? ?? response as List;
-    return data.map((json) => Poi.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Poi.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<Poi>> getPoisByTrail(String trailId) async {
     final response = await _client.get('${ApiConstants.pois}/trail/$trailId');
     final data = response['data'] as List? ?? response as List;
-    return data.map((json) => Poi.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Poi.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Poi> getPoiById(String id) async {

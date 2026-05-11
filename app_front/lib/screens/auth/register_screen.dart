@@ -41,7 +41,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Veuillez accepter les conditions d\'utilisation'),
+          content: const Text(
+            'Veuillez accepter les conditions d\'utilisation',
+          ),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -52,7 +54,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     final fullName = _fullNameController.text.trim();
     final nameParts = fullName.split(' ');
     final firstName = nameParts.isNotEmpty ? nameParts.first : null;
-    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : null;
+    final lastName = nameParts.length > 1
+        ? nameParts.sublist(1).join(' ')
+        : null;
 
     final success = await authProvider.register(
       email: _emailController.text.trim(),
@@ -77,10 +81,10 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   Future<void> _continueWithGoogle() async {
     final authProvider = context.read<AuthProvider>();
-    await authProvider.loginAsStaticUser();
+    final success = await authProvider.loginWithGoogle();
 
     if (mounted) {
-      if (authProvider.error != null) {
+      if (!success && authProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authProvider.error!),
@@ -421,8 +425,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                 color: Colors.grey[600],
                               ),
                               children: [
-                                const TextSpan(
-                                    text: 'J\'accepte les '),
+                                const TextSpan(text: 'J\'accepte les '),
                                 TextSpan(
                                   text: 'Conditions d\'utilisation',
                                   style: TextStyle(

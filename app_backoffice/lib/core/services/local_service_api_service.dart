@@ -32,13 +32,24 @@ class LocalServiceApiService {
     return LocalServiceModel.fromJson(response);
   }
 
-  static Future<LocalServiceModel> createService(Map<String, dynamic> data) async {
-    final response = await ApiService.post(ApiConstants.localServices, body: data);
+  static Future<LocalServiceModel> createService(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await ApiService.post(
+      ApiConstants.localServices,
+      body: data,
+    );
     return LocalServiceModel.fromJson(response);
   }
 
-  static Future<LocalServiceModel> updateService(String id, Map<String, dynamic> data) async {
-    final response = await ApiService.patch('${ApiConstants.localServices}/$id', body: data);
+  static Future<LocalServiceModel> updateService(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await ApiService.patch(
+      '${ApiConstants.localServices}/$id',
+      body: data,
+    );
     return LocalServiceModel.fromJson(response);
   }
 

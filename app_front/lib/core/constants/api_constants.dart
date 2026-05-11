@@ -19,7 +19,8 @@ class ApiConstants {
     return 'localhost';
   }
 
-  static String get _port => _configuredPort.isNotEmpty ? _configuredPort : '3000';
+  static String get _port =>
+      _configuredPort.isNotEmpty ? _configuredPort : '3000';
 
   static String get baseUrl => 'http://$_host:$_port/api';
 

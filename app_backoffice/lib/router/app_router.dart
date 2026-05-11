@@ -18,7 +18,8 @@ import '../screens/sos/sos_alerts_screen.dart';
 import '../screens/settings/admin_settings_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> _shellNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 GoRouter createRouter(AuthProvider authProvider) {
   return GoRouter(
@@ -38,10 +39,7 @@ GoRouter createRouter(AuthProvider authProvider) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => MainLayout(child: child),
@@ -60,9 +58,8 @@ GoRouter createRouter(AuthProvider authProvider) {
           ),
           GoRoute(
             path: '/trails/edit/:id',
-            builder: (context, state) => TrailFormScreen(
-              trailId: state.pathParameters['id'],
-            ),
+            builder: (context, state) =>
+                TrailFormScreen(trailId: state.pathParameters['id']),
           ),
           GoRoute(
             path: '/pois',
@@ -74,9 +71,8 @@ GoRouter createRouter(AuthProvider authProvider) {
           ),
           GoRoute(
             path: '/pois/edit/:id',
-            builder: (context, state) => PoiFormScreen(
-              poiId: state.pathParameters['id'],
-            ),
+            builder: (context, state) =>
+                PoiFormScreen(poiId: state.pathParameters['id']),
           ),
           GoRoute(
             path: '/users',
@@ -92,9 +88,8 @@ GoRouter createRouter(AuthProvider authProvider) {
           ),
           GoRoute(
             path: '/quizzes/edit/:id',
-            builder: (context, state) => QuizFormScreen(
-              quizId: state.pathParameters['id'],
-            ),
+            builder: (context, state) =>
+                QuizFormScreen(quizId: state.pathParameters['id']),
           ),
           GoRoute(
             path: '/local-services',
@@ -106,9 +101,8 @@ GoRouter createRouter(AuthProvider authProvider) {
           ),
           GoRoute(
             path: '/local-services/edit/:id',
-            builder: (context, state) => LocalServiceFormScreen(
-              serviceId: state.pathParameters['id'],
-            ),
+            builder: (context, state) =>
+                LocalServiceFormScreen(serviceId: state.pathParameters['id']),
           ),
           GoRoute(
             path: '/sos-alerts',

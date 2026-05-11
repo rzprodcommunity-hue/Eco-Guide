@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../models/trail.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../services/map_offline_service.dart';
 import '../map/navigation_sos_screen.dart';
@@ -20,9 +21,30 @@ class TrailDetailScreen extends StatefulWidget {
 }
 
 class _TrailDetailScreenState extends State<TrailDetailScreen> {
+  final MapOfflineService _mapOfflineService = MapOfflineService();
+  late final List<_TrailReview> _reviews = [
+    const _TrailReview(
+      initials: 'ML',
+      name: 'Marc L.',
+      date: 'il y a 2 jours',
+      rating: 5,
+      text:
+          'Sentier tres bien balise. La montee finale est un peu raide mais la vue en vaut vraiment la peine ! Prevoyez de bonnes chaussures.',
+    ),
+    const _TrailReview(
+      initials: 'SG',
+      name: 'Sophie G.',
+      date: 'il y a 1 semaine',
+      rating: 4.5,
+      text:
+          'Magnifique en cette saison. Attention, certains passages sont glissants s il a plu la veille. Les batons sont recommandes.',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
+    _mapOfflineService.initialize();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PoiProvider>().loadPoisByTrail(widget.trail.id);
     });
@@ -39,6 +61,177 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
       default:
         return difficulty;
     }
+  }
+
+  Future<void> _openAddCommentSheet() async {
+    final authProvider = context.read<AuthProvider>();
+    final fullName = authProvider.user?.fullName ?? '';
+    final nameController = TextEditingController(
+      text: fullName == authProvider.user?.email ? '' : fullName,
+    );
+    final commentController = TextEditingController();
+    double rating = 5;
+
+    final created = await showModalBottomSheet<_TrailReview>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          sheetContext,
+                        ).dividerColor.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Commenter ce sentier',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(sheetContext).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Partagez votre experience avec la communaute.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(
+                        sheetContext,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Note',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(sheetContext).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    children: List.generate(5, (index) {
+                      final starValue = index + 1;
+                      return IconButton(
+                        onPressed: () {
+                          setSheetState(() {
+                            rating = starValue.toDouble();
+                          });
+                        },
+                        icon: Icon(
+                          starValue <= rating ? Icons.star : Icons.star_border,
+                          color: Colors.orange,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: commentController,
+                    minLines: 4,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'Votre commentaire',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final comment = commentController.text.trim();
+                        final name = nameController.text.trim();
+                        if (comment.isEmpty) {
+                          ScaffoldMessenger.of(sheetContext).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Ajoutez un commentaire avant d envoyer.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final displayName = name.isEmpty ? 'Guest' : name;
+                        Navigator.of(sheetContext).pop(
+                          _TrailReview(
+                            initials: _initialsFromName(displayName),
+                            name: displayName,
+                            date: 'A l instant',
+                            rating: rating,
+                            text: comment,
+                          ),
+                        );
+                      },
+                      child: const Text('Publier mon commentaire'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    commentController.dispose();
+
+    if (created != null && mounted) {
+      setState(() {
+        _reviews.insert(0, created);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Commentaire ajoute au sentier.')),
+      );
+    }
+  }
+
+  String _initialsFromName(String value) {
+    final words = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList();
+
+    if (words.isEmpty) return 'G';
+    if (words.length == 1) return words.first[0].toUpperCase();
+    return (words.first[0] + words.last[0]).toUpperCase();
   }
 
   @override
@@ -439,7 +632,9 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                   urlTemplate:
                       'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                   userAgentPackageName: 'com.ecoguide.app',
-                  tileProvider: LocalFirstTileProvider(),
+                  tileProvider: LocalFirstTileProvider(
+                    service: _mapOfflineService,
+                  ),
                 ),
                 if (routePoints.length > 1)
                   PolylineLayer(
@@ -766,7 +961,8 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     );
   }
 
-  Widget _buildReviewsSection() {
+  // ignore: unused_element
+  Widget _buildLegacyReviewsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -810,6 +1006,60 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           "4.5",
           "Magnifique en cette saison. Attention, certains passages sont glissants s'il a plu la veille. Les bâtons sont recommandés.",
         ),
+      ],
+    );
+  }
+
+  Widget _buildReviewsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'Avis de la communaute',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            Text(
+              'Voir tout',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: _openAddCommentSheet,
+          icon: const Icon(Icons.rate_review_outlined),
+          label: const Text('Commenter'),
+        ),
+        const SizedBox(height: 16),
+        ..._reviews.asMap().entries.map((entry) {
+          final review = entry.value;
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: entry.key == _reviews.length - 1 ? 0 : 12,
+            ),
+            child: _buildReviewCard(
+              review.initials,
+              review.name,
+              review.date,
+              review.rating.toStringAsFixed(1),
+              review.text,
+            ),
+          );
+        }),
       ],
     );
   }
@@ -1063,6 +1313,22 @@ class _CircleIconButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TrailReview {
+  final String initials;
+  final String name;
+  final String date;
+  final double rating;
+  final String text;
+
+  const _TrailReview({
+    required this.initials,
+    required this.name,
+    required this.date,
+    required this.rating,
+    required this.text,
+  });
 }
 
 class _ElevationChartPainter extends CustomPainter {

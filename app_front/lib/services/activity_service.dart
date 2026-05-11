@@ -30,9 +30,14 @@ class ActivityService {
       'limit': limit.toString(),
     };
 
-    final response = await _client.get(ApiConstants.activitiesMe, queryParams: queryParams);
+    final response = await _client.get(
+      ApiConstants.activitiesMe,
+      queryParams: queryParams,
+    );
     final data = response['data'] as List? ?? [];
-    return data.map((json) => Activity.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Activity.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<UserStats> getMyStats() async {
@@ -42,8 +47,13 @@ class ActivityService {
 
   Future<List<Activity>> getRecentActivities({int limit = 10}) async {
     final queryParams = <String, String>{'limit': limit.toString()};
-    final response = await _client.get('${ApiConstants.activitiesMe}/recent', queryParams: queryParams);
+    final response = await _client.get(
+      '${ApiConstants.activitiesMe}/recent',
+      queryParams: queryParams,
+    );
     final data = response['data'] as List? ?? response as List;
-    return data.map((json) => Activity.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Activity.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 }

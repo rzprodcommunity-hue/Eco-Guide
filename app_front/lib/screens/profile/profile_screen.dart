@@ -101,23 +101,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = authProvider.user;
 
     if (authProvider.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Non connecte')),
-      );
+      return const Scaffold(body: Center(child: Text('Non connecte')));
     }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const EcoPageHeader(
-        title: 'Profil',
-        showAccountBadge: false,
-      ),
+      appBar: const EcoPageHeader(title: 'Profil', showAccountBadge: false),
       body: RefreshIndicator(
         onRefresh: () async {
           await authProvider.refreshProfile();
@@ -165,8 +158,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(4),
                 child: CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
-                  backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                  backgroundColor: AppTheme.primaryColor.withValues(
+                    alpha: 0.12,
+                  ),
+                  backgroundImage:
+                      user.avatarUrl != null && user.avatarUrl!.isNotEmpty
                       ? NetworkImage(user.avatarUrl!)
                       : null,
                   child: user.avatarUrl == null || user.avatarUrl!.isEmpty
@@ -213,16 +209,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 2),
               Text(
                 _roleLabel(user.role),
-                style: const TextStyle(
-                  fontSize: 17,
-                  color: Color(0xFF5F5F5F),
-                ),
+                style: const TextStyle(fontSize: 17, color: Color(0xFF5F5F5F)),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryColor,
                       borderRadius: BorderRadius.circular(12),
@@ -238,7 +234,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF0EEE8),
                       borderRadius: BorderRadius.circular(12),
@@ -748,7 +747,11 @@ class _TrailHistoryCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_month, size: 17, color: Color(0xFF616161)),
+                    const Icon(
+                      Icons.calendar_month,
+                      size: 17,
+                      color: Color(0xFF616161),
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -773,17 +776,18 @@ class _TrailHistoryCard extends StatelessWidget {
                       icon: Icons.straighten,
                       value: item.distance,
                     ),
-                    _TrailMetaInfo(
-                      icon: Icons.timer,
-                      value: item.duration,
-                    ),
+                    _TrailMetaInfo(icon: Icons.timer, value: item.duration),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, size: 28, color: Color(0xFFCFAF80)),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 28,
+            color: Color(0xFFCFAF80),
+          ),
         ],
       ),
     );
@@ -794,10 +798,7 @@ class _TrailMetaInfo extends StatelessWidget {
   final IconData icon;
   final String value;
 
-  const _TrailMetaInfo({
-    required this.icon,
-    required this.value,
-  });
+  const _TrailMetaInfo({required this.icon, required this.value});
 
   @override
   Widget build(BuildContext context) {

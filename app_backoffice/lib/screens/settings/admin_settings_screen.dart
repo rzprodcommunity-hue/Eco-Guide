@@ -15,7 +15,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   String _ratingSystem = '5-Level Scale (International Standard)';
   String _unitSystem = 'Metric (km, m)';
   bool _requireApproval = false;
-  
+
   final _latController = TextEditingController(text: '45.7640');
   final _lngController = TextEditingController(text: '4.8357');
   double _zoomLevel = 12.0;
@@ -98,7 +98,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           const SizedBox(height: 32),
           _buildCard(
             title: 'Administrator Profile',
-            subtitle: 'Update your personal details and how you appear to other admins.',
+            subtitle:
+                'Update your personal details and how you appear to other admins.',
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -107,9 +108,15 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     CircleAvatar(
                       radius: 40,
                       backgroundColor: AppColors.primary,
-                      backgroundImage: user?.avatarUrl != null ? NetworkImage(user!.avatarUrl!) : null,
+                      backgroundImage: user?.avatarUrl != null
+                          ? NetworkImage(user!.avatarUrl!)
+                          : null,
                       child: user?.avatarUrl == null
-                          ? const Icon(Icons.person, size: 40, color: Colors.white)
+                          ? const Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.white,
+                            )
                           : null,
                     ),
                     const SizedBox(height: 12),
@@ -117,7 +124,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       onPressed: () {},
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.brown[600],
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         minimumSize: Size.zero,
                       ),
                       child: const Text('Upload Photo'),
@@ -140,7 +150,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           Expanded(
                             child: _buildTextField(
                               label: 'Role',
-                              initialValue: user?.role == 'admin' ? 'Super Administrator' : 'Administrator',
+                              initialValue: user?.role == 'admin'
+                                  ? 'Super Administrator'
+                                  : 'Administrator',
                               enabled: false,
                             ),
                           ),
@@ -152,7 +164,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           Expanded(
                             child: _buildTextField(
                               label: 'Email Address',
-                              initialValue: user?.email ?? 'admin@eco-guide.org',
+                              initialValue:
+                                  user?.email ?? 'admin@eco-guide.org',
                               icon: Icons.email_outlined,
                             ),
                           ),
@@ -175,7 +188,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           const SizedBox(height: 24),
           _buildCard(
             title: 'Platform Defaults',
-            subtitle: 'Configure standard behaviors for trail and POI creation.',
+            subtitle:
+                'Configure standard behaviors for trail and POI creation.',
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -183,37 +197,62 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Default Map Provider', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const Text(
+                        'Default Map Provider',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         value: _mapProvider,
                         decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 0,
+                          ),
                         ),
-                        items: ['OpenStreetMap (Terrain)', 'Google Maps', 'Mapbox'].map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
+                        items:
+                            [
+                              'OpenStreetMap (Terrain)',
+                              'Google Maps',
+                              'Mapbox',
+                            ].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
                         onChanged: (v) => setState(() => _mapProvider = v!),
                       ),
                       const SizedBox(height: 24),
-                      const Text('Difficulty Rating System', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const Text(
+                        'Difficulty Rating System',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         value: _ratingSystem,
                         decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 0,
+                          ),
                         ),
-                        items: ['5-Level Scale (International Standard)', '3-Level Scale (Simple)'].map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
+                        items:
+                            [
+                              '5-Level Scale (International Standard)',
+                              '3-Level Scale (Simple)',
+                            ].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
                         onChanged: (v) => setState(() => _ratingSystem = v!),
                       ),
                     ],
@@ -224,7 +263,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Measurement Units', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const Text(
+                        'Measurement Units',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -245,17 +287,23 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      const Text('Auto-Publish Content', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const Text(
+                        'Auto-Publish Content',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
                           Switch(
                             value: _requireApproval,
-                            onChanged: (v) => setState(() => _requireApproval = v),
+                            onChanged: (v) =>
+                                setState(() => _requireApproval = v),
                             activeColor: AppColors.primary,
                           ),
                           const SizedBox(width: 8),
-                          const Text('Require moderator approval for POI edits'),
+                          const Text(
+                            'Require moderator approval for POI edits',
+                          ),
                         ],
                       ),
                     ],
@@ -267,7 +315,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           const SizedBox(height: 24),
           _buildCard(
             title: 'Map & Geographic Settings',
-            subtitle: 'Define the initial view and technical layers for the admin map tools.',
+            subtitle:
+                'Define the initial view and technical layers for the admin map tools.',
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -276,7 +325,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Default Viewport', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const Text(
+                        'Default Viewport',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -298,7 +350,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       const SizedBox(height: 24),
                       Row(
                         children: [
-                          const Text('Default Zoom Level', style: TextStyle(fontWeight: FontWeight.w500)),
+                          const Text(
+                            'Default Zoom Level',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
                           Expanded(
                             child: Slider(
                               value: _zoomLevel,
@@ -313,9 +368,21 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _buildCheckbox('Show Topographic Contour Lines', _showTopo, (v) => setState(() => _showTopo = v!)),
-                      _buildCheckbox('Enable Trail Heatmap Layer', _showHeatmap, (v) => setState(() => _showHeatmap = v!)),
-                      _buildCheckbox('Display Real-time Weather Overlays', _showWeather, (v) => setState(() => _showWeather = v!)),
+                      _buildCheckbox(
+                        'Show Topographic Contour Lines',
+                        _showTopo,
+                        (v) => setState(() => _showTopo = v!),
+                      ),
+                      _buildCheckbox(
+                        'Enable Trail Heatmap Layer',
+                        _showHeatmap,
+                        (v) => setState(() => _showHeatmap = v!),
+                      ),
+                      _buildCheckbox(
+                        'Display Real-time Weather Overlays',
+                        _showWeather,
+                        (v) => setState(() => _showWeather = v!),
+                      ),
                     ],
                   ),
                 ),
@@ -357,7 +424,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         color: AppColors.error.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.warning_amber, color: AppColors.error),
+                      child: const Icon(
+                        Icons.warning_amber,
+                        color: AppColors.error,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     const Column(
@@ -374,7 +444,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         SizedBox(height: 4),
                         Text(
                           'Deleting your organization account will purge all trails, user logs, and local directory data.',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -396,7 +469,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     );
   }
 
-  Widget _buildCard({required String title, String? subtitle, required Widget child}) {
+  Widget _buildCard({
+    required String title,
+    String? subtitle,
+    required Widget child,
+  }) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -415,14 +492,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(subtitle, style: const TextStyle(color: AppColors.textSecondary)),
+            Text(
+              subtitle,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
           ],
           const SizedBox(height: 24),
           child,
@@ -444,16 +521,25 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: icon != null ? Icon(icon, color: AppColors.textSecondary) : null,
+        prefixIcon: icon != null
+            ? Icon(icon, color: AppColors.textSecondary)
+            : null,
         filled: !enabled,
         fillColor: enabled ? Colors.white : AppColors.background,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
     );
   }
 
-  Widget _buildCheckbox(String label, bool value, ValueChanged<bool?> onChanged) {
+  Widget _buildCheckbox(
+    String label,
+    bool value,
+    ValueChanged<bool?> onChanged,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -465,7 +551,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               value: value,
               onChanged: onChanged,
               activeColor: AppColors.success,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
           ),
           const SizedBox(width: 12),

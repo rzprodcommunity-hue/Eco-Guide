@@ -4,7 +4,7 @@ enum ServiceCategory {
   accommodation,
   restaurant,
   transport,
-  equipment
+  equipment,
 }
 
 class LocalServiceModel {
@@ -60,8 +60,12 @@ class LocalServiceModel {
       email: json['email'],
       website: json['website'],
       address: json['address'],
-      latitude: json['latitude'] != null ? _parseDouble(json['latitude']) : null,
-      longitude: json['longitude'] != null ? _parseDouble(json['longitude']) : null,
+      latitude: json['latitude'] != null
+          ? _parseDouble(json['latitude'])
+          : null,
+      longitude: json['longitude'] != null
+          ? _parseDouble(json['longitude'])
+          : null,
       imageUrl: json['imageUrl'],
       additionalImages: json['additionalImages'] != null
           ? List<String>.from(json['additionalImages'])

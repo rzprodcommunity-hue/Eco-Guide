@@ -6,11 +6,7 @@ class OfflinePackage {
   final String name;
   final int size;
 
-  OfflinePackage({
-    required this.id,
-    required this.name,
-    required this.size,
-  });
+  OfflinePackage({required this.id, required this.name, required this.size});
 
   factory OfflinePackage.fromJson(Map<String, dynamic> json) {
     return OfflinePackage(

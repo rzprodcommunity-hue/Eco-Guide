@@ -12,6 +12,7 @@ class PoiProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   String? _searchQuery;
+  bool _lastLoadUsedOffline = false;
 
   PoiProvider(ApiClient apiClient) : _service = PoiService(apiClient);
 
@@ -20,6 +21,7 @@ class PoiProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get searchQuery => _searchQuery;
+  bool get lastLoadUsedOffline => _lastLoadUsedOffline;
 
   List<Poi> _applyOfflineFilters(
     List<Poi> pois, {
@@ -48,18 +50,38 @@ class PoiProvider extends ChangeNotifier {
     }).toList();
   }
 
-  Future<void> loadPois({String? type, String? trailId, String? search}) async {
+  Future<void> loadPois({
+    String? type,
+    String? trailId,
+    String? search,
+    bool forceOffline = false,
+  }) async {
     _isLoading = true;
     _error = null;
     _searchQuery = search;
     notifyListeners();
 
     try {
+      if (forceOffline) {
+        final cached = await OfflineCacheService.instance.getOfflinePois(
+          trailId: trailId,
+        );
+        _pois = _applyOfflineFilters(
+          cached,
+          type: type,
+          trailId: trailId,
+          search: search,
+        );
+        _lastLoadUsedOffline = true;
+        return;
+      }
+
       _pois = await _service.getPois(
         type: type,
         trailId: trailId,
         search: search,
       );
+      _lastLoadUsedOffline = false;
       if (_pois.isNotEmpty) {
         await OfflineCacheService.instance.savePois(_pois, trailId: trailId);
       }
@@ -75,6 +97,7 @@ class PoiProvider extends ChangeNotifier {
           search: search,
         );
         _error = null;
+        _lastLoadUsedOffline = true;
       } else {
         _error = e.toString();
       }
@@ -84,13 +107,25 @@ class PoiProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadPoisByTrail(String trailId) async {
+  Future<void> loadPoisByTrail(
+    String trailId, {
+    bool forceOffline = false,
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
+      if (forceOffline) {
+        _pois = await OfflineCacheService.instance.getOfflinePois(
+          trailId: trailId,
+        );
+        _lastLoadUsedOffline = true;
+        return;
+      }
+
       _pois = await _service.getPoisByTrail(trailId);
+      _lastLoadUsedOffline = false;
       if (_pois.isNotEmpty) {
         await OfflineCacheService.instance.savePois(_pois, trailId: trailId);
       }
@@ -101,6 +136,7 @@ class PoiProvider extends ChangeNotifier {
       if (cached.isNotEmpty) {
         _pois = cached;
         _error = null;
+        _lastLoadUsedOffline = true;
       } else {
         _error = e.toString();
       }

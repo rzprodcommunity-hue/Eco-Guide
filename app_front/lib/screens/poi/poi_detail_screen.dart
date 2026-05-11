@@ -21,11 +21,13 @@ class PoiDetailScreen extends StatefulWidget {
 }
 
 class _PoiDetailScreenState extends State<PoiDetailScreen> {
+  final MapOfflineService _mapOfflineService = MapOfflineService();
   LatLng? _currentPosition;
 
   @override
   void initState() {
     super.initState();
+    _mapOfflineService.initialize();
     _detectUserPosition();
   }
 
@@ -339,7 +341,9 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                             urlTemplate:
                                 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                             userAgentPackageName: 'com.ecoguide.app',
-                            tileProvider: LocalFirstTileProvider(),
+                            tileProvider: LocalFirstTileProvider(
+                              service: _mapOfflineService,
+                            ),
                           ),
                           if (_currentPosition != null)
                             PolylineLayer(

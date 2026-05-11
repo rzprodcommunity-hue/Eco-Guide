@@ -254,36 +254,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   Future<void> _callNumber(String number) async {
     final uri = Uri.parse('tel:$number');
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-
-  Future<void> _confirmEndTrail() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Terminer le trail ?'),
-        content: const Text(
-          'Votre trail actif sera termine et vous reviendrez a l\'accueil.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFD84B3C),
-            ),
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -330,22 +301,27 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
   Widget _buildHeader() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: IconButton(
-            icon: Icon(
-              Icons.close,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 22,
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.close,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  size: 22,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
-            onPressed: () => Navigator.pop(context),
           ),
         ),
         Text(
@@ -356,13 +332,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        TextButton(
-          onPressed: _confirmEndTrail,
-          child: const Text(
-            'End',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-        ),
+        const Expanded(child: SizedBox()),
       ],
     );
   }

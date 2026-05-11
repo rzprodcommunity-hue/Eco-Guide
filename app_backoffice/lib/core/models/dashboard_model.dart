@@ -34,10 +34,7 @@ class DashboardData {
   final DashboardStats summary;
   final List<dynamic> recentActivities;
 
-  DashboardData({
-    required this.summary,
-    required this.recentActivities,
-  });
+  DashboardData({required this.summary, required this.recentActivities});
 
   factory DashboardData.fromJson(Map<String, dynamic> json) {
     return DashboardData(

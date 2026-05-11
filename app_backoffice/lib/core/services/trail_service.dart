@@ -19,9 +19,12 @@ class TrailService {
     };
     if (difficulty != null) queryParams['difficulty'] = difficulty;
     if (region != null) queryParams['region'] = region;
-    if (minDistance != null) queryParams['minDistance'] = minDistance.toString();
-    if (maxDistance != null) queryParams['maxDistance'] = maxDistance.toString();
-    if (maxDuration != null) queryParams['maxDuration'] = maxDuration.toString();
+    if (minDistance != null)
+      queryParams['minDistance'] = minDistance.toString();
+    if (maxDistance != null)
+      queryParams['maxDistance'] = maxDistance.toString();
+    if (maxDuration != null)
+      queryParams['maxDuration'] = maxDuration.toString();
 
     final response = await ApiService.get(
       ApiConstants.trails,
@@ -45,8 +48,14 @@ class TrailService {
     return TrailModel.fromJson(response);
   }
 
-  static Future<TrailModel> updateTrail(String id, Map<String, dynamic> data) async {
-    final response = await ApiService.patch('${ApiConstants.trails}/$id', body: data);
+  static Future<TrailModel> updateTrail(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await ApiService.patch(
+      '${ApiConstants.trails}/$id',
+      body: data,
+    );
     return TrailModel.fromJson(response);
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import '../../core/services/network_service.dart';
 import '../../core/constants/app_constants.dart';
 import '../../services/map_offline_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -39,6 +40,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final MapController _mapController = MapController();
+  final MapOfflineService _mapOfflineService = MapOfflineService();
   _DashboardMapStyle _mapStyle = _DashboardMapStyle.standard;
   bool _hasCenteredOnUser = false;
   LatLng _currentPosition = LatLng(
@@ -51,6 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+      _mapOfflineService.initialize();
       _detectUserPosition();
     });
   }
@@ -65,17 +68,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  void _loadData() {
-    context.read<TrailProvider>().loadTrails(refresh: true);
-    context.read<PoiProvider>().loadPois();
-    context.read<WeatherProvider>().loadCurrentWeather(
-      lat: _currentPosition.latitude,
-      lng: _currentPosition.longitude,
-    );
-    // Start weather auto-refresh with current position
-    context.read<WeatherProvider>().startAutoRefresh(
-      lat: _currentPosition.latitude,
-      lng: _currentPosition.longitude,
+  Future<void> _loadData() async {
+    final trailProvider = context.read<TrailProvider>();
+    final poiProvider = context.read<PoiProvider>();
+    final weatherProvider = context.read<WeatherProvider>();
+    final isOnline = await NetworkService.hasInternetConnection();
+    if (!mounted) return;
+
+    await Future.wait([
+      trailProvider.loadTrails(refresh: true, forceOffline: !isOnline),
+      poiProvider.loadPois(forceOffline: !isOnline),
+    ]);
+
+    if (isOnline) {
+      await weatherProvider.loadCurrentWeather(
+        lat: _currentPosition.latitude,
+        lng: _currentPosition.longitude,
+      );
+    } else {
+      weatherProvider.stopAutoRefresh();
+      weatherProvider.clearError();
+    }
+
+    if (isOnline) {
+      weatherProvider.startAutoRefresh(
+        lat: _currentPosition.latitude,
+        lng: _currentPosition.longitude,
+      );
+    }
+  }
+
+  Future<void> _refreshDashboard() async {
+    final isOnline = await NetworkService.hasInternetConnection();
+    await _loadData();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isOnline
+              ? 'Donnees rechargees depuis Supabase.'
+              : 'Mode hors ligne: donnees rechargees depuis SQL.',
+        ),
+      ),
     );
   }
 
@@ -108,7 +142,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _mapController.move(_currentPosition, 14);
         _hasCenteredOnUser = true;
       }
-      // Reload weather with real GPS position and restart auto-refresh
+      final isOnline = await NetworkService.hasInternetConnection();
+      if (!mounted || !isOnline) return;
       context.read<WeatherProvider>().loadCurrentWeather(
         lat: position.latitude,
         lng: position.longitude,
@@ -195,7 +230,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text(
                   'Welcome back,',
-                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -209,24 +249,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF2E7D32), width: 2),
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              IconButton(
+                onPressed: _refreshDashboard,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Actualiser',
+              ),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF2E7D32), width: 2),
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -263,7 +312,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     key: ValueKey(_mapStyle),
                     urlTemplate: _mapStyle.urlTemplate,
                     userAgentPackageName: 'com.ecoguide.app',
-                    tileProvider: LocalFirstTileProvider(),
+                    tileProvider: LocalFirstTileProvider(
+                      service: _mapOfflineService,
+                    ),
                   ),
                   MarkerLayer(
                     markers: [
@@ -278,7 +329,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             decoration: BoxDecoration(
                               color: Colors.blue,
                               shape: BoxShape.circle,
-                              border: Border.all(color: Theme.of(context).cardColor, width: 3),
+                              border: Border.all(
+                                color: Theme.of(context).cardColor,
+                                width: 3,
+                              ),
                             ),
                           ),
                         ),
@@ -302,7 +356,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor.withValues(alpha: 0.95),
+                        color: Theme.of(
+                          context,
+                        ).cardColor.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: Colors.black12),
                       ),
@@ -359,13 +415,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark
-                        ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.9)
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.surface.withValues(alpha: 0.9)
                         : Theme.of(context).cardColor.withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
-                          : Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.3)
+                          : Theme.of(
+                              context,
+                            ).dividerColor.withValues(alpha: 0.1),
                     ),
                   ),
                   child: Row(
@@ -438,7 +500,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color? iconColor,
   }) {
     final effectiveBgColor = bgColor ?? Theme.of(context).cardColor;
-    final effectiveIconColor = iconColor ?? Theme.of(context).colorScheme.onSurface;
+    final effectiveIconColor =
+        iconColor ?? Theme.of(context).colorScheme.onSurface;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -630,7 +693,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     poi.description,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? Colors.grey),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color:
+                          Theme.of(context).textTheme.bodyMedium?.color
+                              ?.withValues(alpha: 0.7) ??
+                          Colors.grey,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -654,13 +723,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.near_me, size: 13, color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? Colors.grey),
+                      Icon(
+                        Icons.near_me,
+                        size: 13,
+                        color:
+                            Theme.of(context).textTheme.bodyMedium?.color
+                                ?.withValues(alpha: 0.7) ??
+                            Colors.grey,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${distanceKm.toStringAsFixed(1)} km',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
+                          color:
+                              Theme.of(context).textTheme.bodyMedium?.color
+                                  ?.withValues(alpha: 0.8) ??
+                              Colors.grey,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -702,21 +781,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
             height: 65,
             decoration: BoxDecoration(
               color: Theme.of(context).brightness == Brightness.dark
-                  ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
                   : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: Theme.of(context).brightness == Brightness.dark
-                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.2)
                     : Theme.of(context).dividerColor.withValues(alpha: 0.1),
               ),
             ),
             child: Icon(
-              icon, 
+              icon,
               color: Theme.of(context).brightness == Brightness.dark
                   ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).primaryColor, 
-              size: 28
+                  : Theme.of(context).primaryColor,
+              size: 28,
             ),
           ),
           const SizedBox(height: 8),
@@ -811,7 +894,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -938,14 +1023,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Icon(
                         Icons.help_outline,
                         size: 15,
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
+                        color:
+                            Theme.of(context).textTheme.bodyMedium?.color
+                                ?.withValues(alpha: 0.8) ??
+                            Colors.grey,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         trail.distanceText,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
+                          color:
+                              Theme.of(context).textTheme.bodyMedium?.color
+                                  ?.withValues(alpha: 0.8) ??
+                              Colors.grey,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -953,14 +1044,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Icon(
                         Icons.timer_outlined,
                         size: 15,
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
+                        color:
+                            Theme.of(context).textTheme.bodyMedium?.color
+                                ?.withValues(alpha: 0.8) ??
+                            Colors.grey,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         trail.durationText,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8) ?? Colors.grey,
+                          color:
+                              Theme.of(context).textTheme.bodyMedium?.color
+                                  ?.withValues(alpha: 0.8) ??
+                              Colors.grey,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1058,7 +1155,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          ),
         ),
         child: Row(
           children: [
@@ -1101,13 +1200,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.air, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                    Icon(
+                      Icons.air,
+                      size: 16,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Wind: $wind',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1119,14 +1226,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Icon(
                       Icons.water_drop_outlined,
                       size: 16,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       'Humidity: $humidity',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1139,7 +1250,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -1275,7 +1388,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1296,7 +1411,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       poi.description,
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

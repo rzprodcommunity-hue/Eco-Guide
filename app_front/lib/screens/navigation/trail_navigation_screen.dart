@@ -17,10 +17,7 @@ import '../home/home_screen.dart';
 class TrailNavigationScreen extends StatefulWidget {
   final Trail trail;
 
-  const TrailNavigationScreen({
-    super.key,
-    required this.trail,
-  });
+  const TrailNavigationScreen({super.key, required this.trail});
 
   @override
   State<TrailNavigationScreen> createState() => _TrailNavigationScreenState();
@@ -31,6 +28,7 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
 
   StreamSubscription<Position>? _positionSub;
   final MapController _mapController = MapController();
+  final MapOfflineService _mapOfflineService = MapOfflineService();
 
   LatLng? _current;
   bool _offTrailAlert = false;
@@ -68,6 +66,7 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
   @override
   void initState() {
     super.initState();
+    _mapOfflineService.initialize();
     _initializeNavigation();
   }
 
@@ -86,29 +85,32 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
       await Geolocator.requestPermission();
     }
 
-    _positionSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    ).listen((position) {
-      final current = LatLng(position.latitude, position.longitude);
-      final nearby = poiProvider.pois.where((poi) {
-        final poiPoint = LatLng(poi.latitude, poi.longitude);
-        return _distance.as(LengthUnit.Meter, current, poiPoint) <= 350;
-      }).toList();
+    _positionSub =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+          ),
+        ).listen((position) {
+          final current = LatLng(position.latitude, position.longitude);
+          final nearby = poiProvider.pois.where((poi) {
+            final poiPoint = LatLng(poi.latitude, poi.longitude);
+            return _distance.as(LengthUnit.Meter, current, poiPoint) <= 350;
+          }).toList();
 
-      final target = _trailStart;
-      final offTrail = target == null
-          ? false
-          : _distance.as(LengthUnit.Meter, current, target) > 800;
+          final target = _trailStart;
+          final offTrail = target == null
+              ? false
+              : _distance.as(LengthUnit.Meter, current, target) > 800;
 
-      if (!mounted) return;
-      setState(() {
-        _current = current;
-        _nearbyPois = nearby;
-        _offTrailAlert = offTrail;
-      });
+          if (!mounted) return;
+          setState(() {
+            _current = current;
+            _nearbyPois = nearby;
+            _offTrailAlert = offTrail;
+          });
 
-      _mapController.move(current, 15);
-    });
+          _mapController.move(current, 15);
+        });
   }
 
   @override
@@ -145,9 +147,12 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                   options: MapOptions(initialCenter: current, initialZoom: 15),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                      urlTemplate:
+                          'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                       userAgentPackageName: 'com.ecoguide.app',
-                      tileProvider: LocalFirstTileProvider(),
+                      tileProvider: LocalFirstTileProvider(
+                        service: _mapOfflineService,
+                      ),
                     ),
                     if (trailPoints.length > 1)
                       PolylineLayer(
@@ -213,7 +218,9 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
     final meter = target == null
         ? 0.0
         : _distance.as(LengthUnit.Meter, current, target);
-    final rounded = meter > 1000 ? '${(meter / 1000).toStringAsFixed(1)} km' : '${meter.toStringAsFixed(0)} m';
+    final rounded = meter > 1000
+        ? '${(meter / 1000).toStringAsFixed(1)} km'
+        : '${meter.toStringAsFixed(0)} m';
 
     return Positioned(
       top: 16,
@@ -237,7 +244,10 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                   children: [
                     Text(
                       rounded,
-                      style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const Text(
                       'Continuer sur le sentier principal',
@@ -268,7 +278,9 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
               const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text('Off-Trail Alert: vous etes eloigne du trajet recommande.'),
+                child: Text(
+                  'Off-Trail Alert: vous etes eloigne du trajet recommande.',
+                ),
               ),
               FilledButton(
                 onPressed: () {
@@ -368,8 +380,17 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
   Widget _metric(String value, String label) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
       ],
     );
   }

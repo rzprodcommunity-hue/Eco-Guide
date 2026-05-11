@@ -23,7 +23,8 @@ class LocalServiceDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<LocalServiceDetailScreen> createState() => _LocalServiceDetailScreenState();
+  State<LocalServiceDetailScreen> createState() =>
+      _LocalServiceDetailScreenState();
 }
 
 class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
@@ -106,12 +107,15 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                 SizedBox(
                   height: 300,
                   width: double.infinity,
-                  child: service.imageUrl != null && service.imageUrl!.isNotEmpty
+                  child:
+                      service.imageUrl != null && service.imageUrl!.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: service.imageUrl!,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: Colors.grey[300]),
-                          errorWidget: (_, __, ___) => _buildHeroPlaceholder(service),
+                          placeholder: (_, __) =>
+                              Container(color: Colors.grey[300]),
+                          errorWidget: (_, __, ___) =>
+                              _buildHeroPlaceholder(service),
                         )
                       : _buildHeroPlaceholder(service),
                 ),
@@ -153,7 +157,10 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryColor,
                           borderRadius: BorderRadius.circular(999),
@@ -180,7 +187,11 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.location_on, color: Colors.white, size: 16),
+                          const Icon(
+                            Icons.location_on,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -195,7 +206,11 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                           ),
                           if (service.rating != null) ...[
                             const SizedBox(width: 12),
-                            const Icon(Icons.star, color: Color(0xFFF5A623), size: 16),
+                            const Icon(
+                              Icons.star,
+                              color: Color(0xFFF5A623),
+                              size: 16,
+                            ),
                             const SizedBox(width: 3),
                             Text(
                               '${service.rating!.toStringAsFixed(1)} (${service.reviewCount} avis)',
@@ -222,13 +237,23 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                          ? Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.3)
                           : const Color(0xFFEAE3D8),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).dividerColor.withValues(alpha: 0.1),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -244,7 +269,9 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                           child: _FactBox(
                             icon: Icons.verified,
                             label: 'Statut',
-                            value: service.isVerified ? 'Verifie' : 'Non verifie',
+                            value: service.isVerified
+                                ? 'Verifie'
+                                : 'Non verifie',
                           ),
                         ),
                       ],
@@ -263,7 +290,9 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                   Text(
                     service.description,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
                       fontSize: 16,
                       height: 1.55,
                     ),
@@ -272,14 +301,18 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: service.latitude == null || service.longitude == null
+                      onPressed:
+                          service.latitude == null || service.longitude == null
                           ? null
                           : () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => NavigationSosScreen(
-                                    destination: LatLng(service.latitude!, service.longitude!),
+                                    destination: LatLng(
+                                      service.latitude!,
+                                      service.longitude!,
+                                    ),
                                     destinationLabel: service.name,
                                   ),
                                 ),
@@ -317,14 +350,16 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                       title: 'Site web',
                       value: service.website!,
                     ),
-                  if (service.languages != null && service.languages!.isNotEmpty)
+                  if (service.languages != null &&
+                      service.languages!.isNotEmpty)
                     _InfoTile(
                       icon: Icons.translate,
                       title: 'Langues',
                       value: service.languages!.join(', '),
                     ),
                   const SizedBox(height: 18),
-                  if (service.latitude != null && service.longitude != null) ...[
+                  if (service.latitude != null &&
+                      service.longitude != null) ...[
                     Text(
                       'Localisation',
                       style: TextStyle(
@@ -340,7 +375,10 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                         height: 160,
                         child: FlutterMap(
                           options: MapOptions(
-                            initialCenter: LatLng(service.latitude!, service.longitude!),
+                            initialCenter: LatLng(
+                              service.latitude!,
+                              service.longitude!,
+                            ),
                             initialZoom: 14,
                             interactionOptions: const InteractionOptions(
                               flags: InteractiveFlag.none,
@@ -348,14 +386,21 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                           ),
                           children: [
                             TileLayer(
-                              urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                              urlTemplate:
+                                  'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                               userAgentPackageName: 'com.ecoguide.app',
                             ),
                             MarkerLayer(
                               markers: [
                                 Marker(
-                                  point: LatLng(service.latitude!, service.longitude!),
-                                  child: const Icon(Icons.place, color: AppTheme.primaryColor),
+                                  point: LatLng(
+                                    service.latitude!,
+                                    service.longitude!,
+                                  ),
+                                  child: const Icon(
+                                    Icons.place,
+                                    color: AppTheme.primaryColor,
+                                  ),
                                 ),
                               ],
                             ),
@@ -364,7 +409,8 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                       ),
                     ),
                   ],
-                  if (service.additionalImages != null && service.additionalImages!.isNotEmpty) ...[
+                  if (service.additionalImages != null &&
+                      service.additionalImages!.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Text(
                       'Galerie',
@@ -444,7 +490,11 @@ class _CircleIconButton extends StatelessWidget {
           color: Theme.of(context).cardColor.withValues(alpha: 0.9),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurface),
+        child: Icon(
+          icon,
+          size: 18,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
@@ -467,10 +517,14 @@ class _FactBox extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
+            ? Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
             : const Color(0xFFF2ECE2),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
       ),
       child: Column(
         children: [
@@ -479,7 +533,9 @@ class _FactBox extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -520,7 +576,9 @@ class _InfoTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
       ),
       child: Row(
         children: [
@@ -541,7 +599,9 @@ class _InfoTile extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.65),
                     height: 1.4,
                   ),
                 ),

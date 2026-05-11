@@ -23,14 +23,13 @@ class EcoShortcutBadge extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableWidth = constraints.maxWidth;
-          final sosSize = (availableWidth * 0.25).clamp(82.0, 108.0).toDouble();
-          final barHeight = (sosSize * 0.76).clamp(76.0, 88.0).toDouble();
-          final totalHeight = sosSize + 36;
+          final isCompact = availableWidth < 390;
+          final sosSize = (availableWidth * 0.24)
+              .clamp(isCompact ? 76.0 : 86.0, isCompact ? 88.0 : 108.0)
+              .toDouble();
+          final barHeight = isCompact ? 92.0 : 104.0;
+          final totalHeight = sosSize + 44;
           final horizontalMargin = availableWidth < 390 ? 8.0 : 12.0;
-          final itemWidth =
-              ((availableWidth - (horizontalMargin * 2) - (sosSize * 0.58)) / 6)
-                  .clamp(40.0, 68.0)
-                  .toDouble();
 
           return SizedBox(
             height: totalHeight,
@@ -79,58 +78,68 @@ class EcoShortcutBadge extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _tabItem(
-                                context,
-                                tab: EcoShortcutTab.home,
-                                icon: Icons.home_rounded,
-                                label: 'Home',
-                                width: itemWidth,
-                                isHighlighted: true,
+                              Expanded(
+                                child: _tabItem(
+                                  context,
+                                  tab: EcoShortcutTab.home,
+                                  icon: Icons.home_rounded,
+                                  label: 'Home',
+                                  isCompact: isCompact,
+                                  isHighlighted: true,
+                                ),
                               ),
-                              _tabItem(
-                                context,
-                                tab: EcoShortcutTab.map,
-                                icon: Icons.map_rounded,
-                                label: 'Map',
-                                width: itemWidth,
+                              Expanded(
+                                child: _tabItem(
+                                  context,
+                                  tab: EcoShortcutTab.map,
+                                  icon: Icons.map_rounded,
+                                  label: 'Map',
+                                  isCompact: isCompact,
+                                ),
                               ),
-                              _tabItem(
-                                context,
-                                tab: EcoShortcutTab.trails,
-                                icon: Icons.hiking_rounded,
-                                label: 'Trails',
-                                width: itemWidth,
+                              Expanded(
+                                child: _tabItem(
+                                  context,
+                                  tab: EcoShortcutTab.trails,
+                                  icon: Icons.hiking_rounded,
+                                  label: 'Trails',
+                                  isCompact: isCompact,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        SizedBox(width: sosSize * 0.58),
+                        SizedBox(width: sosSize * (isCompact ? 0.42 : 0.54)),
                         Expanded(
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _tabItem(
-                                context,
-                                tab: EcoShortcutTab.quiz,
-                                icon: Icons.quiz_rounded,
-                                label: 'Quiz',
-                                width: itemWidth,
+                              Expanded(
+                                child: _tabItem(
+                                  context,
+                                  tab: EcoShortcutTab.quiz,
+                                  icon: Icons.quiz_rounded,
+                                  label: 'Quiz',
+                                  isCompact: isCompact,
+                                ),
                               ),
-                              _tabItem(
-                                context,
-                                tab: EcoShortcutTab.services,
-                                icon: Icons.storefront_rounded,
-                                label: 'Services',
-                                width: itemWidth,
+                              Expanded(
+                                child: _tabItem(
+                                  context,
+                                  tab: EcoShortcutTab.services,
+                                  icon: Icons.storefront_rounded,
+                                  label: 'Services',
+                                  isCompact: isCompact,
+                                ),
                               ),
-                              _tabItem(
-                                context,
-                                tab: EcoShortcutTab.settings,
-                                icon: Icons.settings_rounded,
-                                label: 'Params',
-                                width: itemWidth,
+                              Expanded(
+                                child: _tabItem(
+                                  context,
+                                  tab: EcoShortcutTab.settings,
+                                  icon: Icons.settings_rounded,
+                                  label: 'Params',
+                                  isCompact: isCompact,
+                                ),
                               ),
                             ],
                           ),
@@ -153,7 +162,7 @@ class EcoShortcutBadge extends StatelessWidget {
     required EcoShortcutTab tab,
     required IconData icon,
     required String label,
-    required double width,
+    required bool isCompact,
     bool isHighlighted = false,
   }) {
     final selected = currentTab == tab;
@@ -163,17 +172,29 @@ class EcoShortcutBadge extends StatelessWidget {
         ? const Color(0xFF20B43A)
         : const Color(0xFF2B4D78);
 
-    return SizedBox(
-      width: width,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(30),
-        onTap: () => _handleTabSelection(context, tab),
+    final iconSize = selected && isHighlighted
+        ? (isCompact ? 25.0 : 30.0)
+        : (isCompact ? 18.0 : 22.0);
+    final textSize = selected && isHighlighted
+        ? (isCompact ? 14.0 : 17.0)
+        : (isCompact ? 11.0 : 13.0);
+    final selectedPillWidth = isCompact ? 58.0 : 74.0;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(30),
+      onTap: () => _handleTabSelection(context, tab),
+      child: Center(
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
+          width: selected && isHighlighted ? selectedPillWidth : null,
+          constraints: BoxConstraints(
+            minHeight: isCompact ? 50 : 60,
+            maxHeight: isCompact ? 66 : 76,
+          ),
           padding: EdgeInsets.symmetric(
-            horizontal: selected && isHighlighted ? 6 : 2,
-            vertical: selected && isHighlighted ? 9 : 4,
+            horizontal: selected && isHighlighted ? 4 : 1,
+            vertical: selected && isHighlighted ? 6 : 3,
           ),
           decoration: BoxDecoration(
             color: selected
@@ -196,29 +217,30 @@ class EcoShortcutBadge extends StatelessWidget {
                   ]
                 : null,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: selected && isHighlighted ? 28 : 20,
-                color: selected ? selectedColor : unselectedColor,
-              ),
-              const SizedBox(height: 3),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: iconSize,
+                  color: selected ? selectedColor : unselectedColor,
+                ),
+                const SizedBox(height: 3),
+                Text(
                   label,
                   maxLines: 1,
+                  overflow: TextOverflow.visible,
                   style: TextStyle(
-                    fontSize: selected && isHighlighted ? 16 : 13,
+                    fontSize: textSize,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
                     color: selected ? selectedColor : unselectedColor,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

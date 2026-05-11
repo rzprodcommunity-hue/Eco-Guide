@@ -53,12 +53,20 @@ class TrailModel {
           ? List<String>.from(json['imageUrls'])
           : null,
       region: json['region'],
-        averageRating: json['averageRating'] != null ? _parseDouble(json['averageRating']) : null,
-        reviewCount: json['reviewCount'] is int
+      averageRating: json['averageRating'] != null
+          ? _parseDouble(json['averageRating'])
+          : null,
+      reviewCount: json['reviewCount'] is int
           ? json['reviewCount']
-          : (json['reviewCount'] is num ? (json['reviewCount'] as num).toInt() : null),
-      startLatitude: json['startLatitude'] != null ? _parseDouble(json['startLatitude']) : null,
-      startLongitude: json['startLongitude'] != null ? _parseDouble(json['startLongitude']) : null,
+          : (json['reviewCount'] is num
+                ? (json['reviewCount'] as num).toInt()
+                : null),
+      startLatitude: json['startLatitude'] != null
+          ? _parseDouble(json['startLatitude'])
+          : null,
+      startLongitude: json['startLongitude'] != null
+          ? _parseDouble(json['startLongitude'])
+          : null,
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])

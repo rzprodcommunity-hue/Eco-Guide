@@ -28,7 +28,10 @@ class TrailService {
       if (maxDuration != null) 'maxDuration': maxDuration.toString(),
     };
 
-    final response = await _client.get(ApiConstants.trails, queryParams: queryParams);
+    final response = await _client.get(
+      ApiConstants.trails,
+      queryParams: queryParams,
+    );
     return PaginatedResponse.fromJson(
       response,
       (json) => Trail.fromJson(json as Map<String, dynamic>),
@@ -46,9 +49,14 @@ class TrailService {
       'radius': radius.toString(),
     };
 
-    final response = await _client.get(ApiConstants.trailsNearby, queryParams: queryParams);
+    final response = await _client.get(
+      ApiConstants.trailsNearby,
+      queryParams: queryParams,
+    );
     final data = response['data'] as List? ?? response as List;
-    return data.map((json) => Trail.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Trail.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Trail> getTrailById(String id) async {

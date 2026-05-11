@@ -300,7 +300,9 @@ class _MapScreenState extends State<MapScreen> {
                       urlTemplate:
                           'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                       userAgentPackageName: 'com.ecoguide.app',
-                      tileProvider: LocalFirstTileProvider(service: _mapOfflineService),
+                      tileProvider: LocalFirstTileProvider(
+                        service: _mapOfflineService,
+                      ),
                     ),
                     MarkerLayer(
                       markers: [
@@ -364,15 +366,21 @@ class _MapScreenState extends State<MapScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor.withValues(alpha: 0.9),
+                        color: Theme.of(
+                          context,
+                        ).cardColor.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: 0.1),
+                        ),
                       ),
                       child: Text(
                         'Carte Tabarka offline activee',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface, 
-                          fontSize: 11
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 11,
                         ),
                       ),
                     ),
@@ -385,5 +393,3 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 }
-
-

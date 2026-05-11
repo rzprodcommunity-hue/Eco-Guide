@@ -45,7 +45,9 @@ class _PoisScreenState extends State<PoisScreen> {
       barrierDismissible: false,
       builder: (ctx) => _PoiFormDialog(
         poi: poi,
-        initialLocation: poi != null ? LatLng(poi.latitude, poi.longitude) : _selectedLocation,
+        initialLocation: poi != null
+            ? LatLng(poi.latitude, poi.longitude)
+            : _selectedLocation,
         onSaved: () {
           context.read<PoisProvider>().loadPois(type: _selectedFilter);
         },
@@ -73,21 +75,33 @@ class _PoisScreenState extends State<PoisScreen> {
                 color: AppColors.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.error,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             const Text('Delete Marker'),
           ],
         ),
-        content: Text('Are you sure you want to delete "${poi.name}"? This action cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete "${poi.name}"? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(c, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -97,7 +111,10 @@ class _PoisScreenState extends State<PoisScreen> {
       final success = await context.read<PoisProvider>().deletePoi(poi.id);
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marker deleted'), backgroundColor: AppColors.success),
+          const SnackBar(
+            content: Text('Marker deleted'),
+            backgroundColor: AppColors.success,
+          ),
         );
       }
     }
@@ -119,11 +136,22 @@ class _PoisScreenState extends State<PoisScreen> {
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Points of Interest Management',
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  Text(
+                    'Points of Interest Management',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                   SizedBox(height: 6),
-                  Text('Manage markers, educational content, and geographic assets.',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                  Text(
+                    'Manage markers, educational content, and geographic assets.',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
               ElevatedButton.icon(
@@ -133,8 +161,13 @@ class _PoisScreenState extends State<PoisScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   elevation: 2,
                 ),
               ),
@@ -185,11 +218,21 @@ class _PoisScreenState extends State<PoisScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search markers by name or category...',
-                hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
-                prefixIcon: const Icon(Icons.search, color: AppColors.textHint, size: 20),
+                hintStyle: const TextStyle(
+                  color: AppColors.textHint,
+                  fontSize: 14,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppColors.textHint,
+                  size: 20,
+                ),
                 filled: true,
                 fillColor: Colors.grey[50],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
             ),
@@ -209,15 +252,24 @@ class _PoisScreenState extends State<PoisScreen> {
                     provider.loadPois(type: _selectedFilter);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: isSelected ? AppColors.success : AppColors.divider),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.success
+                            : AppColors.divider,
+                      ),
                     ),
                     child: Text(
                       cat['label'] as String,
                       style: TextStyle(
-                        color: isSelected ? Colors.white : AppColors.textPrimary,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.textPrimary,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -240,7 +292,11 @@ class _PoisScreenState extends State<PoisScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider.withOpacity(0.5)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -248,7 +304,9 @@ class _PoisScreenState extends State<PoisScreen> {
           SizedBox(
             height: 400,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               child: FlutterMap(
                 options: MapOptions(
                   initialCenter: _selectedLocation,
@@ -259,31 +317,38 @@ class _PoisScreenState extends State<PoisScreen> {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.ecoguide.app',
                   ),
                   MarkerLayer(
                     markers: [
                       // Show all POI markers on the map
-                      ...provider.pois.map((poi) => Marker(
-                        point: LatLng(poi.latitude, poi.longitude),
-                        width: 36,
-                        height: 36,
-                        child: Tooltip(
-                          message: poi.name,
-                          child: Icon(
-                            _getTypeIcon(poi.type),
-                            color: _getTypeColor(poi.type),
-                            size: 32,
+                      ...provider.pois.map(
+                        (poi) => Marker(
+                          point: LatLng(poi.latitude, poi.longitude),
+                          width: 36,
+                          height: 36,
+                          child: Tooltip(
+                            message: poi.name,
+                            child: Icon(
+                              _getTypeIcon(poi.type),
+                              color: _getTypeColor(poi.type),
+                              size: 32,
+                            ),
                           ),
                         ),
-                      )),
+                      ),
                       // Selected location marker
                       Marker(
                         point: _selectedLocation,
                         width: 40,
                         height: 40,
-                        child: const Icon(Icons.location_pin, color: AppColors.error, size: 40),
+                        child: const Icon(
+                          Icons.location_pin,
+                          color: AppColors.error,
+                          size: 40,
+                        ),
                       ),
                     ],
                   ),
@@ -294,23 +359,35 @@ class _PoisScreenState extends State<PoisScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.divider.withOpacity(0.3))),
+              border: Border(
+                top: BorderSide(color: AppColors.divider.withOpacity(0.3)),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.my_location, size: 16, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.my_location,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Location: ${_selectedLocation.latitude.toStringAsFixed(4)}° N, ${_selectedLocation.longitude.toStringAsFixed(4)}° W',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -320,7 +397,14 @@ class _PoisScreenState extends State<PoisScreen> {
                     children: [
                       Icon(Icons.touch_app, size: 14, color: AppColors.success),
                       SizedBox(width: 4),
-                      Text('Click map to set marker', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w600, fontSize: 12)),
+                      Text(
+                        'Click map to set marker',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -342,7 +426,11 @@ class _PoisScreenState extends State<PoisScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider.withOpacity(0.5)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -351,16 +439,26 @@ class _PoisScreenState extends State<PoisScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Existing Markers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'Existing Markers',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${provider.total} total',
-                  style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -371,35 +469,61 @@ class _PoisScreenState extends State<PoisScreen> {
             child: provider.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : provider.pois.isEmpty
-                    ? const Center(child: Text('No markers found.', style: TextStyle(color: AppColors.textSecondary)))
-                    : ListView.separated(
-                        itemCount: provider.pois.length,
-                        separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.divider.withOpacity(0.4)),
-                        itemBuilder: (context, index) {
-                          final poi = provider.pois[index];
-                          return _buildMarkerItem(poi);
-                        },
-                      ),
+                ? const Center(
+                    child: Text(
+                      'No markers found.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: provider.pois.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: AppColors.divider.withOpacity(0.4),
+                    ),
+                    itemBuilder: (context, index) {
+                      final poi = provider.pois[index];
+                      return _buildMarkerItem(poi);
+                    },
+                  ),
           ),
           const SizedBox(height: 8),
           // Pagination
           Container(
             padding: const EdgeInsets.only(top: 8),
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.divider.withOpacity(0.4))),
+              border: Border(
+                top: BorderSide(color: AppColors.divider.withOpacity(0.4)),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
                   icon: const Icon(Icons.chevron_left, size: 20),
-                  onPressed: provider.currentPage > 1 ? () => provider.loadPois(page: provider.currentPage - 1, type: _selectedFilter) : null,
+                  onPressed: provider.currentPage > 1
+                      ? () => provider.loadPois(
+                          page: provider.currentPage - 1,
+                          type: _selectedFilter,
+                        )
+                      : null,
                 ),
-                Text('Page ${provider.currentPage} of ${provider.totalPages}',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                Text(
+                  'Page ${provider.currentPage} of ${provider.totalPages}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.chevron_right, size: 20),
-                  onPressed: provider.currentPage < provider.totalPages ? () => provider.loadPois(page: provider.currentPage + 1, type: _selectedFilter) : null,
+                  onPressed: provider.currentPage < provider.totalPages
+                      ? () => provider.loadPois(
+                          page: provider.currentPage + 1,
+                          type: _selectedFilter,
+                        )
+                      : null,
                 ),
               ],
             ),
@@ -418,8 +542,14 @@ class _PoisScreenState extends State<PoisScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: poi.mediaUrl != null
-                ? Image.network(poi.mediaUrl!, width: 52, height: 52, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPoiPlaceholder(poi.type))
+                ? Image.network(
+                    poi.mediaUrl!,
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        _buildPoiPlaceholder(poi.type),
+                  )
                 : _buildPoiPlaceholder(poi.type),
           ),
           const SizedBox(width: 12),
@@ -428,9 +558,24 @@ class _PoisScreenState extends State<PoisScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(poi.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), overflow: TextOverflow.ellipsis, maxLines: 1),
+                Text(
+                  poi.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
                 const SizedBox(height: 3),
-                Text(_getTypeLabel(poi.type), style: TextStyle(color: _getTypeColor(poi.type), fontSize: 12, fontWeight: FontWeight.w500)),
+                Text(
+                  _getTypeLabel(poi.type),
+                  style: TextStyle(
+                    color: _getTypeColor(poi.type),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -443,13 +588,21 @@ class _PoisScreenState extends State<PoisScreen> {
             ),
             child: Text(
               poi.isActive ? 'Ac.' : 'Dr.',
-              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(width: 6),
           // Actions
           IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             tooltip: 'Edit',
@@ -457,7 +610,11 @@ class _PoisScreenState extends State<PoisScreen> {
           ),
           const SizedBox(width: 2),
           IconButton(
-            icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+            icon: const Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: AppColors.error,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             tooltip: 'Delete',
@@ -475,7 +632,10 @@ class _PoisScreenState extends State<PoisScreen> {
       height: 52,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [_getTypeColor(type).withOpacity(0.15), _getTypeColor(type).withOpacity(0.05)],
+          colors: [
+            _getTypeColor(type).withOpacity(0.15),
+            _getTypeColor(type).withOpacity(0.05),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -487,43 +647,70 @@ class _PoisScreenState extends State<PoisScreen> {
 
   IconData _getTypeIcon(PoiType type) {
     switch (type) {
-      case PoiType.viewpoint: return Icons.landscape;
-      case PoiType.flora: return Icons.local_florist;
-      case PoiType.fauna: return Icons.pets;
-      case PoiType.historical: return Icons.account_balance;
-      case PoiType.water: return Icons.water_drop;
-      case PoiType.camping: return Icons.cabin;
-      case PoiType.danger: return Icons.warning;
-      case PoiType.rest_area: return Icons.weekend;
-      case PoiType.information: return Icons.info;
+      case PoiType.viewpoint:
+        return Icons.landscape;
+      case PoiType.flora:
+        return Icons.local_florist;
+      case PoiType.fauna:
+        return Icons.pets;
+      case PoiType.historical:
+        return Icons.account_balance;
+      case PoiType.water:
+        return Icons.water_drop;
+      case PoiType.camping:
+        return Icons.cabin;
+      case PoiType.danger:
+        return Icons.warning;
+      case PoiType.rest_area:
+        return Icons.weekend;
+      case PoiType.information:
+        return Icons.info;
     }
   }
 
   Color _getTypeColor(PoiType type) {
     switch (type) {
-      case PoiType.viewpoint: return Colors.blue;
-      case PoiType.flora: return Colors.green;
-      case PoiType.fauna: return Colors.orange;
-      case PoiType.historical: return Colors.purple;
-      case PoiType.water: return Colors.cyan.shade700;
-      case PoiType.camping: return Colors.brown;
-      case PoiType.danger: return Colors.red;
-      case PoiType.rest_area: return Colors.teal;
-      case PoiType.information: return Colors.indigo;
+      case PoiType.viewpoint:
+        return Colors.blue;
+      case PoiType.flora:
+        return Colors.green;
+      case PoiType.fauna:
+        return Colors.orange;
+      case PoiType.historical:
+        return Colors.purple;
+      case PoiType.water:
+        return Colors.cyan.shade700;
+      case PoiType.camping:
+        return Colors.brown;
+      case PoiType.danger:
+        return Colors.red;
+      case PoiType.rest_area:
+        return Colors.teal;
+      case PoiType.information:
+        return Colors.indigo;
     }
   }
 
   String _getTypeLabel(PoiType type) {
     switch (type) {
-      case PoiType.viewpoint: return 'Viewpoint';
-      case PoiType.flora: return 'Flora';
-      case PoiType.fauna: return 'Fauna';
-      case PoiType.historical: return 'Heritage';
-      case PoiType.water: return 'Water';
-      case PoiType.camping: return 'Camping';
-      case PoiType.danger: return 'Danger';
-      case PoiType.rest_area: return 'Rest Area';
-      case PoiType.information: return 'Information';
+      case PoiType.viewpoint:
+        return 'Viewpoint';
+      case PoiType.flora:
+        return 'Flora';
+      case PoiType.fauna:
+        return 'Fauna';
+      case PoiType.historical:
+        return 'Heritage';
+      case PoiType.water:
+        return 'Water';
+      case PoiType.camping:
+        return 'Camping';
+      case PoiType.danger:
+        return 'Danger';
+      case PoiType.rest_area:
+        return 'Rest Area';
+      case PoiType.information:
+        return 'Information';
     }
   }
 }
@@ -536,7 +723,11 @@ class _PoiFormDialog extends StatefulWidget {
   final LatLng initialLocation;
   final VoidCallback onSaved;
 
-  const _PoiFormDialog({this.poi, required this.initialLocation, required this.onSaved});
+  const _PoiFormDialog({
+    this.poi,
+    required this.initialLocation,
+    required this.onSaved,
+  });
 
   @override
   State<_PoiFormDialog> createState() => _PoiFormDialogState();
@@ -599,16 +790,21 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
       request.headers['Authorization'] = 'Bearer ${ApiService.token}';
       String mimeType = 'jpeg';
       String ext = file.name.split('.').last.toLowerCase();
-      if (ext == 'png') mimeType = 'png';
-      else if (ext == 'gif') mimeType = 'gif';
-      else if (ext == 'webp') mimeType = 'webp';
+      if (ext == 'png')
+        mimeType = 'png';
+      else if (ext == 'gif')
+        mimeType = 'gif';
+      else if (ext == 'webp')
+        mimeType = 'webp';
 
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        file.bytes!,
-        filename: file.name,
-        contentType: MediaType('image', mimeType),
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          file.bytes!,
+          filename: file.name,
+          contentType: MediaType('image', mimeType),
+        ),
+      );
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -620,14 +816,20 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image uploaded!'), backgroundColor: AppColors.success),
+            const SnackBar(
+              content: Text('Image uploaded!'),
+              backgroundColor: AppColors.success,
+            ),
           );
         }
       } else {
         setState(() => _isUploading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload failed: ${response.body}'), backgroundColor: AppColors.error),
+            SnackBar(
+              content: Text('Upload failed: ${response.body}'),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -635,7 +837,10 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
       setState(() => _isUploading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload error: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Upload error: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -676,20 +881,30 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isEditing ? 'POI updated successfully!' : 'POI created successfully!'),
+            content: Text(
+              isEditing
+                  ? 'POI updated successfully!'
+                  : 'POI created successfully!',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
       } else if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(provider.error ?? 'Failed to save'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(provider.error ?? 'Failed to save'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } catch (e) {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -711,8 +926,12 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
               decoration: BoxDecoration(
                 color: AppColors.success.withOpacity(0.05),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                border: Border(bottom: BorderSide(color: AppColors.divider.withOpacity(0.3))),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+                border: Border(
+                  bottom: BorderSide(color: AppColors.divider.withOpacity(0.3)),
+                ),
               ),
               child: Row(
                 children: [
@@ -723,7 +942,9 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      isEditing ? Icons.edit_location_alt : Icons.add_location_alt,
+                      isEditing
+                          ? Icons.edit_location_alt
+                          : Icons.add_location_alt,
                       color: AppColors.success,
                       size: 22,
                     ),
@@ -733,20 +954,33 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isEditing ? 'Edit Point of Interest' : 'Create New Point of Interest',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        isEditing
+                            ? 'Edit Point of Interest'
+                            : 'Create New Point of Interest',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        isEditing ? 'Update the marker details below' : 'Fill in the details to add a new marker',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        isEditing
+                            ? 'Update the marker details below'
+                            : 'Fill in the details to add a new marker',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
                   const Spacer(),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -762,10 +996,21 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ── Image Upload Section ──
-                      const Text('Photo', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      const Text(
+                        'Photo',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      const Text('Upload a photo for this point of interest',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      const Text(
+                        'Upload a photo for this point of interest',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,13 +1031,33 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                                 ),
                               ),
                               child: _isUploading
-                                  ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)))
+                                  ? const Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    )
                                   : Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.camera_alt_outlined, color: AppColors.success, size: 28),
+                                        Icon(
+                                          Icons.camera_alt_outlined,
+                                          color: AppColors.success,
+                                          size: 28,
+                                        ),
                                         const SizedBox(height: 4),
-                                        const Text('Upload', style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
+                                        const Text(
+                                          'Upload',
+                                          style: TextStyle(
+                                            color: AppColors.success,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
                                       ],
                                     ),
                             ),
@@ -804,15 +1069,27 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                               borderRadius: BorderRadius.circular(12),
                               child: Stack(
                                 children: [
-                                  Image.memory(_pickedImageBytes!, width: 100, height: 100, fit: BoxFit.cover),
+                                  Image.memory(
+                                    _pickedImageBytes!,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                  ),
                                   if (_mediaUrl != null)
                                     Positioned(
                                       top: 4,
                                       right: 4,
                                       child: Container(
                                         padding: const EdgeInsets.all(2),
-                                        decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
-                                        child: const Icon(Icons.check, color: Colors.white, size: 14),
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.success,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.check,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
                                       ),
                                     ),
                                 ],
@@ -824,20 +1101,35 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                               borderRadius: BorderRadius.circular(12),
                               child: Stack(
                                 children: [
-                                  Image.network(_mediaUrl!, width: 100, height: 100, fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                            width: 100,
-                                            height: 100,
-                                            color: Colors.grey[100],
-                                            child: const Icon(Icons.broken_image, color: AppColors.textHint),
-                                          )),
+                                  Image.network(
+                                    _mediaUrl!,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 100,
+                                      height: 100,
+                                      color: Colors.grey[100],
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        color: AppColors.textHint,
+                                      ),
+                                    ),
+                                  ),
                                   Positioned(
                                     top: 4,
                                     right: 4,
                                     child: Container(
                                       padding: const EdgeInsets.all(2),
-                                      decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
-                                      child: const Icon(Icons.check, color: Colors.white, size: 14),
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.success,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -848,10 +1140,21 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                       const SizedBox(height: 20),
 
                       // ── Map ──
-                      const Text('Pin Location', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      const Text(
+                        'Pin Location',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      const Text('Click to place the marker',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      const Text(
+                        'Click to place the marker',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       SizedBox(
                         height: 160,
@@ -861,11 +1164,13 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                             options: MapOptions(
                               initialCenter: _location,
                               initialZoom: 10.0,
-                              onTap: (_, point) => setState(() => _location = point),
+                              onTap: (_, point) =>
+                                  setState(() => _location = point),
                             ),
                             children: [
                               TileLayer(
-                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                urlTemplate:
+                                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                 userAgentPackageName: 'com.ecoguide.app',
                               ),
                               MarkerLayer(
@@ -874,7 +1179,11 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                                     point: _location,
                                     width: 36,
                                     height: 36,
-                                    child: const Icon(Icons.location_pin, color: AppColors.error, size: 36),
+                                    child: const Icon(
+                                      Icons.location_pin,
+                                      color: AppColors.error,
+                                      size: 36,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -886,7 +1195,10 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
                           '${_location.latitude.toStringAsFixed(5)}, ${_location.longitude.toStringAsFixed(5)}',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -899,15 +1211,24 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('POI Name', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                const Text(
+                                  'POI Name',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _nameController,
                                   decoration: InputDecoration(
                                     hintText: 'e.g. Ancient Oak Grove',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
-                                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                                  validator: (v) =>
+                                      v?.isEmpty == true ? 'Required' : null,
                                 ),
                               ],
                             ),
@@ -918,18 +1239,31 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Category', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                const Text(
+                                  'Category',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<PoiType>(
                                   value: _selectedType,
                                   isExpanded: true,
                                   decoration: InputDecoration(
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                   items: PoiType.values.map((t) {
-                                    return DropdownMenuItem(value: t, child: Text(_typeLabel(t)));
+                                    return DropdownMenuItem(
+                                      value: t,
+                                      child: Text(_typeLabel(t)),
+                                    );
                                   }).toList(),
-                                  onChanged: (v) => setState(() => _selectedType = v ?? PoiType.flora),
+                                  onChanged: (v) => setState(
+                                    () => _selectedType = v ?? PoiType.flora,
+                                  ),
                                 ),
                               ],
                             ),
@@ -939,21 +1273,32 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                       const SizedBox(height: 20),
 
                       // ── Description ──
-                      const Text('Description', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      const Text(
+                        'Description',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _descriptionController,
                         maxLines: 3,
                         decoration: InputDecoration(
                           hintText: 'Educational details about this point...',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
 
                       // ── Status ──
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.grey[50],
                           borderRadius: BorderRadius.circular(10),
@@ -967,10 +1312,14 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              _isActive ? 'Active — Visible to public' : 'Draft — Hidden from public',
+                              _isActive
+                                  ? 'Active — Visible to public'
+                                  : 'Draft — Hidden from public',
                               style: TextStyle(
                                 fontWeight: FontWeight.w500,
-                                color: _isActive ? AppColors.success : AppColors.textSecondary,
+                                color: _isActive
+                                    ? AppColors.success
+                                    : AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -986,7 +1335,9 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.divider.withOpacity(0.3))),
+                border: Border(
+                  top: BorderSide(color: AppColors.divider.withOpacity(0.3)),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -994,9 +1345,15 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
-                    child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
@@ -1004,16 +1361,31 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.success,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       elevation: 0,
                     ),
                     child: _isSaving
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
                         : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(isEditing ? Icons.save : Icons.add_location, size: 18),
+                              Icon(
+                                isEditing ? Icons.save : Icons.add_location,
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Text(isEditing ? 'Update POI' : 'Create POI'),
                             ],
@@ -1030,18 +1402,24 @@ class _PoiFormDialogState extends State<_PoiFormDialog> {
 
   String _typeLabel(PoiType type) {
     switch (type) {
-      case PoiType.viewpoint: return 'Viewpoint';
-      case PoiType.flora: return 'Flora';
-      case PoiType.fauna: return 'Fauna';
-      case PoiType.historical: return 'Heritage';
-      case PoiType.water: return 'Water';
-      case PoiType.camping: return 'Camping';
-      case PoiType.danger: return 'Danger';
-      case PoiType.rest_area: return 'Rest Area';
-      case PoiType.information: return 'Information';
+      case PoiType.viewpoint:
+        return 'Viewpoint';
+      case PoiType.flora:
+        return 'Flora';
+      case PoiType.fauna:
+        return 'Fauna';
+      case PoiType.historical:
+        return 'Heritage';
+      case PoiType.water:
+        return 'Water';
+      case PoiType.camping:
+        return 'Camping';
+      case PoiType.danger:
+        return 'Danger';
+      case PoiType.rest_area:
+        return 'Rest Area';
+      case PoiType.information:
+        return 'Information';
     }
   }
 }
-
-
-

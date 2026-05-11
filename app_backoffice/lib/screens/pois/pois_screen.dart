@@ -23,7 +23,7 @@ class PoisScreen extends StatefulWidget {
 class _PoisScreenState extends State<PoisScreen> {
   final _searchController = TextEditingController();
   String? _selectedFilter;
-  
+
   // Form State
   PoiModel? _editingPoi;
   final _formKey = GlobalKey<FormState>();
@@ -33,7 +33,10 @@ class _PoisScreenState extends State<PoisScreen> {
   bool _isActive = true;
   bool _isSaving = false;
   bool _isUploading = false;
-  LatLng _selectedLocation = const LatLng(45.4215, -75.6972); // Default to Ottawa
+  LatLng _selectedLocation = const LatLng(
+    45.4215,
+    -75.6972,
+  ); // Default to Ottawa
   String? _mediaUrl;
   Uint8List? _pickedImageBytes;
 
@@ -92,21 +95,33 @@ class _PoisScreenState extends State<PoisScreen> {
                 color: AppColors.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.error,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             const Text('Delete Marker'),
           ],
         ),
-        content: Text('Are you sure you want to delete "${poi.name}"? This action cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete "${poi.name}"? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(c, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -117,7 +132,10 @@ class _PoisScreenState extends State<PoisScreen> {
       if (success && mounted) {
         if (_editingPoi?.id == poi.id) _resetForm();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marker deleted'), backgroundColor: AppColors.success),
+          const SnackBar(
+            content: Text('Marker deleted'),
+            backgroundColor: AppColors.success,
+          ),
         );
       }
     }
@@ -142,16 +160,21 @@ class _PoisScreenState extends State<PoisScreen> {
       request.headers['Authorization'] = 'Bearer ${ApiService.token}';
       String mimeType = 'jpeg';
       String ext = file.name.split('.').last.toLowerCase();
-      if (ext == 'png') mimeType = 'png';
-      else if (ext == 'gif') mimeType = 'gif';
-      else if (ext == 'webp') mimeType = 'webp';
+      if (ext == 'png')
+        mimeType = 'png';
+      else if (ext == 'gif')
+        mimeType = 'gif';
+      else if (ext == 'webp')
+        mimeType = 'webp';
 
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        file.bytes!,
-        filename: file.name,
-        contentType: MediaType('image', mimeType),
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          file.bytes!,
+          filename: file.name,
+          contentType: MediaType('image', mimeType),
+        ),
+      );
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -165,7 +188,10 @@ class _PoisScreenState extends State<PoisScreen> {
         setState(() => _isUploading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload failed: ${response.body}'), backgroundColor: AppColors.error),
+            SnackBar(
+              content: Text('Upload failed: ${response.body}'),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -173,7 +199,10 @@ class _PoisScreenState extends State<PoisScreen> {
       setState(() => _isUploading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload error: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Upload error: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -213,21 +242,31 @@ class _PoisScreenState extends State<PoisScreen> {
         _resetForm();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_editingPoi != null ? 'POI updated successfully!' : 'POI created successfully!'),
+            content: Text(
+              _editingPoi != null
+                  ? 'POI updated successfully!'
+                  : 'POI created successfully!',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
         provider.loadPois(type: _selectedFilter);
       } else if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(provider.error ?? 'Failed to save'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(provider.error ?? 'Failed to save'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } catch (e) {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -253,12 +292,19 @@ class _PoisScreenState extends State<PoisScreen> {
                 children: const [
                   Text(
                     'Points of Interest Management',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                   SizedBox(height: 6),
                   Text(
                     'Manage markers, educational content, and geographic assets',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
@@ -269,10 +315,18 @@ class _PoisScreenState extends State<PoisScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                   elevation: 0,
-                  textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  textStyle: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ],
@@ -300,10 +354,7 @@ class _PoisScreenState extends State<PoisScreen> {
               ),
               const SizedBox(width: 24),
               // Right Column (List)
-              Expanded(
-                flex: 8,
-                child: _buildExistingMarkers(provider),
-              ),
+              Expanded(flex: 8, child: _buildExistingMarkers(provider)),
             ],
           ),
         ],
@@ -326,11 +377,21 @@ class _PoisScreenState extends State<PoisScreen> {
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Search markers by name or category...',
-              hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: AppColors.textHint, size: 20),
+              hintStyle: const TextStyle(
+                color: AppColors.textHint,
+                fontSize: 14,
+              ),
+              prefixIcon: const Icon(
+                Icons.search,
+                color: AppColors.textHint,
+                size: 20,
+              ),
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
               contentPadding: const EdgeInsets.symmetric(vertical: 0),
             ),
           ),
@@ -350,15 +411,24 @@ class _PoisScreenState extends State<PoisScreen> {
                   provider.loadPois(type: _selectedFilter);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: isSelected ? AppColors.primary : AppColors.divider.withOpacity(0.5)),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.divider.withOpacity(0.5),
+                    ),
                   ),
                   child: Text(
                     cat['label'] as String,
                     style: TextStyle(
-                      color: isSelected ? Colors.white : AppColors.textSecondary,
+                      color: isSelected
+                          ? Colors.white
+                          : AppColors.textSecondary,
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -384,7 +454,9 @@ class _PoisScreenState extends State<PoisScreen> {
           SizedBox(
             height: 320,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               child: FlutterMap(
                 options: MapOptions(
                   initialCenter: _selectedLocation,
@@ -395,7 +467,8 @@ class _PoisScreenState extends State<PoisScreen> {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                    urlTemplate:
+                        'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                     userAgentPackageName: 'com.ecoguide.app',
                   ),
                   MarkerLayer(
@@ -404,7 +477,11 @@ class _PoisScreenState extends State<PoisScreen> {
                         point: _selectedLocation,
                         width: 40,
                         height: 40,
-                        child: const Icon(Icons.location_pin, color: AppColors.error, size: 40),
+                        child: const Icon(
+                          Icons.location_pin,
+                          color: AppColors.error,
+                          size: 40,
+                        ),
                       ),
                     ],
                   ),
@@ -415,18 +492,28 @@ class _PoisScreenState extends State<PoisScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.divider.withOpacity(0.3))),
+              border: Border(
+                top: BorderSide(color: AppColors.divider.withOpacity(0.3)),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Location: ${_selectedLocation.latitude.toStringAsFixed(4)}° N, ${_selectedLocation.longitude.toStringAsFixed(4)}° W',
-                  style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500, fontSize: 13),
+                  style: const TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
                 ),
                 const Text(
                   'Click map to set marker',
-                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -452,10 +539,24 @@ class _PoisScreenState extends State<PoisScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('POI Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                const Text(
+                  'POI Details',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
                 Row(
                   children: [
-                    Text('Active', style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(
+                      'Active',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     SizedBox(
                       height: 24,
@@ -478,18 +579,37 @@ class _PoisScreenState extends State<PoisScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('POI Name', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1E293B))),
+                      const Text(
+                        'POI Name',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _nameController,
                         decoration: InputDecoration(
                           hintText: 'e.g. Ancient Oak Grove',
-                          hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
+                          hintStyle: const TextStyle(
+                            color: AppColors.textHint,
+                            fontSize: 14,
+                          ),
                           filled: true,
                           fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppColors.divider),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppColors.divider),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
                         ),
                         validator: (v) => v!.isEmpty ? 'Required' : null,
                       ),
@@ -502,23 +622,48 @@ class _PoisScreenState extends State<PoisScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(' ', style: TextStyle(fontSize: 13)), // Spacer to align
+                      const Text(
+                        ' ',
+                        style: TextStyle(fontSize: 13),
+                      ), // Spacer to align
                       const SizedBox(height: 8),
                       DropdownButtonFormField<PoiType>(
                         value: _selectedType,
                         decoration: InputDecoration(
                           labelText: 'Category',
-                          labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                          labelStyle: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
                           filled: true,
                           fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppColors.divider),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppColors.divider),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
                         ),
-                        items: PoiType.values.map((type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(_getTypeLabel(type), style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B))),
-                        )).toList(),
+                        items: PoiType.values
+                            .map(
+                              (type) => DropdownMenuItem(
+                                value: type,
+                                child: Text(
+                                  _getTypeLabel(type),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (v) {
                           if (v != null) setState(() => _selectedType = v);
                         },
@@ -529,37 +674,75 @@ class _PoisScreenState extends State<PoisScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            const Text('Description', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1E293B))),
+            const Text(
+              'Description',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Color(0xFF1E293B),
+              ),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _descriptionController,
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Educational details about this point...',
-                hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
+                hintStyle: const TextStyle(
+                  color: AppColors.textHint,
+                  fontSize: 14,
+                ),
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.divider)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.divider),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Gallery Images', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1E293B))),
+                const Text(
+                  'Gallery Images',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
                 ElevatedButton(
                   onPressed: _isSaving ? null : _savePoi,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     elevation: 0,
                   ),
-                  child: _isSaving 
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : Text(_editingPoi != null ? 'Update POI' : 'Save POI'),
                 ),
               ],
@@ -578,13 +761,29 @@ class _PoisScreenState extends State<PoisScreen> {
                       border: Border.all(color: AppColors.divider, width: 1.5),
                     ),
                     child: _isUploading
-                        ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                        ? const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
                         : Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: const [
-                              Icon(Icons.camera_alt, color: AppColors.textHint, size: 24),
+                              Icon(
+                                Icons.camera_alt,
+                                color: AppColors.textHint,
+                                size: 24,
+                              ),
                               SizedBox(height: 4),
-                              Text('Upload', style: TextStyle(color: AppColors.textHint, fontSize: 11)),
+                              Text(
+                                'Upload',
+                                style: TextStyle(
+                                  color: AppColors.textHint,
+                                  fontSize: 11,
+                                ),
+                              ),
                             ],
                           ),
                   ),
@@ -593,7 +792,12 @@ class _PoisScreenState extends State<PoisScreen> {
                   const SizedBox(width: 16),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(_pickedImageBytes!, width: 80, height: 80, fit: BoxFit.cover),
+                    child: Image.memory(
+                      _pickedImageBytes!,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ] else if (_mediaUrl != null && _mediaUrl!.isNotEmpty) ...[
                   const SizedBox(width: 16),
@@ -602,7 +806,12 @@ class _PoisScreenState extends State<PoisScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(_mediaUrl!, width: 80, height: 80, fit: BoxFit.cover),
+                        child: Image.network(
+                          _mediaUrl!,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                       Positioned(
                         top: -8,
@@ -611,8 +820,15 @@ class _PoisScreenState extends State<PoisScreen> {
                           onTap: () => setState(() => _mediaUrl = null),
                           child: Container(
                             padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                            child: const Icon(Icons.close, color: Colors.white, size: 14),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -639,7 +855,14 @@ class _PoisScreenState extends State<PoisScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.all(20),
-            child: Text('Existing Markers', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+            child: Text(
+              'Existing Markers',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
           ),
           Divider(height: 1, color: AppColors.divider.withOpacity(0.5)),
           // List
@@ -648,68 +871,122 @@ class _PoisScreenState extends State<PoisScreen> {
             child: provider.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : provider.pois.isEmpty
-                    ? const Center(child: Text('No markers found.', style: TextStyle(color: AppColors.textSecondary)))
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: provider.pois.length,
-                        separatorBuilder: (_, __) => Divider(height: 24, color: AppColors.divider.withOpacity(0.3)),
-                        itemBuilder: (context, index) {
-                          final poi = provider.pois[index];
-                          final isSelected = _editingPoi?.id == poi.id;
-                          return Container(
-                            color: isSelected ? Colors.grey.shade50 : Colors.transparent,
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: poi.mediaUrl != null
-                                      ? Image.network(poi.mediaUrl!, width: 48, height: 48, fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => _buildPoiPlaceholder(poi.type))
-                                      : _buildPoiPlaceholder(poi.type),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(poi.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1E293B)), overflow: TextOverflow.ellipsis, maxLines: 1),
-                                      const SizedBox(height: 2),
-                                      Text(_getTypeLabel(poi.type), style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                                // Status badge
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: poi.isActive ? AppColors.success.withOpacity(0.15) : Colors.grey.shade200,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: poi.isActive ? AppColors.success.withOpacity(0.3) : Colors.grey.shade300),
-                                  ),
-                                  child: Text(
-                                    poi.isActive ? 'Active' : 'Draft',
-                                    style: TextStyle(color: poi.isActive ? AppColors.success : AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                IconButton(
-                                  icon: const Icon(Icons.edit, size: 18, color: AppColors.textSecondary),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _editPoi(poi),
-                                ),
-                                const SizedBox(width: 12),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _deletePoi(poi),
-                                ),
-                              ],
+                ? const Center(
+                    child: Text(
+                      'No markers found.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: provider.pois.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 24,
+                      color: AppColors.divider.withOpacity(0.3),
+                    ),
+                    itemBuilder: (context, index) {
+                      final poi = provider.pois[index];
+                      final isSelected = _editingPoi?.id == poi.id;
+                      return Container(
+                        color: isSelected
+                            ? Colors.grey.shade50
+                            : Colors.transparent,
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: poi.mediaUrl != null
+                                  ? Image.network(
+                                      poi.mediaUrl!,
+                                      width: 48,
+                                      height: 48,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          _buildPoiPlaceholder(poi.type),
+                                    )
+                                  : _buildPoiPlaceholder(poi.type),
                             ),
-                          );
-                        },
-                      ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    poi.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _getTypeLabel(poi.type),
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Status badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: poi.isActive
+                                    ? AppColors.success.withOpacity(0.15)
+                                    : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: poi.isActive
+                                      ? AppColors.success.withOpacity(0.3)
+                                      : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Text(
+                                poi.isActive ? 'Active' : 'Draft',
+                                style: TextStyle(
+                                  color: poi.isActive
+                                      ? AppColors.success
+                                      : AppColors.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _editPoi(poi),
+                            ),
+                            const SizedBox(width: 12),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: AppColors.error,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _deletePoi(poi),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
           ),
           Divider(height: 1, color: AppColors.divider.withOpacity(0.5)),
           // Pagination
@@ -719,18 +996,42 @@ class _PoisScreenState extends State<PoisScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, size: 20, color: AppColors.textSecondary),
-                  onPressed: provider.currentPage > 1 ? () => provider.loadPois(page: provider.currentPage - 1, type: _selectedFilter) : null,
+                  icon: const Icon(
+                    Icons.chevron_left,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                  onPressed: provider.currentPage > 1
+                      ? () => provider.loadPois(
+                          page: provider.currentPage - 1,
+                          type: _selectedFilter,
+                        )
+                      : null,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
                 const SizedBox(width: 16),
-                Text('Page ${provider.currentPage} of ${provider.totalPages == 0 ? 1 : provider.totalPages}',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                Text(
+                  'Page ${provider.currentPage} of ${provider.totalPages == 0 ? 1 : provider.totalPages}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(width: 16),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
-                  onPressed: provider.currentPage < provider.totalPages ? () => provider.loadPois(page: provider.currentPage + 1, type: _selectedFilter) : null,
+                  icon: const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                  onPressed: provider.currentPage < provider.totalPages
+                      ? () => provider.loadPois(
+                          page: provider.currentPage + 1,
+                          type: _selectedFilter,
+                        )
+                      : null,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -756,16 +1057,26 @@ class _PoisScreenState extends State<PoisScreen> {
 
   String _getTypeLabel(PoiType type) {
     switch (type) {
-      case PoiType.historical: return 'Heritage';
-      case PoiType.flora: return 'Flora';
-      case PoiType.fauna: return 'Fauna';
-      case PoiType.viewpoint: return 'Viewpoint';
-      case PoiType.water: return 'Water';
-      case PoiType.camping: return 'Camping';
-      case PoiType.danger: return 'Danger';
-      case PoiType.rest_area: return 'Rest Area';
-      case PoiType.information: return 'Information';
-      default: return type.name;
+      case PoiType.historical:
+        return 'Heritage';
+      case PoiType.flora:
+        return 'Flora';
+      case PoiType.fauna:
+        return 'Fauna';
+      case PoiType.viewpoint:
+        return 'Viewpoint';
+      case PoiType.water:
+        return 'Water';
+      case PoiType.camping:
+        return 'Camping';
+      case PoiType.danger:
+        return 'Danger';
+      case PoiType.rest_area:
+        return 'Rest Area';
+      case PoiType.information:
+        return 'Information';
+      default:
+        return type.name;
     }
   }
 }

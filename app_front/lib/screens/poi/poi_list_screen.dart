@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/services/network_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../../core/widgets/error_banner.dart';
@@ -88,9 +89,38 @@ class _PoiListScreenState extends State<PoiListScreen> {
   Future<void> _loadPois() async {
     final provider = context.read<PoiProvider>();
     final query = _searchController.text.trim();
-    await provider.loadPois(type: _selectedType, search: query.isEmpty ? null : query);
+    await provider.loadPois(
+      type: _selectedType,
+      search: query.isEmpty ? null : query,
+    );
     if (!mounted) return;
     await _refreshNearbyCount(provider);
+  }
+
+  Future<void> _refreshPois() async {
+    final isOnline = await NetworkService.hasInternetConnection();
+    if (!mounted) return;
+
+    final provider = context.read<PoiProvider>();
+    final query = _searchController.text.trim();
+    await provider.loadPois(
+      type: _selectedType,
+      search: query.isEmpty ? null : query,
+      forceOffline: !isOnline,
+    );
+    if (!mounted) return;
+    await _refreshNearbyCount(provider);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isOnline
+              ? 'POI recharges depuis Supabase.'
+              : 'Mode hors ligne: POI recharges depuis SQL.',
+        ),
+      ),
+    );
   }
 
   Future<void> _refreshNearbyCount(PoiProvider provider) async {
@@ -114,8 +144,9 @@ class _PoiListScreenState extends State<PoiListScreen> {
       if (!mounted) return;
       setState(() => _nearbyCount = others);
     } finally {
-      if (!mounted) return;
-      setState(() => _loadingNearbyCount = false);
+      if (mounted) {
+        setState(() => _loadingNearbyCount = false);
+      }
     }
   }
 
@@ -166,9 +197,18 @@ class _PoiListScreenState extends State<PoiListScreen> {
         : _allPoiTypes.where((type) => type == _selectedType).toList();
 
     return Scaffold(
-      appBar: const EcoPageHeader(title: 'Local Heritage'),
+      appBar: EcoPageHeader(
+        title: 'Local Heritage',
+        actions: [
+          IconButton(
+            onPressed: _refreshPois,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Actualiser',
+          ),
+        ],
+      ),
       body: RefreshIndicator(
-        onRefresh: _loadPois,
+        onRefresh: _refreshPois,
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           children: [
@@ -204,7 +244,9 @@ class _PoiListScreenState extends State<PoiListScreen> {
                         hintText: 'Search points of interest...',
                         hintStyle: TextStyle(color: Colors.grey[500]),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -570,7 +612,11 @@ class _InteractiveMapCard extends StatelessWidget {
                 color: const Color(0xFFDCEAD8),
                 borderRadius: BorderRadius.circular(7),
               ),
-              child: const Icon(Icons.map_outlined, size: 18, color: AppTheme.primaryColor),
+              child: const Icon(
+                Icons.map_outlined,
+                size: 18,
+                color: AppTheme.primaryColor,
+              ),
             ),
           ),
           ClipRRect(
@@ -615,9 +661,14 @@ class _InteractiveMapCard extends StatelessWidget {
                       label: const Text('Open Map'),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         visualDensity: VisualDensity.compact,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ),

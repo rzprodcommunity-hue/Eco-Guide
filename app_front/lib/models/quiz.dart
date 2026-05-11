@@ -70,7 +70,9 @@ class Quiz {
       poiId: json['poiId'] as String?,
       points: _parseInt(json['points'], fallback: 10),
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 

@@ -34,14 +34,17 @@ class _TrailsScreenState extends State<TrailsScreen> {
   bool _isSaving = false;
   String? _editingId;
   Map<String, dynamic>? _geojson;
-  LatLng _mapCenter = const LatLng(37.113, 9.023); // Jbel Chitana, Nefza, Tunisia
+  LatLng _mapCenter = const LatLng(
+    37.113,
+    9.023,
+  ); // Jbel Chitana, Nefza, Tunisia
   List<LatLng> _drawnPoints = [];
   final _scrollController = ScrollController();
   final _formSectionKey = GlobalKey();
   final MapController _mapController = MapController();
   final TextEditingController _mapSearchController = TextEditingController();
   bool _isSearchingMap = false;
-  
+
   List<String> _imageUrls = [];
   bool _isUploadingImage = false;
 
@@ -79,11 +82,11 @@ class _TrailsScreenState extends State<TrailsScreen> {
       _isActive = trail.isActive;
       _geojson = trail.geojson;
       _drawnPoints.clear();
-      
+
       if (trail.startLatitude != null && trail.startLongitude != null) {
         _mapCenter = LatLng(trail.startLatitude!, trail.startLongitude!);
       }
-      
+
       if (trail.geojson != null) {
         try {
           final features = trail.geojson!['features'] as List;
@@ -129,34 +132,43 @@ class _TrailsScreenState extends State<TrailsScreen> {
     });
   }
 
-
-
   Future<void> _searchMapLocation() async {
     final query = _mapSearchController.text.trim();
     if (query.isEmpty) return;
 
     setState(() => _isSearchingMap = true);
     try {
-      final url = Uri.parse('https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=1');
-      final response = await http.get(url, headers: {'User-Agent': 'EcoGuideApp'});
-      
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=1',
+      );
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'EcoGuideApp'},
+      );
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
         if (data.isNotEmpty) {
           final lat = double.parse(data[0]['lat']);
           final lon = double.parse(data[0]['lon']);
           final newCenter = LatLng(lat, lon);
-          
+
           _mapController.move(newCenter, 14.0);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Lieu trouvé!'), backgroundColor: AppColors.success),
+              const SnackBar(
+                content: Text('Lieu trouvé!'),
+                backgroundColor: AppColors.success,
+              ),
             );
           }
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Lieu introuvable'), backgroundColor: AppColors.error),
+              const SnackBar(
+                content: Text('Lieu introuvable'),
+                backgroundColor: AppColors.error,
+              ),
             );
           }
         }
@@ -164,7 +176,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erreur de recherche'), backgroundColor: AppColors.error),
+          const SnackBar(
+            content: Text('Erreur de recherche'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -191,26 +206,29 @@ class _TrailsScreenState extends State<TrailsScreen> {
       };
 
       if (_drawnPoints.length > 1) {
-        final coordinates = _drawnPoints.map((p) => [p.longitude, p.latitude]).toList();
+        final coordinates = _drawnPoints
+            .map((p) => [p.longitude, p.latitude])
+            .toList();
         data['geojson'] = {
           "type": "FeatureCollection",
           "features": [
             {
               "type": "Feature",
-              "geometry": {
-                "type": "LineString",
-                "coordinates": coordinates
-              },
-              "properties": {"name": _nameController.text.trim()}
-            }
-          ]
+              "geometry": {"type": "LineString", "coordinates": coordinates},
+              "properties": {"name": _nameController.text.trim()},
+            },
+          ],
         };
       } else if (_geojson != null) {
         data['geojson'] = _geojson;
       }
-      
-      data['startLatitude'] = _drawnPoints.isNotEmpty ? _drawnPoints.first.latitude : _mapCenter.latitude;
-      data['startLongitude'] = _drawnPoints.isNotEmpty ? _drawnPoints.first.longitude : _mapCenter.longitude;
+
+      data['startLatitude'] = _drawnPoints.isNotEmpty
+          ? _drawnPoints.first.latitude
+          : _mapCenter.latitude;
+      data['startLongitude'] = _drawnPoints.isNotEmpty
+          ? _drawnPoints.first.longitude
+          : _mapCenter.longitude;
 
       // Only add optional fields if they have values
       if (_elevationController.text.isNotEmpty) {
@@ -233,14 +251,21 @@ class _TrailsScreenState extends State<TrailsScreen> {
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_editingId != null ? 'Trail updated!' : (asDraft ? 'Draft saved!' : 'Trail published!')),
+            content: Text(
+              _editingId != null
+                  ? 'Trail updated!'
+                  : (asDraft ? 'Draft saved!' : 'Trail published!'),
+            ),
             backgroundColor: AppColors.success,
           ),
         );
         _resetForm();
       } else if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(provider.error ?? 'Failed to save trail'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(provider.error ?? 'Failed to save trail'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } catch (e) {
@@ -251,7 +276,12 @@ class _TrailsScreenState extends State<TrailsScreen> {
           builder: (c) => AlertDialog(
             title: const Text('Error'),
             content: Text(e.toString()),
-            actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
       }
@@ -265,7 +295,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
         title: const Text('Confirm Delete'),
         content: Text('Delete "${trail.name}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
@@ -295,16 +328,21 @@ class _TrailsScreenState extends State<TrailsScreen> {
       request.headers['Authorization'] = 'Bearer ${ApiService.token}';
       String mimeType = 'jpeg';
       String ext = file.name.split('.').last.toLowerCase();
-      if (ext == 'png') mimeType = 'png';
-      else if (ext == 'gif') mimeType = 'gif';
-      else if (ext == 'webp') mimeType = 'webp';
+      if (ext == 'png')
+        mimeType = 'png';
+      else if (ext == 'gif')
+        mimeType = 'gif';
+      else if (ext == 'webp')
+        mimeType = 'webp';
 
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        file.bytes!,
-        filename: file.name,
-        contentType: MediaType('image', mimeType),
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          file.bytes!,
+          filename: file.name,
+          contentType: MediaType('image', mimeType),
+        ),
+      );
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -317,14 +355,20 @@ class _TrailsScreenState extends State<TrailsScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image uploadée avec succès!'), backgroundColor: AppColors.success),
+            const SnackBar(
+              content: Text('Image uploadée avec succès!'),
+              backgroundColor: AppColors.success,
+            ),
           );
         }
       } else {
         setState(() => _isUploadingImage = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload échoué: ${response.body}'), backgroundColor: AppColors.error),
+            SnackBar(
+              content: Text('Upload échoué: ${response.body}'),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -332,7 +376,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
       setState(() => _isUploadingImage = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur upload: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Erreur upload: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -361,9 +408,19 @@ class _TrailsScreenState extends State<TrailsScreen> {
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Trail Management', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  Text(
+                    'Trail Management',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                   SizedBox(height: 8),
-                  Text('Create, monitor, and update hiking routes across the ecosystem.', style: TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    'Create, monitor, and update hiking routes across the ecosystem.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ],
               ),
               ElevatedButton.icon(
@@ -373,8 +430,13 @@ class _TrailsScreenState extends State<TrailsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -391,10 +453,7 @@ class _TrailsScreenState extends State<TrailsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Left: Trail Details Form
-              Expanded(
-                flex: 3,
-                child: _buildTrailDetailsForm(),
-              ),
+              Expanded(flex: 3, child: _buildTrailDetailsForm()),
               const SizedBox(width: 24),
               // Right: Pro Tip + Publishing Status
               Expanded(
@@ -434,13 +493,36 @@ class _TrailsScreenState extends State<TrailsScreen> {
 
     return Row(
       children: [
-        Expanded(child: _statCard('Total Trails', provider.total.toString(), Icons.terrain, AppColors.primary)),
+        Expanded(
+          child: _statCard(
+            'Total Trails',
+            provider.total.toString(),
+            Icons.terrain,
+            AppColors.primary,
+          ),
+        ),
         const SizedBox(width: 16),
-        Expanded(child: _statCard('Active Hikers', '1,284', Icons.people, Colors.blue)),
+        Expanded(
+          child: _statCard('Active Hikers', '1,284', Icons.people, Colors.blue),
+        ),
         const SizedBox(width: 16),
-        Expanded(child: _statCard('Total Distance', '${totalDistance.toStringAsFixed(0)} km', Icons.straighten, Colors.teal)),
+        Expanded(
+          child: _statCard(
+            'Total Distance',
+            '${totalDistance.toStringAsFixed(0)} km',
+            Icons.straighten,
+            Colors.teal,
+          ),
+        ),
         const SizedBox(width: 16),
-        Expanded(child: _statCard('Avg. Difficulty', avgDiff, Icons.signal_cellular_alt, Colors.orange)),
+        Expanded(
+          child: _statCard(
+            'Avg. Difficulty',
+            avgDiff,
+            Icons.signal_cellular_alt,
+            Colors.orange,
+          ),
+        ),
       ],
     );
   }
@@ -456,9 +538,23 @@ class _TrailsScreenState extends State<TrailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500, fontSize: 13)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+            ),
+          ),
           const SizedBox(height: 12),
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
         ],
       ),
     );
@@ -510,10 +606,16 @@ class _TrailsScreenState extends State<TrailsScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: TrailDifficulty.values.map((d) {
-                      String label = d == TrailDifficulty.easy ? 'Easy' : d == TrailDifficulty.moderate ? 'Moderate' : 'Hard';
+                      String label = d == TrailDifficulty.easy
+                          ? 'Easy'
+                          : d == TrailDifficulty.moderate
+                          ? 'Moderate'
+                          : 'Hard';
                       return DropdownMenuItem(value: d, child: Text(label));
                     }).toList(),
-                    onChanged: (v) => setState(() => _difficulty = v ?? TrailDifficulty.moderate),
+                    onChanged: (v) => setState(
+                      () => _difficulty = v ?? TrailDifficulty.moderate,
+                    ),
                   ),
                 ),
               ],
@@ -521,7 +623,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
             const SizedBox(height: 16),
 
             // Description
-            const Text('Description', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              'Description',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _descriptionController,
@@ -544,13 +649,20 @@ class _TrailsScreenState extends State<TrailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Distance (km)', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Distance (km)',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _distanceController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '0.0'),
-                        validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: '0.0',
+                        ),
+                        validator: (v) =>
+                            v?.isEmpty == true ? 'Required' : null,
                       ),
                     ],
                   ),
@@ -560,12 +672,18 @@ class _TrailsScreenState extends State<TrailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Elevation Gain (m)', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Elevation Gain (m)',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _elevationController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '0'),
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: '0',
+                        ),
                       ),
                     ],
                   ),
@@ -578,20 +696,38 @@ class _TrailsScreenState extends State<TrailsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Route Path', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const Text(
+                  'Route Path',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
                 if (_drawnPoints.isNotEmpty)
                   Row(
                     children: [
                       TextButton.icon(
-                        onPressed: () => setState(() => _drawnPoints.removeLast()),
-                        icon: const Icon(Icons.undo, size: 18, color: Colors.orange),
-                        label: const Text('Undo', style: TextStyle(color: Colors.orange)),
+                        onPressed: () =>
+                            setState(() => _drawnPoints.removeLast()),
+                        icon: const Icon(
+                          Icons.undo,
+                          size: 18,
+                          color: Colors.orange,
+                        ),
+                        label: const Text(
+                          'Undo',
+                          style: TextStyle(color: Colors.orange),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       TextButton.icon(
                         onPressed: () => setState(() => _drawnPoints.clear()),
-                        icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
-                        label: const Text('Clear Path', style: TextStyle(color: AppColors.error)),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
+                        label: const Text(
+                          'Clear Path',
+                          style: TextStyle(color: AppColors.error),
+                        ),
                       ),
                     ],
                   ),
@@ -606,10 +742,16 @@ class _TrailsScreenState extends State<TrailsScreen> {
                     controller: _mapSearchController,
                     decoration: InputDecoration(
                       hintText: 'Chercher un lieu (ex: Jbel Chitana)...',
-                      prefixIcon: const Icon(Icons.search, color: AppColors.textHint),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: AppColors.textHint,
+                      ),
                       filled: true,
                       fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     ),
                     onSubmitted: (_) => _searchMapLocation(),
@@ -621,11 +763,23 @@ class _TrailsScreenState extends State<TrailsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                   ),
                   child: _isSearchingMap
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text('Aller'),
                 ),
               ],
@@ -646,7 +800,8 @@ class _TrailsScreenState extends State<TrailsScreen> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+                      urlTemplate:
+                          'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
                       userAgentPackageName: 'com.ecoguide.app',
                     ),
                     PolylineLayer(
@@ -661,27 +816,40 @@ class _TrailsScreenState extends State<TrailsScreen> {
                     ),
                     MarkerLayer(
                       markers: [
-                        ..._drawnPoints.map((p) => Marker(
-                          point: p,
-                          width: 12,
-                          height: 12,
-                          child: Container(
-                            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                        ..._drawnPoints.map(
+                          (p) => Marker(
+                            point: p,
+                            width: 12,
+                            height: 12,
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                           ),
-                        )),
+                        ),
                         if (_drawnPoints.isNotEmpty)
                           Marker(
                             point: _drawnPoints.first,
                             width: 32,
                             height: 32,
-                            child: const Icon(Icons.play_circle_fill, color: AppColors.success, size: 32),
+                            child: const Icon(
+                              Icons.play_circle_fill,
+                              color: AppColors.success,
+                              size: 32,
+                            ),
                           ),
                         if (_drawnPoints.length > 1)
                           Marker(
                             point: _drawnPoints.last,
                             width: 32,
                             height: 32,
-                            child: const Icon(Icons.stop_circle, color: AppColors.error, size: 32),
+                            child: const Icon(
+                              Icons.stop_circle,
+                              color: AppColors.error,
+                              size: 32,
+                            ),
                           ),
                       ],
                     ),
@@ -691,15 +859,21 @@ class _TrailsScreenState extends State<TrailsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _drawnPoints.isNotEmpty 
-                  ? '${_drawnPoints.length} points plotted. Click map to add more.' 
+              _drawnPoints.isNotEmpty
+                  ? '${_drawnPoints.length} points plotted. Click map to add more.'
                   : 'Click on the map to draw the route or upload a GPX file.',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
             ),
             if (_geojson != null && _drawnPoints.isEmpty) ...[
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -707,9 +881,16 @@ class _TrailsScreenState extends State<TrailsScreen> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle, color: AppColors.success, size: 16),
+                    Icon(
+                      Icons.check_circle,
+                      color: AppColors.success,
+                      size: 16,
+                    ),
                     SizedBox(width: 6),
-                    Text('GPX/GeoJSON loaded', style: TextStyle(color: AppColors.success, fontSize: 13)),
+                    Text(
+                      'GPX/GeoJSON loaded',
+                      style: TextStyle(color: AppColors.success, fontSize: 13),
+                    ),
                   ],
                 ),
               ),
@@ -724,7 +905,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Trail Photos', style: TextStyle(fontWeight: FontWeight.w600)),
+        const Text(
+          'Trail Photos',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 4),
         const Text(
           'Upload photos for this trail (first photo is the main one)',
@@ -764,7 +948,11 @@ class _TrailsScreenState extends State<TrailsScreen> {
                 color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.broken_image, color: AppColors.textHint, size: 28),
+              child: const Icon(
+                Icons.broken_image,
+                color: AppColors.textHint,
+                size: 28,
+              ),
             ),
           ),
         ),
@@ -775,7 +963,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
             onTap: () => _removeImage(index),
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+              decoration: const BoxDecoration(
+                color: AppColors.error,
+                shape: BoxShape.circle,
+              ),
               child: const Icon(Icons.close, color: Colors.white, size: 14),
             ),
           ),
@@ -786,8 +977,18 @@ class _TrailsScreenState extends State<TrailsScreen> {
             left: 4,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(8)),
-              child: const Text('Main', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: AppColors.success,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Main',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
       ],
@@ -803,16 +1004,36 @@ class _TrailsScreenState extends State<TrailsScreen> {
         decoration: BoxDecoration(
           color: Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 2),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.3),
+            width: 2,
+          ),
         ),
         child: _isUploadingImage
-            ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5)))
+            ? const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                ),
+              )
             : const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary, size: 28),
+                  Icon(
+                    Icons.add_photo_alternate_outlined,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
                   SizedBox(height: 6),
-                  Text('Upload', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(
+                    'Upload',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
       ),
@@ -833,11 +1054,18 @@ class _TrailsScreenState extends State<TrailsScreen> {
         children: [
           Icon(Icons.lightbulb_outline, color: AppColors.success, size: 28),
           const SizedBox(height: 12),
-          const Text('Pro Tip', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text(
+            'Pro Tip',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           Text(
             'Include high-resolution photos of trail markers to help hikers stay on track. GPS coordinates for water sources are highly recommended.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -856,7 +1084,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Publishing Status', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text(
+            'Publishing Status',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -866,7 +1097,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
                 activeColor: AppColors.success,
               ),
               const SizedBox(width: 8),
-              Text(_isActive ? 'Visible to Public' : 'Hidden (Draft)', style: const TextStyle(fontWeight: FontWeight.w500)),
+              Text(
+                _isActive ? 'Visible to Public' : 'Hidden (Draft)',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -893,7 +1127,14 @@ class _TrailsScreenState extends State<TrailsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               child: _isSaving
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : Text(_editingId != null ? 'Update Trail' : 'Publish Trail'),
             ),
           ),
@@ -918,17 +1159,26 @@ class _TrailsScreenState extends State<TrailsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Existing Trails', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text(
+                'Existing Trails',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
               SizedBox(
                 width: 260,
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Search trails...',
-                    prefixIcon: const Icon(Icons.search, color: AppColors.textHint),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppColors.textHint,
+                    ),
                     filled: true,
                     fillColor: Colors.grey[50],
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 0),
                   ),
                 ),
@@ -957,7 +1207,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
                   Expanded(
                     child: Text(
                       provider.error ?? 'Erreur de chargement',
-                      style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -973,20 +1226,81 @@ class _TrailsScreenState extends State<TrailsScreen> {
             ),
             child: const Row(
               children: [
-                Expanded(flex: 3, child: Text('NAME & REGION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('DISTANCE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('DIFFICULTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
-                SizedBox(width: 80, child: Text('ACTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5))),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'NAME & REGION',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'DISTANCE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'DIFFICULTY',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'STATUS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 80,
+                  child: Text(
+                    'ACTIONS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
 
           // Rows
           if (provider.isLoading)
-            const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (provider.trails.isEmpty)
-            const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No trails found.')))
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: Text('No trails found.')),
+            )
           else
             ListView.separated(
               shrinkWrap: true,
@@ -996,7 +1310,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
               itemBuilder: (context, index) {
                 final trail = provider.trails[index];
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       // Name & Region
@@ -1005,16 +1322,30 @@ class _TrailsScreenState extends State<TrailsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(trail.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            Text(
+                              trail.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(height: 2),
-                            Text(trail.region ?? '', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                            Text(
+                              trail.region ?? '',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       // Distance
                       Expanded(
                         flex: 2,
-                        child: Text('${trail.distance} km', style: const TextStyle(color: AppColors.textPrimary)),
+                        child: Text(
+                          '${trail.distance} km',
+                          style: const TextStyle(color: AppColors.textPrimary),
+                        ),
                       ),
                       // Difficulty
                       Expanded(
@@ -1027,7 +1358,9 @@ class _TrailsScreenState extends State<TrailsScreen> {
                         child: Text(
                           trail.isActive ? 'Published' : 'Draft',
                           style: TextStyle(
-                            color: trail.isActive ? AppColors.textPrimary : AppColors.textSecondary,
+                            color: trail.isActive
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1038,14 +1371,22 @@ class _TrailsScreenState extends State<TrailsScreen> {
                         child: Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.edit, size: 18, color: AppColors.textSecondary),
+                              icon: const Icon(
+                                Icons.edit,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                               onPressed: () => _editTrail(trail),
                             ),
                             const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: AppColors.error,
+                              ),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                               onPressed: () => _deleteTrail(trail),
@@ -1066,17 +1407,28 @@ class _TrailsScreenState extends State<TrailsScreen> {
             children: [
               Text(
                 'Showing 1-${provider.trails.length} of ${provider.total} trails',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
               Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left),
-                    onPressed: provider.currentPage > 1 ? () => provider.loadTrails(page: provider.currentPage - 1) : null,
+                    onPressed: provider.currentPage > 1
+                        ? () => provider.loadTrails(
+                            page: provider.currentPage - 1,
+                          )
+                        : null,
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
-                    onPressed: provider.currentPage < provider.totalPages ? () => provider.loadTrails(page: provider.currentPage + 1) : null,
+                    onPressed: provider.currentPage < provider.totalPages
+                        ? () => provider.loadTrails(
+                            page: provider.currentPage + 1,
+                          )
+                        : null,
                   ),
                 ],
               ),
@@ -1117,14 +1469,18 @@ class _TrailsScreenState extends State<TrailsScreen> {
           if (provider.minDistance != null || provider.maxDistance != null) ...[
             const SizedBox(width: 8),
             Chip(
-              label: Text('Distance: ${provider.minDistance ?? 0}-${provider.maxDistance ?? 50}km'),
+              label: Text(
+                'Distance: ${provider.minDistance ?? 0}-${provider.maxDistance ?? 50}km',
+              ),
               onDeleted: () => provider.setDistanceFilter(null, null),
             ),
           ],
           if (provider.maxDuration != null) ...[
             const SizedBox(width: 8),
             Chip(
-              label: Text('Durée max: ${_formatDuration(provider.maxDuration!)}'),
+              label: Text(
+                'Durée max: ${_formatDuration(provider.maxDuration!)}',
+              ),
               onDeleted: () => provider.setDurationFilter(null),
             ),
           ],
@@ -1180,7 +1536,14 @@ class _TrailsScreenState extends State<TrailsScreen> {
         color: bgColor,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(label, style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600)),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -1237,7 +1600,10 @@ class _TrailFilterDialogState extends State<_TrailFilterDialog> {
               const SizedBox(height: 24),
 
               // Difficulty Filter
-              const Text('Difficulté', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Difficulté',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -1245,29 +1611,36 @@ class _TrailFilterDialogState extends State<_TrailFilterDialog> {
                   _FilterChip(
                     label: 'Tous',
                     selected: _selectedDifficulty == null,
-                    onSelected: () => setState(() => _selectedDifficulty = null),
+                    onSelected: () =>
+                        setState(() => _selectedDifficulty = null),
                   ),
                   _FilterChip(
                     label: 'Facile',
                     selected: _selectedDifficulty == 'easy',
-                    onSelected: () => setState(() => _selectedDifficulty = 'easy'),
+                    onSelected: () =>
+                        setState(() => _selectedDifficulty = 'easy'),
                   ),
                   _FilterChip(
                     label: 'Modérée',
                     selected: _selectedDifficulty == 'moderate',
-                    onSelected: () => setState(() => _selectedDifficulty = 'moderate'),
+                    onSelected: () =>
+                        setState(() => _selectedDifficulty = 'moderate'),
                   ),
                   _FilterChip(
                     label: 'Difficile',
                     selected: _selectedDifficulty == 'difficult',
-                    onSelected: () => setState(() => _selectedDifficulty = 'difficult'),
+                    onSelected: () =>
+                        setState(() => _selectedDifficulty = 'difficult'),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
               // Distance Filter
-              const Text('Distance (km)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Distance (km)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               RangeSlider(
                 values: _distanceRange,
@@ -1295,7 +1668,10 @@ class _TrailFilterDialogState extends State<_TrailFilterDialog> {
               const SizedBox(height: 24),
 
               // Duration Filter
-              const Text('Durée maximale (minutes)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Durée maximale (minutes)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               Slider(
                 value: _selectedDuration.toDouble(),

@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/network_service.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/local_service_provider.dart';
 import '../../models/local_service.dart';
@@ -33,7 +34,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<LocalServiceProvider>().loadServices();
+      _loadServices();
     });
   }
 
@@ -60,6 +61,30 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     );
   }
 
+  Future<void> _refreshServices() async {
+    final isOnline = await NetworkService.hasInternetConnection();
+    if (!mounted) return;
+
+    await context.read<LocalServiceProvider>().loadServices(
+      category: _selectedCategory,
+      search: _searchController.text.trim().isEmpty
+          ? null
+          : _searchController.text.trim(),
+      forceOffline: !isOnline,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isOnline
+              ? 'Services recharges depuis Supabase.'
+              : 'Mode hors ligne: services recharges depuis SQL.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LocalServiceProvider>();
@@ -77,9 +102,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () async {
-                  await _loadServices();
-                },
+                onRefresh: _refreshServices,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: Column(
@@ -120,10 +143,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             children: [
               const Text(
                 'Annuaire Local',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
               Text(
@@ -131,22 +151,21 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],
           ),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(14),
+          IconButton(
+            onPressed: _refreshServices,
+            icon: Icon(
+              Icons.refresh,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 22,
             ),
-            child: IconButton(
-              icon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface, size: 22),
-              onPressed: () {},
-            ),
+            tooltip: 'Actualiser',
           ),
         ],
       ),
@@ -165,16 +184,22 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
           final isSelected = _selectedCategory == category['key'];
 
           return Padding(
-            padding: EdgeInsets.only(right: index < _categories.length - 1 ? 12 : 0),
+            padding: EdgeInsets.only(
+              right: index < _categories.length - 1 ? 12 : 0,
+            ),
             child: GestureDetector(
               onTap: () => _onCategorySelected(category['key']),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF2E7D32) : Theme.of(context).cardColor,
+                  color: isSelected
+                      ? const Color(0xFF2E7D32)
+                      : Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? const Color(0xFF2E7D32) : Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                    color: isSelected
+                        ? const Color(0xFF2E7D32)
+                        : Theme.of(context).dividerColor.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -184,7 +209,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     Icon(
                       category['icon'] as IconData,
                       size: 16,
-                      color: isSelected ? Colors.white : const Color(0xFF2E7D32),
+                      color: isSelected
+                          ? Colors.white
+                          : const Color(0xFF2E7D32),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -192,7 +219,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+                        color: isSelected
+                            ? Colors.white
+                            : Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -215,10 +244,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
           const Expanded(
             child: Text(
               'Établissements Éco-responsables',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -326,7 +352,10 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF5D4037),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -366,11 +395,13 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
 
     final centerLat = servicesWithLocation.isNotEmpty
         ? servicesWithLocation.map((s) => s.latitude!).reduce((a, b) => a + b) /
-            servicesWithLocation.length
+              servicesWithLocation.length
         : AppConstants.defaultLatitude;
     final centerLng = servicesWithLocation.isNotEmpty
-        ? servicesWithLocation.map((s) => s.longitude!).reduce((a, b) => a + b) /
-            servicesWithLocation.length
+        ? servicesWithLocation
+                  .map((s) => s.longitude!)
+                  .reduce((a, b) => a + b) /
+              servicesWithLocation.length
         : AppConstants.defaultLongitude;
 
     return Padding(
@@ -380,17 +411,16 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
         children: [
           const Text(
             'Autour de vous',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 16),
           Container(
             height: 160,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              ),
             ),
             child: Stack(
               children: [
@@ -406,16 +436,24 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.ecoguide.app',
                       ),
                       MarkerLayer(
                         markers: servicesWithLocation.map((service) {
                           return Marker(
-                            point: LatLng(service.latitude!, service.longitude!),
+                            point: LatLng(
+                              service.latitude!,
+                              service.longitude!,
+                            ),
                             width: 32,
                             height: 32,
-                            child: const Icon(Icons.location_on, color: Colors.blue, size: 24),
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Colors.blue,
+                              size: 24,
+                            ),
                           );
                         }).toList(),
                       ),
@@ -428,9 +466,14 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   right: 0,
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor.withValues(alpha: 0.9),
+                        color: Theme.of(
+                          context,
+                        ).cardColor.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
@@ -443,7 +486,11 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.map, size: 16, color: Theme.of(context).colorScheme.onSurface),
+                          Icon(
+                            Icons.map,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Ouvrir la carte interactive',
@@ -512,7 +559,9 @@ class _ServiceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -523,7 +572,9 @@ class _ServiceCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
                   child: service.imageUrl != null
                       ? CachedNetworkImage(
                           imageUrl: service.imageUrl!,
@@ -533,7 +584,9 @@ class _ServiceCard extends StatelessWidget {
                           placeholder: (_, __) => Container(
                             height: 140,
                             color: Colors.grey[300],
-                            child: const Center(child: CircularProgressIndicator()),
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                           ),
                           errorWidget: (_, __, ___) => _buildPlaceholderImage(),
                         )
@@ -544,7 +597,10 @@ class _ServiceCard extends StatelessWidget {
                     top: 12,
                     right: 12,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(12),
@@ -552,7 +608,11 @@ class _ServiceCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star, size: 12, color: Color(0xFFFFB800)),
+                          const Icon(
+                            Icons.star,
+                            size: 12,
+                            color: Color(0xFFFFB800),
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             service.rating!.toStringAsFixed(1),
@@ -576,7 +636,7 @@ class _ServiceCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                       Expanded(
+                      Expanded(
                         child: Text(
                           service.name,
                           style: TextStyle(
@@ -605,32 +665,50 @@ class _ServiceCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
                       height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(Icons.location_on_outlined, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 14,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
                       const SizedBox(width: 4),
                       Text(
-                        "2km d'ici", 
+                        "2km d'ici",
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                       const SizedBox(width: 16),
-                      Icon(_getCategoryIcon(service.category), size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                      Icon(
+                        _getCategoryIcon(service.category),
+                        size: 14,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         service.categoryDisplayName,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],

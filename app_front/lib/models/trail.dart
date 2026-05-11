@@ -118,7 +118,9 @@ class Trail {
       startLongitude: _parseNullableDouble(json['startLongitude']),
       geojson: json['geojson'] as Map<String, dynamic>?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
