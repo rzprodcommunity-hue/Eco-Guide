@@ -49,27 +49,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // 1. Load from local cache instantly — no network call
       final prefs = await SharedPreferences.getInstance();
-      if (_isSupabaseInitialized) {
-        final supabaseAuth = await _authService.currentAuthResponse();
-        if (supabaseAuth != null) {
-          await _saveAuth(supabaseAuth.accessToken, supabaseAuth.user);
-          return;
-        }
-      }
-
-      final isGuestMode = prefs.getBool(AppConstants.guestModeKey) ?? false;
-
       final storedToken = prefs.getString(AppConstants.tokenKey);
       final storedUserJson = prefs.getString(AppConstants.userKey);
-
-      if (isGuestMode && storedToken != null && storedUserJson != null) {
-        _token = storedToken;
-        _user = User.fromJson(
-          jsonDecode(storedUserJson) as Map<String, dynamic>,
-        );
-        return;
-      }
 
       if (storedToken != null && storedUserJson != null) {
         _token = storedToken;
@@ -77,6 +60,28 @@ class AuthProvider extends ChangeNotifier {
           jsonDecode(storedUserJson) as Map<String, dynamic>,
         );
         _apiClient.setToken(_token);
+        // Show the app immediately from cache
+        _isLoading = false;
+        notifyListeners();
+
+        // 2. Verify with Supabase in the background
+        if (_isSupabaseInitialized) {
+          _authService.currentAuthResponse().then((supabaseAuth) async {
+            if (supabaseAuth != null) {
+              await _saveAuth(supabaseAuth.accessToken, supabaseAuth.user);
+            }
+          }).catchError((_) {});
+        }
+        return;
+      }
+
+      // No local cache — check Supabase (first launch or after logout)
+      if (_isSupabaseInitialized) {
+        final supabaseAuth = await _authService.currentAuthResponse();
+        if (supabaseAuth != null) {
+          await _saveAuth(supabaseAuth.accessToken, supabaseAuth.user);
+          return;
+        }
       }
     } catch (e) {
       _error = e.toString();

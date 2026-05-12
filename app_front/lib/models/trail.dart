@@ -108,18 +108,27 @@ class Trail {
       description: json['description'] as String,
       distance: _parseDouble(json['distance']),
       difficulty: json['difficulty'] as String,
-      estimatedDuration: _parseNullableInt(json['estimatedDuration']),
-      elevationGain: _parseNullableDouble(json['elevationGain']),
-      imageUrls: _parseImageUrls(json['imageUrls']),
+      estimatedDuration: _parseNullableInt(
+          json['estimated_duration'] ?? json['estimatedDuration']),
+      elevationGain: _parseNullableDouble(
+          json['elevation_gain'] ?? json['elevationGain']),
+      imageUrls: _parseImageUrls(
+          json['image_urls'] ?? json['imageUrls']),
       region: json['region'] as String?,
-      averageRating: _parseNullableDouble(json['averageRating']),
-      reviewCount: _parseNullableInt(json['reviewCount']),
-      startLatitude: _parseNullableDouble(json['startLatitude']),
-      startLongitude: _parseNullableDouble(json['startLongitude']),
+      averageRating: _parseNullableDouble(
+          json['average_rating'] ?? json['averageRating']),
+      reviewCount: _parseNullableInt(
+          json['review_count'] ?? json['reviewCount']),
+      startLatitude: _parseNullableDouble(
+          json['start_latitude'] ?? json['startLatitude']),
+      startLongitude: _parseNullableDouble(
+          json['start_longitude'] ?? json['startLongitude']),
       geojson: json['geojson'] as Map<String, dynamic>?,
-      isActive: json['isActive'] as bool? ?? true,
+      isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? true,
       createdAt: DateTime.parse(
-        json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+        json['created_at'] as String? ??
+        json['createdAt'] as String? ??
+        DateTime.now().toIso8601String(),
       ),
     );
   }

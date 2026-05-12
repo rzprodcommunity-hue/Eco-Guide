@@ -227,7 +227,7 @@ class ApiClient {
     final limit = _int(params, 'limit', fallback: 10);
     final from = (page - 1) * limit;
     final to = from + limit - 1;
-    dynamic query = _supabase.from('trails').select().eq('isActive', true);
+    dynamic query = _supabase.from('trails').select().eq('is_active', true);
 
     if (params['difficulty'] != null) {
       query = query.eq('difficulty', params['difficulty']!);
@@ -248,11 +248,11 @@ class ApiClient {
       query = query.lte('distance', double.parse(params['maxDistance']!));
     }
     if (params['maxDuration'] != null) {
-      query = query.lte('estimatedDuration', int.parse(params['maxDuration']!));
+      query = query.lte('estimated_duration', int.parse(params['maxDuration']!));
     }
 
     final rows = await query
-        .order('createdAt', ascending: false)
+        .order('created_at', ascending: false)
         .range(from, to);
     return _paginated(rows as List<dynamic>, page, limit);
   }
@@ -262,11 +262,12 @@ class ApiClient {
     final limit = _int(params, 'limit', fallback: 10);
     final from = (page - 1) * limit;
     final to = from + limit - 1;
-    dynamic query = _supabase.from('pois').select().eq('isActive', true);
+    dynamic query = _supabase.from('pois').select().eq('is_active', true);
 
     if (params['type'] != null) query = query.eq('type', params['type']!);
-    if (params['trailId'] != null)
-      query = query.eq('trailId', params['trailId']!);
+    if (params['trailId'] != null) {
+      query = query.eq('trail_id', params['trailId']!);
+    }
     if (params['search'] != null) {
       final search = '${params['search']}%';
       query = query.or(
@@ -275,7 +276,7 @@ class ApiClient {
     }
 
     final rows = await query
-        .order('createdAt', ascending: false)
+        .order('created_at', ascending: false)
         .range(from, to);
     return _paginated(rows as List<dynamic>, page, limit);
   }
@@ -290,8 +291,8 @@ class ApiClient {
     dynamic query = _supabase
         .from('local_services')
         .select()
-        .eq('isActive', true)
-        .eq('isVerified', true);
+        .eq('is_active', true)
+        .eq('is_verified', true);
 
     if (params['category'] != null)
       query = query.eq('category', params['category']!);
@@ -303,7 +304,7 @@ class ApiClient {
     }
 
     final rows = await query
-        .order('createdAt', ascending: false)
+        .order('created_at', ascending: false)
         .range(from, to);
     return _paginated(rows as List<dynamic>, page, limit);
   }
@@ -316,8 +317,8 @@ class ApiClient {
     final rows = await _supabase
         .from('quizzes')
         .select()
-        .eq('isActive', true)
-        .order('createdAt', ascending: false)
+        .eq('is_active', true)
+        .order('created_at', ascending: false)
         .range(from, to);
     return _paginated(rows, page, limit);
   }
@@ -326,7 +327,7 @@ class ApiClient {
     Map<String, String> params,
   ) async {
     final count = _int(params, 'count', fallback: 5);
-    dynamic query = _supabase.from('quizzes').select().eq('isActive', true);
+    dynamic query = _supabase.from('quizzes').select().eq('is_active', true);
     if (params['category'] != null)
       query = query.eq('category', params['category']!);
     final rows = await query.limit(count);
@@ -341,7 +342,7 @@ class ApiClient {
     dynamic query = _supabase.from('quiz_scores').select();
     if (params['category'] != null)
       query = query.eq('category', params['category']!);
-    final rows = await query.order('totalScore', ascending: false).limit(limit);
+    final rows = await query.order('total_score', ascending: false).limit(limit);
     return {'data': rows};
   }
 
@@ -355,8 +356,8 @@ class ApiClient {
     final rows = await _supabase
         .from('activities')
         .select()
-        .eq('userId', _requiredUserId())
-        .order('createdAt', ascending: false)
+        .eq('user_id', _requiredUserId())
+        .order('created_at', ascending: false)
         .range(from, to);
     return _paginated(rows, page, limit);
   }

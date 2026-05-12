@@ -144,41 +144,34 @@ class _AppWrapperState extends State<AppWrapper> {
       }
     });
 
-    // Initialize real-time updates from Dashboard
-    try {
-      SocketService.init();
+    // Delay realtime subscriptions — don't block app startup with WebSocket connections
+    Future.delayed(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      try {
+        SocketService.init();
 
-      SocketService.on('trail_updated', (data) {
-        if (mounted) {
-          print('📡 Real-time update: Trail ${data['action']}');
-          _refreshRealtimeData();
-        }
-      });
+        SocketService.on('trail_updated', (data) {
+          if (mounted) _refreshRealtimeData();
+        });
 
-      SocketService.on('poi_updated', (data) {
-        if (mounted) {
-          print('📡 Real-time update: POI ${data['action']}');
-          _refreshRealtimeData();
-        }
-      });
+        SocketService.on('poi_updated', (data) {
+          if (mounted) _refreshRealtimeData();
+        });
 
-      SocketService.on('service_updated', (data) {
-        if (mounted) {
-          print('📡 Real-time update: Service ${data['action']}');
-          _refreshRealtimeData();
-        }
-      });
+        SocketService.on('service_updated', (data) {
+          if (mounted) _refreshRealtimeData();
+        });
 
-      SocketService.on('quiz_updated', (data) {
-        if (mounted) {
-          print('📡 Real-time update: Quiz ${data['action']}');
-          context.read<QuizProvider>().loadCategoryStats();
-          context.read<QuizProvider>().loadUserScores();
-        }
-      });
-    } catch (_) {
-      // Widget tests can boot the app without initializing Supabase first.
-    }
+        SocketService.on('quiz_updated', (data) {
+          if (mounted) {
+            context.read<QuizProvider>().loadCategoryStats();
+            context.read<QuizProvider>().loadUserScores();
+          }
+        });
+      } catch (_) {
+        // Supabase not initialized in test environment.
+      }
+    });
   }
 
   @override
