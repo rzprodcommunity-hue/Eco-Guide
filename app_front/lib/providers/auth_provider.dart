@@ -133,7 +133,7 @@ class AuthProvider extends ChangeNotifier {
       await _saveAuth(response.accessToken, response.user);
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _friendlyError(e.toString());
       return false;
     } finally {
       _isLoading = false;
@@ -264,6 +264,26 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  String _friendlyError(String raw) {
+    final msg = raw.toLowerCase();
+    if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
+      return 'Votre email n\'est pas confirmé. Vérifiez votre boîte mail et cliquez sur le lien de confirmation.';
+    }
+    if (msg.contains('invalid login credentials') || msg.contains('invalid_credentials')) {
+      return 'Email ou mot de passe incorrect.';
+    }
+    if (msg.contains('user not found')) {
+      return 'Aucun compte trouvé avec cet email.';
+    }
+    if (msg.contains('too many requests') || msg.contains('rate limit')) {
+      return 'Trop de tentatives. Réessayez dans quelques minutes.';
+    }
+    if (msg.contains('network') || msg.contains('socket') || msg.contains('connection')) {
+      return 'Problème de connexion réseau. Vérifiez votre internet.';
+    }
+    return raw;
   }
 
   @override

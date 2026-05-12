@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../../models/activity.dart';
+import '../../models/trail.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../services/activity_service.dart';
 import '../../services/api_client.dart';
-import '../../services/quiz_service.dart';
+import '../../services/badge_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,10 +19,14 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   UserStats? _stats;
-  QuizSummary? _quizSummary;
+  List<UserBadge> _badges = [];
   bool _isLoading = false;
+
+  late AnimationController _barController;
+  late Animation<double> _barAnimation;
 
   final List<_TrailHistoryItem> _historyItems = const [
     _TrailHistoryItem(
@@ -62,7 +68,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _barController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _barAnimation = CurvedAnimation(
+      parent: _barController,
+      curve: Curves.easeOutCubic,
+    );
     _loadStats();
+    _barController.forward();
+  }
+
+  @override
+  void dispose() {
+    _barController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadStats() async {
@@ -74,17 +95,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final apiClient = context.read<ApiClient>();
       final activityService = ActivityService(apiClient);
-      final quizService = QuizService(apiClient);
 
       final results = await Future.wait<dynamic>([
         activityService.getMyStats(),
-        quizService.getMySummary(),
+        BadgeService.getMyBadges(),
       ]);
 
       if (!mounted) return;
       setState(() {
         _stats = results[0] as UserStats;
-        _quizSummary = results[1] as QuizSummary;
+        _badges = results[1] as List<UserBadge>;
       });
     } catch (_) {
       // UI-only screen: ignore fetch failures and keep fallbacks.
@@ -127,6 +147,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildStatsSection(),
               const SizedBox(height: 24),
               _buildBadgesSection(),
+              const SizedBox(height: 24),
+              _buildFavoritesSection(),
               const SizedBox(height: 24),
               _buildActivitySection(),
               const SizedBox(height: 24),
@@ -304,55 +326,170 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBadgesSection() {
-    final badges = _quizSummary?.badges ?? const <QuizBadgeModel>[];
+    final earnedKeys = _badges.map((b) => b.key).toSet();
+    final allDefs = BadgeService.allDefinitions;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Badges & Succes',
-          style: TextStyle(
-            fontSize: 40 / 2,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF212121),
-          ),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Badges & Succès',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF212121),
+                ),
+              ),
+            ),
+            Text(
+              '${_badges.length}/${allDefs.length}',
+              style: const TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 96,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _BadgeTile(
-                color: const Color(0xFFF8EFCB),
-                icon: Icons.military_tech,
-                iconColor: const Color(0xFFF4BA09),
-                label: badges.isNotEmpty ? badges.first.label : 'Sommet',
+        if (_badges.isEmpty && !_isLoading)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Center(
+              child: Text(
+                'Complétez des quiz pour gagner des badges !',
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(width: 12),
-              const _BadgeTile(
-                color: Color(0xFFDFF0E3),
-                icon: Icons.eco,
-                iconColor: Color(0xFF47B35B),
-                label: 'Eco-Guide',
-              ),
-              const SizedBox(width: 12),
-              const _BadgeTile(
-                color: Color(0xFFDDEDFC),
-                icon: Icons.explore,
-                iconColor: Color(0xFF2996ED),
-                label: 'Pionnier',
-              ),
-              const SizedBox(width: 12),
-              const _BadgeTile(
-                color: Color(0xFFF0EEE8),
-                icon: Icons.lock,
-                iconColor: Color(0xFFA7A7A7),
-                label: '???',
-              ),
-            ],
+            ),
+          )
+        else
+          SizedBox(
+            height: 104,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: allDefs.length,
+              separatorBuilder: (ctx, i) => const SizedBox(width: 12),
+              itemBuilder: (context, i) {
+                final def = allDefs[i];
+                final key = def['key']!;
+                final earned = earnedKeys.contains(key);
+                final bgColor = _hexColor(def['color']!);
+                final iconColor = earned
+                    ? _hexColor(def['iconColor']!)
+                    : const Color(0xFFA7A7A7);
+                return _BadgeTile(
+                  color: earned ? bgColor : const Color(0xFFF0F0F0),
+                  icon: earned ? _iconFromKey(def['icon']!) : Icons.lock,
+                  iconColor: iconColor,
+                  label: earned ? def['label']! : '???',
+                  locked: !earned,
+                  tooltip: def['description']!,
+                );
+              },
+            ),
           ),
+      ],
+    );
+  }
+
+  Color _hexColor(String hex) {
+    final h = hex.replaceAll('#', '');
+    return Color(int.parse('FF$h', radix: 16));
+  }
+
+  IconData _iconFromKey(String key) {
+    switch (key) {
+      case 'school': return Icons.school;
+      case 'grade': return Icons.grade;
+      case 'military_tech': return Icons.military_tech;
+      case 'eco': return Icons.eco;
+      case 'explore': return Icons.explore;
+      case 'emoji_events': return Icons.emoji_events;
+      default: return Icons.stars;
+    }
+  }
+
+  Widget _buildFavoritesSection() {
+    final favs = context.watch<FavoritesProvider>().favorites;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Sentiers Favoris',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF212121),
+                ),
+              ),
+            ),
+            Text(
+              '${favs.length} sentier${favs.length != 1 ? 's' : ''}',
+              style: const TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 12),
+        if (favs.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2EFE8),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFD5C0A0), width: 1.2),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.favorite_border,
+                  size: 40,
+                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Aucun sentier favori pour le moment',
+                  style: TextStyle(
+                    color: Color(0xFF7A7A7A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Appuyez sur ♡ sur un sentier pour l\'ajouter',
+                  style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 12),
+                ),
+              ],
+            ),
+          )
+        else
+          SizedBox(
+            height: 130,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: favs.length,
+              separatorBuilder: (context, i) => const SizedBox(width: 12),
+              itemBuilder: (context, index) =>
+                  _FavoriteTrailCard(trail: favs[index]),
+            ),
+          ),
       ],
     );
   }
@@ -397,27 +534,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           child: Column(
             children: [
-              SizedBox(
-                height: 130,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: _weeklyBars
-                      .map(
-                        (bar) => Expanded(
+              AnimatedBuilder(
+                animation: _barAnimation,
+                builder: (context, child) {
+                  final todayIndex = DateTime.now().weekday - 1;
+                  return SizedBox(
+                    height: 130,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: List.generate(_weeklyBars.length, (i) {
+                        final isToday = i == todayIndex;
+                        return Expanded(
                           child: Center(
                             child: Container(
-                              width: 24,
-                              height: bar,
+                              width: isToday ? 28 : 24,
+                              height: _weeklyBars[i] * _barAnimation.value,
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor,
+                                color: isToday
+                                    ? const Color(0xFFE91E8C)
+                                    : AppTheme.primaryColor,
                                 borderRadius: BorderRadius.circular(7),
                               ),
                             ),
                           ),
-                        ),
-                      )
-                      .toList(),
-                ),
+                        );
+                      }),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 8),
               const Row(
@@ -618,44 +762,132 @@ class _KpiCard extends StatelessWidget {
   }
 }
 
+class _FavoriteTrailCard extends StatelessWidget {
+  final Trail trail;
+
+  const _FavoriteTrailCard({required this.trail});
+
+  @override
+  Widget build(BuildContext context) {
+    final favProvider = context.read<FavoritesProvider>();
+    return Container(
+      width: 140,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFFF2EFE8),
+        border: Border.all(color: const Color(0xFFD5C0A0), width: 1.1),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (trail.imageUrls != null && trail.imageUrls!.isNotEmpty)
+            Image.network(
+              trail.imageUrls!.first,
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => Container(
+                color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                child: const Icon(Icons.landscape, color: AppTheme.primaryColor),
+              ),
+            )
+          else
+            Container(
+              color: AppTheme.primaryColor.withValues(alpha: 0.15),
+              child: const Icon(Icons.landscape, color: AppTheme.primaryColor),
+            ),
+          // gradient overlay
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.65)],
+              ),
+            ),
+          ),
+          // remove heart
+          Positioned(
+            top: 6,
+            right: 6,
+            child: GestureDetector(
+              onTap: () => favProvider.toggle(trail),
+              child: const Icon(Icons.favorite, color: Color(0xFFE91E8C), size: 20),
+            ),
+          ),
+          // trail name
+          Positioned(
+            bottom: 8,
+            left: 8,
+            right: 8,
+            child: Text(
+              trail.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BadgeTile extends StatelessWidget {
   final Color color;
   final IconData icon;
   final Color iconColor;
   final String label;
+  final bool locked;
+  final String tooltip;
 
   const _BadgeTile({
     required this.color,
     required this.icon,
     required this.iconColor,
     required this.label,
+    this.locked = false,
+    this.tooltip = '',
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 152,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: iconColor.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: iconColor, size: 34),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF2A2A2A),
-            ),
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        width: 120,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: locked
+                ? const Color(0xFFDDDDDD)
+                : iconColor.withValues(alpha: 0.35),
           ),
-        ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: iconColor, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: locked
+                    ? const Color(0xFFAAAAAA)
+                    : const Color(0xFF2A2A2A),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

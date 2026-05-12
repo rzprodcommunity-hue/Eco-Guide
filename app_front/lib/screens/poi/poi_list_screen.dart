@@ -370,16 +370,12 @@ class _PoiHeritageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isHighlighted
-        ? const Color(0xFFE194C6)
-        : const Color(0xFFE8E0D3);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF2EFE7),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: isHighlighted ? 2 : 1),
+        border: Border.all(color: const Color(0xFFE8E0D3), width: 1),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

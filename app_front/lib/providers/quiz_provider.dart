@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/quiz.dart';
 import '../services/api_client.dart';
+import '../services/badge_service.dart';
 import '../services/quiz_service.dart';
 
 class QuizProvider extends ChangeNotifier {
@@ -168,6 +169,9 @@ class QuizProvider extends ChangeNotifier {
     }
   }
 
+  List<UserBadge> _newlyEarnedBadges = [];
+  List<UserBadge> get newlyEarnedBadges => _newlyEarnedBadges;
+
   Future<void> finishQuiz() async {
     if (_quizzes.isEmpty) return;
 
@@ -181,6 +185,22 @@ class QuizProvider extends ChangeNotifier {
       await loadUserScores();
     } catch (e) {
       debugPrint('Error submitting score: $e');
+    }
+
+    // Award badges based on performance
+    try {
+      final completed = _userScores.length;
+      final earned = await BadgeService.checkAndAward(
+        score: _score,
+        correctAnswers: _correctAnswers,
+        totalQuestions: _quizzes.length,
+        quizzesCompleted: completed > 0 ? completed : 1,
+        category: _currentCategory,
+      );
+      _newlyEarnedBadges = earned;
+      if (earned.isNotEmpty) notifyListeners();
+    } catch (e) {
+      debugPrint('Error awarding badges: $e');
     }
   }
 

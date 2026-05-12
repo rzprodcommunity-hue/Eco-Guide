@@ -102,17 +102,21 @@ class AuthService {
     String? firstName,
     String? lastName,
   }) async {
-    final metadata = authUser.userMetadata ?? {};
-    final names = _namesFromAuth(authUser, firstName, lastName);
+    try {
+      final metadata = authUser.userMetadata ?? {};
+      final names = _namesFromAuth(authUser, firstName, lastName);
 
-    await _supabase.from('profiles').upsert({
-      'id': authUser.id,
-      'email': authUser.email ?? '',
-      if (names.$1 != null) 'firstName': names.$1,
-      if (names.$2 != null) 'lastName': names.$2,
-      if (metadata['avatar_url'] != null || metadata['picture'] != null)
-        'avatarUrl': metadata['avatar_url'] ?? metadata['picture'],
-    });
+      await _supabase.from('profiles').upsert({
+        'id': authUser.id,
+        'email': authUser.email ?? '',
+        if (names.$1 != null) 'firstName': names.$1,
+        if (names.$2 != null) 'lastName': names.$2,
+        if (metadata['avatar_url'] != null || metadata['picture'] != null)
+          'avatarUrl': metadata['avatar_url'] ?? metadata['picture'],
+      });
+    } catch (_) {
+      // Ignore sync failures — user data from auth token is used as fallback
+    }
   }
 
   Future<User> _profileForUser(supabase.User authUser) async {
@@ -128,11 +132,16 @@ class AuthService {
       await _syncProfile(authUser);
     }
 
-    final profile = await _supabase
-        .from('profiles')
-        .select()
-        .eq('id', authUser.id)
-        .maybeSingle();
+    Map<String, dynamic>? profile;
+    try {
+      profile = await _supabase
+          .from('profiles')
+          .select()
+          .eq('id', authUser.id)
+          .maybeSingle();
+    } catch (_) {
+      profile = null;
+    }
 
     final names = _namesFromAuth(
       authUser,

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chewie/chewie.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../models/poi.dart';
@@ -476,7 +479,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
           const SizedBox(height: 24),
         ],
         Text(
-          'Video',
+          'Vidéo',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -485,30 +488,48 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
         ),
         const SizedBox(height: 8),
         if (videos.isNotEmpty)
-          SizedBox(
-            height: 92,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: videos.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (context, index) {
-                return _MediaActionCard(
-                  icon: Icons.play_circle_fill,
-                  title: 'Video ${index + 1}',
-                  subtitle: 'Ouvrir la video',
-                  enabled: true,
-                  onTap: () => _openMediaUrl(videos[index]),
-                );
-              },
-            ),
+          Column(
+            children: videos.asMap().entries.map((e) {
+              return Padding(
+                padding: EdgeInsets.only(bottom: e.key < videos.length - 1 ? 12 : 0),
+                child: _InlineVideoPlayer(url: e.value, index: e.key),
+              );
+            }).toList(),
           )
         else
-          _MediaActionCard(
-            icon: Icons.play_circle_outline,
-            title: 'Video',
-            subtitle: 'Aucune video disponible',
-            enabled: false,
-            onTap: null,
+          Container(
+            height: 160,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.videocam_off_rounded,
+                      size: 36,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.3)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Aucune vidéo disponible',
+                    style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.5),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         const SizedBox(height: 24),
         Text(
@@ -667,6 +688,186 @@ class _CircleIconButton extends StatelessWidget {
           size: 18,
           color: Theme.of(context).colorScheme.onSurface,
         ),
+      ),
+    );
+  }
+}
+
+class _InlineVideoPlayer extends StatefulWidget {
+  final String url;
+  final int index;
+
+  const _InlineVideoPlayer({required this.url, required this.index});
+
+  @override
+  State<_InlineVideoPlayer> createState() => _InlineVideoPlayerState();
+}
+
+class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
+  // Direct video (mp4/webm/mov)
+  VideoPlayerController? _vpController;
+  ChewieController? _chewieController;
+
+  // YouTube
+  YoutubePlayerController? _ytController;
+
+  bool _initialized = false;
+  bool _error = false;
+  bool _loading = false;
+
+  bool get _isYoutube {
+    final u = widget.url.toLowerCase();
+    return u.contains('youtube.com') || u.contains('youtu.be');
+  }
+
+  String? get _youtubeId =>
+      YoutubePlayer.convertUrlToId(widget.url);
+
+  Future<void> _initPlayer() async {
+    if (_loading || _initialized) return;
+    setState(() => _loading = true);
+
+    if (_isYoutube) {
+      final id = _youtubeId;
+      if (id == null) {
+        setState(() { _error = true; _loading = false; });
+        return;
+      }
+      final yt = YoutubePlayerController(
+        initialVideoId: id,
+        flags: const YoutubePlayerFlags(autoPlay: true, mute: false),
+      );
+      if (!mounted) { yt.dispose(); return; }
+      setState(() {
+        _ytController = yt;
+        _initialized = true;
+        _loading = false;
+      });
+    } else {
+      try {
+        final vp = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+        await vp.initialize();
+        final chewie = ChewieController(
+          videoPlayerController: vp,
+          autoPlay: true,
+          looping: false,
+          aspectRatio: vp.value.aspectRatio,
+          placeholder: Container(color: Colors.black),
+        );
+        if (!mounted) { vp.dispose(); chewie.dispose(); return; }
+        setState(() {
+          _vpController = vp;
+          _chewieController = chewie;
+          _initialized = true;
+          _loading = false;
+        });
+      } catch (_) {
+        if (mounted) setState(() { _error = true; _loading = false; });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ytController?.dispose();
+    _chewieController?.dispose();
+    _vpController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (_initialized && _ytController != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: YoutubePlayer(
+          controller: _ytController!,
+          showVideoProgressIndicator: true,
+          progressIndicatorColor: theme.colorScheme.primary,
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 220,
+        color: Colors.black,
+        child: _initialized
+            ? Chewie(controller: _chewieController!)
+            : _error
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: Colors.white54, size: 36),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Impossible de charger la vidéo',
+                          style: TextStyle(color: Colors.white54, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  )
+                : GestureDetector(
+                    onTap: _initPlayer,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(color: Colors.black87),
+                        if (_isYoutube && _youtubeId != null)
+                          Image.network(
+                            'https://img.youtube.com/vi/${_youtubeId!}/hqdefault.jpg',
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (ctx, err, st) =>
+                                Container(color: Colors.black87),
+                          ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_loading)
+                              const CircularProgressIndicator(color: Colors.white)
+                            else ...[
+                              Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  color: _isYoutube
+                                      ? Colors.red.withValues(alpha: 0.9)
+                                      : theme.colorScheme.primary
+                                          .withValues(alpha: 0.9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.play_arrow_rounded,
+                                    color: Colors.white, size: 38),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _isYoutube
+                                      ? 'YouTube — Appuyer pour lire'
+                                      : 'Vidéo ${widget.index + 1} — Appuyer pour lire',
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
       ),
     );
   }

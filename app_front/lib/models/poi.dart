@@ -83,15 +83,19 @@ class Poi {
       type: json['type'] as String,
       description: json['description'] as String,
       badge: json['badge'] as String?,
-      learnMoreUrl: json['learnMoreUrl'] as String?,
+      learnMoreUrl:
+          json['learn_more_url'] as String? ?? json['learnMoreUrl'] as String?,
       latitude: _parseDouble(json['latitude']),
       longitude: _parseDouble(json['longitude']),
-      mediaUrl: json['mediaUrl'] as String?,
-      additionalMediaUrls: _parseStringList(json['additionalMediaUrls']),
-      videoUrls: _parseStringList(json['videoUrls'] ?? json['videos']),
-      audioGuideUrl: json['audioGuideUrl'] as String?,
-      trailId: json['trailId'] as String?,
-      isActive: json['isActive'] as bool? ?? true,
+      mediaUrl: json['media_url'] as String? ?? json['mediaUrl'] as String?,
+      additionalMediaUrls: _parseStringList(
+          json['additional_media_urls'] ?? json['additionalMediaUrls']),
+      videoUrls: _parseStringList(
+          json['video_urls'] ?? json['videoUrls'] ?? json['videos']),
+      audioGuideUrl:
+          json['audio_guide_url'] as String? ?? json['audioGuideUrl'] as String?,
+      trailId: json['trail_id'] as String? ?? json['trailId'] as String?,
+      isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? true,
       createdAt: DateTime.parse(
         json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
       ),

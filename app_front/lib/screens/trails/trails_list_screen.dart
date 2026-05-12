@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/services/network_service.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/trail_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../models/trail.dart';
 import 'trail_detail_screen.dart';
 
@@ -18,6 +19,30 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+
+  // Local filters — never touch the global TrailProvider filter state
+  String? _localDifficulty;
+  double? _localMinDistance;
+  double? _localMaxDistance;
+  int? _localMaxDuration;
+
+  bool get _hasLocalFilters =>
+      _localDifficulty != null ||
+      _localMinDistance != null ||
+      _localMaxDistance != null ||
+      _localMaxDuration != null ||
+      _searchQuery.isNotEmpty;
+
+  void _resetLocalFilters() {
+    setState(() {
+      _localDifficulty = null;
+      _localMinDistance = null;
+      _localMaxDistance = null;
+      _localMaxDuration = null;
+      _searchQuery = '';
+      _searchController.clear();
+    });
+  }
 
   @override
   void initState() {
@@ -93,25 +118,40 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
   Widget build(BuildContext context) {
     final trailProvider = context.watch<TrailProvider>();
     final query = _searchQuery.trim().toLowerCase();
-    final displayedTrails = query.isEmpty
-        ? trailProvider.trails
-        : trailProvider.trails.where((trail) {
-            bool startsWithQuery(String text) {
-              final value = text.toLowerCase();
-              if (value.startsWith(query)) return true;
-              return value
-                  .split(RegExp(r'\s+'))
-                  .any((word) => word.startsWith(query));
-            }
 
-            final name = trail.name.toLowerCase();
-            final region = (trail.region ?? '').toLowerCase();
-            final description = trail.description.toLowerCase();
-            return startsWithQuery(name) ||
-                startsWithQuery(region) ||
-                startsWithQuery(description);
-          }).toList();
-    final showLoadMore = query.isEmpty && trailProvider.hasMore;
+    final displayedTrails = trailProvider.trails.where((trail) {
+      // search
+      if (query.isNotEmpty) {
+        bool startsWithQuery(String text) {
+          final v = text.toLowerCase();
+          return v.startsWith(query) ||
+              v.split(RegExp(r'\s+')).any((w) => w.startsWith(query));
+        }
+        if (!startsWithQuery(trail.name) &&
+            !startsWithQuery(trail.region ?? '') &&
+            !startsWithQuery(trail.description)) return false;
+      }
+      // difficulty
+      if (_localDifficulty != null && trail.difficulty != _localDifficulty) {
+        return false;
+      }
+      // distance
+      if (_localMinDistance != null && trail.distance < _localMinDistance!) {
+        return false;
+      }
+      if (_localMaxDistance != null && trail.distance > _localMaxDistance!) {
+        return false;
+      }
+      // duration
+      if (_localMaxDuration != null &&
+          trail.estimatedDuration != null &&
+          trail.estimatedDuration! > _localMaxDuration!) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final showLoadMore = query.isEmpty && _localDifficulty == null && trailProvider.hasMore;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -300,29 +340,29 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
           _DifficultyChip(
             label: 'Tous les parcours',
             icon: Icons.check_circle,
-            selected: provider.filterDifficulty == null,
-            onTap: () => provider.clearAllFilters(),
+            selected: _localDifficulty == null,
+            onTap: () => setState(() => _localDifficulty = null),
           ),
           const SizedBox(width: 8),
           _DifficultyChip(
             label: 'Facile',
             icon: Icons.terrain,
-            selected: provider.filterDifficulty == 'easy',
-            onTap: () => provider.setDifficultyFilter('easy'),
+            selected: _localDifficulty == 'easy',
+            onTap: () => setState(() => _localDifficulty = 'easy'),
           ),
           const SizedBox(width: 8),
           _DifficultyChip(
             label: 'Modéré',
             icon: Icons.terrain,
-            selected: provider.filterDifficulty == 'moderate',
-            onTap: () => provider.setDifficultyFilter('moderate'),
+            selected: _localDifficulty == 'moderate',
+            onTap: () => setState(() => _localDifficulty = 'moderate'),
           ),
           const SizedBox(width: 8),
           _DifficultyChip(
             label: 'Difficile',
             icon: Icons.terrain,
-            selected: provider.filterDifficulty == 'difficult',
-            onTap: () => provider.setDifficultyFilter('difficult'),
+            selected: _localDifficulty == 'difficult',
+            onTap: () => setState(() => _localDifficulty = 'difficult'),
           ),
         ],
       ),
@@ -396,11 +436,22 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
             ),
           ),
           TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.sort, size: 16, color: Color(0xFF6B7280)),
-            label: const Text(
-              'Trier',
-              style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+            onPressed: _hasLocalFilters ? _resetLocalFilters : null,
+            icon: Icon(
+              Icons.refresh,
+              size: 16,
+              color: _hasLocalFilters
+                  ? const Color(0xFFE53935)
+                  : const Color(0xFFBDBDBD),
+            ),
+            label: Text(
+              'Réinitialiser',
+              style: TextStyle(
+                color: _hasLocalFilters
+                    ? const Color(0xFFE53935)
+                    : const Color(0xFFBDBDBD),
+                fontSize: 13,
+              ),
             ),
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
@@ -412,15 +463,32 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
     );
   }
 
-  void _showAdvancedFilters(BuildContext context, TrailProvider provider) {
-    showModalBottomSheet(
+  Future<void> _showAdvancedFilters(
+      BuildContext context, TrailProvider provider) async {
+    final result = await showModalBottomSheet<_FilterResult>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       backgroundColor: Colors.transparent,
-      builder: (context) => _FilterSheet(provider: provider),
+      builder: (context) => _FilterSheet(
+        initialDifficulty: _localDifficulty,
+        initialMinDistance: _localMinDistance ?? 0,
+        initialMaxDistance: _localMaxDistance ?? 50,
+        initialMaxDuration: _localMaxDuration ?? 480,
+      ),
     );
+    if (result != null) {
+      setState(() {
+        _localDifficulty = result.difficulty;
+        _localMinDistance =
+            result.minDistance > 0 ? result.minDistance : null;
+        _localMaxDistance =
+            result.maxDistance < 50 ? result.maxDistance : null;
+        _localMaxDuration =
+            result.maxDuration < 480 ? result.maxDuration : null;
+      });
+    }
   }
 }
 
@@ -653,11 +721,7 @@ class _TrailCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Icon(
-                        Icons.favorite_border,
-                        color: Color(0xFF6B7280),
-                        size: 24,
-                      ),
+                      _FavoriteButton(trail: trail),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -691,6 +755,27 @@ class _TrailCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FavoriteButton extends StatelessWidget {
+  final Trail trail;
+
+  const _FavoriteButton({required this.trail});
+
+  @override
+  Widget build(BuildContext context) {
+    final favProvider = context.watch<FavoritesProvider>();
+    final isFav = favProvider.isFavorite(trail.id);
+
+    return GestureDetector(
+      onTap: () => favProvider.toggle(trail),
+      child: Icon(
+        isFav ? Icons.favorite : Icons.favorite_border,
+        color: isFav ? const Color(0xFFE91E8C) : const Color(0xFF6B7280),
+        size: 24,
       ),
     );
   }
@@ -738,10 +823,32 @@ class _StatColumn extends StatelessWidget {
   }
 }
 
-class _FilterSheet extends StatefulWidget {
-  final TrailProvider provider;
+class _FilterResult {
+  final String? difficulty;
+  final double minDistance;
+  final double maxDistance;
+  final int maxDuration;
 
-  const _FilterSheet({required this.provider});
+  const _FilterResult({
+    required this.difficulty,
+    required this.minDistance,
+    required this.maxDistance,
+    required this.maxDuration,
+  });
+}
+
+class _FilterSheet extends StatefulWidget {
+  final String? initialDifficulty;
+  final double initialMinDistance;
+  final double initialMaxDistance;
+  final int initialMaxDuration;
+
+  const _FilterSheet({
+    required this.initialDifficulty,
+    required this.initialMinDistance,
+    required this.initialMaxDistance,
+    required this.initialMaxDuration,
+  });
 
   @override
   State<_FilterSheet> createState() => _FilterSheetState();
@@ -755,12 +862,12 @@ class _FilterSheetState extends State<_FilterSheet> {
   @override
   void initState() {
     super.initState();
-    _selectedDifficulty = widget.provider.filterDifficulty;
+    _selectedDifficulty = widget.initialDifficulty;
     _distanceRange = RangeValues(
-      widget.provider.minDistance ?? 0,
-      widget.provider.maxDistance ?? 50,
+      widget.initialMinDistance,
+      widget.initialMaxDistance,
     );
-    _selectedDuration = widget.provider.maxDuration ?? 480;
+    _selectedDuration = widget.initialMaxDuration;
   }
 
   @override
@@ -901,13 +1008,15 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ),
               ),
               onPressed: () {
-                widget.provider.setDifficultyFilter(_selectedDifficulty);
-                widget.provider.setDistanceFilter(
-                  _distanceRange.start,
-                  _distanceRange.end,
+                Navigator.pop(
+                  context,
+                  _FilterResult(
+                    difficulty: _selectedDifficulty,
+                    minDistance: _distanceRange.start,
+                    maxDistance: _distanceRange.end,
+                    maxDuration: _selectedDuration,
+                  ),
                 );
-                widget.provider.setDurationFilter(_selectedDuration);
-                Navigator.pop(context);
               },
               child: const Text(
                 'Appliquer les filtres',

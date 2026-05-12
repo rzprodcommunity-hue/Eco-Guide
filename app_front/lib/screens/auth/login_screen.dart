@@ -23,10 +23,30 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().addListener(_onAuthError);
+    });
+  }
+
+  void _onAuthError() {
+    if (!mounted) return;
+    final authProvider = context.read<AuthProvider>();
+    final err = authProvider.error;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(err),
+          backgroundColor: AppTheme.errorColor,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      authProvider.clearError();
+    }
   }
 
   @override
   void dispose() {
+    context.read<AuthProvider>().removeListener(_onAuthError);
     _emailController.dispose();
     _passwordController.dispose();
     _tabController.dispose();

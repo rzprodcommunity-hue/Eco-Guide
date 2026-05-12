@@ -264,15 +264,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   shape: BoxShape.circle,
                   border: Border.all(color: const Color(0xFF2E7D32), width: 2),
                 ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                child: ClipOval(
+                  child: user?.avatarUrl != null && (user!.avatarUrl as String).isNotEmpty
+                      ? Image.network(
+                          user.avatarUrl as String,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, st) => Center(
+                            child: Text(
+                              initials,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            initials,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                 ),
               ),
             ],

@@ -5,10 +5,15 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../models/trail.dart';
+import '../../models/trail_review.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../services/map_offline_service.dart';
+import '../../services/review_service.dart';
 import '../map/navigation_sos_screen.dart';
+import '../offline/offline_trails_screen.dart';
+import '../sos/sos_button.dart';
 import '../poi/poi_detail_screen.dart';
 
 class TrailDetailScreen extends StatefulWidget {
@@ -22,24 +27,8 @@ class TrailDetailScreen extends StatefulWidget {
 
 class _TrailDetailScreenState extends State<TrailDetailScreen> {
   final MapOfflineService _mapOfflineService = MapOfflineService();
-  late final List<_TrailReview> _reviews = [
-    const _TrailReview(
-      initials: 'ML',
-      name: 'Marc L.',
-      date: 'il y a 2 jours',
-      rating: 5,
-      text:
-          'Sentier tres bien balise. La montee finale est un peu raide mais la vue en vaut vraiment la peine ! Prevoyez de bonnes chaussures.',
-    ),
-    const _TrailReview(
-      initials: 'SG',
-      name: 'Sophie G.',
-      date: 'il y a 1 semaine',
-      rating: 4.5,
-      text:
-          'Magnifique en cette saison. Attention, certains passages sont glissants s il a plu la veille. Les batons sont recommandes.',
-    ),
-  ];
+  List<TrailReview> _reviews = [];
+  bool _reviewsLoading = true;
 
   @override
   void initState() {
@@ -47,7 +36,20 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     _mapOfflineService.initialize();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PoiProvider>().loadPoisByTrail(widget.trail.id);
+      _loadReviews();
     });
+  }
+
+  Future<void> _loadReviews() async {
+    setState(() => _reviewsLoading = true);
+    try {
+      final reviews = await ReviewService.getReviews(widget.trail.id);
+      if (mounted) setState(() => _reviews = reviews);
+    } catch (_) {
+      if (mounted) setState(() => _reviews = []);
+    } finally {
+      if (mounted) setState(() => _reviewsLoading = false);
+    }
   }
 
   String _getDifficultyText(String difficulty) {
@@ -64,174 +66,38 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
   }
 
   Future<void> _openAddCommentSheet() async {
-    final authProvider = context.read<AuthProvider>();
-    final fullName = authProvider.user?.fullName ?? '';
-    final nameController = TextEditingController(
-      text: fullName == authProvider.user?.email ? '' : fullName,
-    );
-    final commentController = TextEditingController();
-    double rating = 5;
+    final user = context.read<AuthProvider>().user;
+    if (user == null) return;
 
-    final created = await showModalBottomSheet<_TrailReview>(
+    final messenger = ScaffoldMessenger.of(context);
+
+    final result = await showModalBottomSheet<_CommentResult>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          sheetContext,
-                        ).dividerColor.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Commenter ce sentier',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(sheetContext).colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Partagez votre experience avec la communaute.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(
-                        sheetContext,
-                      ).colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nom',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Note',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(sheetContext).colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    children: List.generate(5, (index) {
-                      final starValue = index + 1;
-                      return IconButton(
-                        onPressed: () {
-                          setSheetState(() {
-                            rating = starValue.toDouble();
-                          });
-                        },
-                        icon: Icon(
-                          starValue <= rating ? Icons.star : Icons.star_border,
-                          color: Colors.orange,
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: commentController,
-                    minLines: 4,
-                    maxLines: 6,
-                    decoration: const InputDecoration(
-                      labelText: 'Votre commentaire',
-                      alignLabelWithHint: true,
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final comment = commentController.text.trim();
-                        final name = nameController.text.trim();
-                        if (comment.isEmpty) {
-                          ScaffoldMessenger.of(sheetContext).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Ajoutez un commentaire avant d envoyer.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        final displayName = name.isEmpty ? 'Guest' : name;
-                        Navigator.of(sheetContext).pop(
-                          _TrailReview(
-                            initials: _initialsFromName(displayName),
-                            name: displayName,
-                            date: 'A l instant',
-                            rating: rating,
-                            text: comment,
-                          ),
-                        );
-                      },
-                      child: const Text('Publier mon commentaire'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _AddCommentSheet(),
     );
 
-    nameController.dispose();
-    commentController.dispose();
+    if (result == null || !mounted) return;
 
-    if (created != null && mounted) {
-      setState(() {
-        _reviews.insert(0, created);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Commentaire ajoute au sentier.')),
+    try {
+      final review = await ReviewService.addReview(
+        trailId: widget.trail.id,
+        userId: user.id,
+        userName: user.fullName,
+        userAvatar: user.avatarUrl,
+        rating: result.rating,
+        text: result.text,
       );
+      if (mounted) {
+        setState(() => _reviews.insert(0, review));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Commentaire publié !')),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur : $e')));
     }
-  }
-
-  String _initialsFromName(String value) {
-    final words = value
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .toList();
-
-    if (words.isEmpty) return 'G';
-    if (words.length == 1) return words.first[0].toUpperCase();
-    return (words.first[0] + words.last[0]).toUpperCase();
   }
 
   @override
@@ -339,10 +205,15 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                 children: [
                   _CircleIconButton(
                     icon: Icons.download_outlined,
-                    onTap: () {},
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const OfflineTrailsScreen(),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  _CircleIconButton(icon: Icons.favorite_border, onTap: () {}),
+                  _DetailFavoriteButton(trail: widget.trail),
                 ],
               ),
             ],
@@ -1045,21 +916,31 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
           label: const Text('Commenter'),
         ),
         const SizedBox(height: 16),
-        ..._reviews.asMap().entries.map((entry) {
-          final review = entry.value;
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: entry.key == _reviews.length - 1 ? 0 : 12,
+        if (_reviewsLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (_reviews.isEmpty)
+          Center(
+            child: Text(
+              'Aucun avis pour le moment. Soyez le premier !',
+              style: TextStyle(color: Colors.grey[500], fontSize: 13),
             ),
-            child: _buildReviewCard(
-              review.initials,
-              review.name,
-              review.date,
-              review.rating.toStringAsFixed(1),
-              review.text,
-            ),
-          );
-        }),
+          )
+        else
+          ..._reviews.asMap().entries.map((entry) {
+            final review = entry.value;
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: entry.key == _reviews.length - 1 ? 0 : 12,
+              ),
+              child: _buildReviewCard(
+                review.initials,
+                review.userName,
+                review.timeAgo,
+                review.rating.toStringAsFixed(1),
+                review.text,
+              ),
+            );
+          }),
       ],
     );
   }
@@ -1246,7 +1127,12 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                 border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
               ),
               child: InkWell(
-                onTap: () {},
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SosScreen(),
+                  ),
+                ),
                 borderRadius: BorderRadius.circular(12),
                 child: const Center(
                   child: Text(
@@ -1292,6 +1178,35 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
   }
 }
 
+class _DetailFavoriteButton extends StatelessWidget {
+  final Trail trail;
+
+  const _DetailFavoriteButton({required this.trail});
+
+  @override
+  Widget build(BuildContext context) {
+    final favProvider = context.watch<FavoritesProvider>();
+    final isFav = favProvider.isFavorite(trail.id);
+
+    return GestureDetector(
+      onTap: () => favProvider.toggle(trail),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.9),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          isFav ? Icons.favorite : Icons.favorite_border,
+          size: 20,
+          color: isFav ? const Color(0xFFE91E8C) : const Color(0xFF111111),
+        ),
+      ),
+    );
+  }
+}
+
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -1313,22 +1228,6 @@ class _CircleIconButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _TrailReview {
-  final String initials;
-  final String name;
-  final String date;
-  final double rating;
-  final String text;
-
-  const _TrailReview({
-    required this.initials,
-    required this.name,
-    required this.date,
-    required this.rating,
-    required this.text,
-  });
 }
 
 class _ElevationChartPainter extends CustomPainter {
@@ -1384,4 +1283,255 @@ class _ElevationChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _CommentResult {
+  final double rating;
+  final String text;
+  const _CommentResult({required this.rating, required this.text});
+}
+
+class _AddCommentSheet extends StatefulWidget {
+  const _AddCommentSheet();
+
+  @override
+  State<_AddCommentSheet> createState() => _AddCommentSheetState();
+}
+
+class _AddCommentSheetState extends State<_AddCommentSheet> {
+  final TextEditingController _controller = TextEditingController();
+  double _rating = 5;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ajoutez un commentaire avant d\'envoyer.')),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+    Navigator.of(context).pop(_CommentResult(rating: _rating, text: text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = theme.colorScheme.onSurface;
+    final accent = theme.colorScheme.primary;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [accent, accent.withValues(alpha: 0.7)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.rate_review_rounded,
+                          color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Votre avis compte',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: onSurface,
+                            ),
+                          ),
+                          Text(
+                            'Partagez votre expérience',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(Icons.close_rounded,
+                          color: onSurface.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : const Color(0xFFF7F8FA),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        _ratingLabel(_rating),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (i) {
+                          final v = (i + 1).toDouble();
+                          final filled = v <= _rating;
+                          return GestureDetector(
+                            onTap: () => setState(() => _rating = v),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(
+                                filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                                size: 38,
+                                color: filled
+                                    ? const Color(0xFFFFB400)
+                                    : onSurface.withValues(alpha: 0.25),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : const Color(0xFFF7F8FA),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.dividerColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _controller,
+                    minLines: 4,
+                    maxLines: 6,
+                    maxLength: 500,
+                    style: TextStyle(color: onSurface, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Décrivez votre randonnée, les paysages, les difficultés...',
+                      hintStyle: TextStyle(
+                        color: onSurface.withValues(alpha: 0.4),
+                        fontSize: 14,
+                      ),
+                      contentPadding: const EdgeInsets.all(16),
+                      border: InputBorder.none,
+                      counterStyle: TextStyle(
+                        color: onSurface.withValues(alpha: 0.5),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _submitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          )
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.send_rounded, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'Publier mon commentaire',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _ratingLabel(double r) {
+    if (r >= 5) return 'Excellent !';
+    if (r >= 4) return 'Très bien';
+    if (r >= 3) return 'Correct';
+    if (r >= 2) return 'Décevant';
+    return 'À éviter';
+  }
 }

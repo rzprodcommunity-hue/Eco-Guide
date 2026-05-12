@@ -10,6 +10,7 @@ import '../../core/widgets/error_banner.dart';
 import '../../providers/local_service_provider.dart';
 import '../../models/local_service.dart';
 import 'local_service_detail_screen.dart';
+import 'partner_registration_sheet.dart';
 
 class LocalServicesScreen extends StatefulWidget {
   const LocalServicesScreen({super.key});
@@ -22,6 +23,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   String? _selectedCategory;
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  String _searchQuery = '';
 
   final List<Map<String, dynamic>> _categories = [
     {'key': null, 'label': 'Tous', 'icon': Icons.apps},
@@ -33,6 +35,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadServices();
     });
@@ -109,7 +114,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeader(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
+                      _buildSearchBar(),
+                      const SizedBox(height: 12),
                       _buildCategoryFilters(),
                       const SizedBox(height: 28),
                       _buildSectionHeader(),
@@ -168,6 +175,70 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             tooltip: 'Actualiser',
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: _searchQuery.isNotEmpty
+                ? theme.colorScheme.primary.withValues(alpha: 0.6)
+                : theme.dividerColor.withValues(alpha: 0.15),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 14),
+            Icon(Icons.search_rounded,
+                size: 20,
+                color: _searchQuery.isNotEmpty
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                style: TextStyle(
+                    fontSize: 14, color: theme.colorScheme.onSurface),
+                decoration: InputDecoration(
+                  hintText: 'Rechercher un établissement...',
+                  hintStyle: TextStyle(
+                      fontSize: 14,
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+              ),
+            ),
+            if (_searchQuery.isNotEmpty)
+              GestureDetector(
+                onTap: () => _searchController.clear(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Icon(Icons.close_rounded,
+                      size: 18,
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -271,7 +342,15 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       );
     }
 
-    if (provider.services.isEmpty) {
+    final services = _searchQuery.isEmpty
+        ? provider.services
+        : provider.services.where((s) {
+            return s.name.toLowerCase().contains(_searchQuery) ||
+                s.description.toLowerCase().contains(_searchQuery) ||
+                s.categoryDisplayName.toLowerCase().contains(_searchQuery);
+          }).toList();
+
+    if (services.isEmpty) {
       return SizedBox(
         height: 200,
         child: Center(
@@ -281,7 +360,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               Icon(Icons.store, size: 48, color: Colors.grey[400]),
               const SizedBox(height: 12),
               Text(
-                'Aucun établissement trouvé',
+                _searchQuery.isNotEmpty
+                    ? 'Aucun résultat pour "$_searchQuery"'
+                    : 'Aucun établissement trouvé',
                 style: TextStyle(color: Colors.grey[500]),
               ),
             ],
@@ -294,9 +375,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: provider.services.length,
+      itemCount: services.length,
       itemBuilder: (context, index) {
-        final service = provider.services[index];
+        final service = services[index];
         return _ServiceCard(
           service: service,
           onTap: () {
@@ -348,7 +429,14 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const PartnerRegistrationSheet(),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF5D4037),
@@ -581,14 +669,14 @@ class _ServiceCard extends StatelessWidget {
                           height: 140,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
+                          placeholder: (ctx, url) => Container(
                             height: 140,
                             color: Colors.grey[300],
                             child: const Center(
                               child: CircularProgressIndicator(),
                             ),
                           ),
-                          errorWidget: (_, __, ___) => _buildPlaceholderImage(),
+                          errorWidget: (ctx, url, err) => _buildPlaceholderImage(),
                         )
                       : _buildPlaceholderImage(),
                 ),
