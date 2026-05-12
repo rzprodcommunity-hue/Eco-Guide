@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,6 +15,7 @@ import 'providers/quiz_provider.dart';
 import 'providers/local_service_provider.dart';
 import 'providers/weather_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/locale_provider.dart';
 import 'providers/favorites_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
@@ -82,19 +84,28 @@ class EcoGuideApp extends StatelessWidget {
         ),
         // Theme Provider
         ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
+        // Locale Provider
+        ChangeNotifierProvider<LocaleProvider>(create: (_) => LocaleProvider()),
         // Favorites Provider
         ChangeNotifierProvider<FavoritesProvider>(
           create: (_) => FavoritesProvider(),
         ),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+      child: Consumer2<ThemeProvider, LocaleProvider>(
+        builder: (context, themeProvider, localeProvider, child) {
           return MaterialApp(
             title: 'Eco-Guide',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
+            locale: localeProvider.locale,
+            supportedLocales: const [Locale('fr'), Locale('en')],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
             home: const AppWrapper(),
           );
         },

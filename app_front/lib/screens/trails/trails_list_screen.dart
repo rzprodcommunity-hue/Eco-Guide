@@ -5,6 +5,7 @@ import '../../core/services/network_service.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/trail_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../models/trail.dart';
 import 'trail_detail_screen.dart';
 
@@ -102,13 +103,14 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
   }
 
   String _getDifficultyText(String difficulty) {
+    final lp = context.read<LocaleProvider>();
     switch (difficulty) {
       case 'easy':
-        return 'Facile';
+        return lp.t('trails.easy');
       case 'moderate':
-        return 'Modérée';
+        return lp.t('trails.moderate');
       case 'difficult':
-        return 'Difficile';
+        return lp.t('trails.difficult');
       default:
         return difficulty;
     }
@@ -117,6 +119,7 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
   @override
   Widget build(BuildContext context) {
     final trailProvider = context.watch<TrailProvider>();
+    context.watch<LocaleProvider>(); // rebuild on locale change
     final query = _searchQuery.trim().toLowerCase();
 
     final displayedTrails = trailProvider.trails.where((trail) {
@@ -248,7 +251,7 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Eco-Guide',
+                context.watch<LocaleProvider>().t('trails.brand'),
                 style: TextStyle(
                   color: Theme.of(
                     context,
@@ -259,7 +262,7 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Trouvez votre sentier',
+                context.watch<LocaleProvider>().t('trails.heading'),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 24,
@@ -295,16 +298,16 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
               ),
               child: TextField(
                 controller: _searchController,
-                decoration: const InputDecoration(
-                  hintText: 'Où voulez-vous marcher ?',
-                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: context.watch<LocaleProvider>().t('trails.search'),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
                   border: InputBorder.none,
-                  prefixIcon: Icon(
+                  prefixIcon: const Icon(
                     Icons.search,
                     color: Color(0xFF6B7280),
                     size: 20,
                   ),
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
                   ),
@@ -332,34 +335,35 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
   }
 
   Widget _buildDifficultyFilter(TrailProvider provider) {
+    final lp = context.watch<LocaleProvider>();
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           _DifficultyChip(
-            label: 'Tous les parcours',
+            label: lp.t('trails.all'),
             icon: Icons.check_circle,
             selected: _localDifficulty == null,
             onTap: () => setState(() => _localDifficulty = null),
           ),
           const SizedBox(width: 8),
           _DifficultyChip(
-            label: 'Facile',
+            label: lp.t('trails.easy'),
             icon: Icons.terrain,
             selected: _localDifficulty == 'easy',
             onTap: () => setState(() => _localDifficulty = 'easy'),
           ),
           const SizedBox(width: 8),
           _DifficultyChip(
-            label: 'Modéré',
+            label: lp.t('trails.moderate'),
             icon: Icons.terrain,
             selected: _localDifficulty == 'moderate',
             onTap: () => setState(() => _localDifficulty = 'moderate'),
           ),
           const SizedBox(width: 8),
           _DifficultyChip(
-            label: 'Difficile',
+            label: lp.t('trails.difficult'),
             icon: Icons.terrain,
             selected: _localDifficulty == 'difficult',
             onTap: () => setState(() => _localDifficulty = 'difficult'),
@@ -380,18 +384,18 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Prêt pour l'aventure ?",
-            style: TextStyle(
+          Text(
+            context.watch<LocaleProvider>().t('trails.ready'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            "Téléchargez les cartes pour un accès hors-ligne complet.",
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+          Text(
+            context.watch<LocaleProvider>().t('trails.ready.subtitle'),
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -401,9 +405,9 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
               size: 16,
               color: Color(0xFF2E7D32),
             ),
-            label: const Text(
-              "Télécharger les cartes",
-              style: TextStyle(
+            label: Text(
+              context.watch<LocaleProvider>().t('trails.downloadMaps'),
+              style: const TextStyle(
                 color: Color(0xFF2E7D32),
                 fontWeight: FontWeight.bold,
               ),
@@ -428,7 +432,7 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Sentiers recommandés',
+            context.watch<LocaleProvider>().t('trails.recommended'),
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,
               fontSize: 18,
@@ -445,7 +449,7 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
                   : const Color(0xFFBDBDBD),
             ),
             label: Text(
-              'Réinitialiser',
+              context.watch<LocaleProvider>().t('trails.reset'),
               style: TextStyle(
                 color: _hasLocalFilters
                     ? const Color(0xFFE53935)

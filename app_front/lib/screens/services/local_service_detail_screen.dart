@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../models/local_service.dart';
 import '../../providers/local_service_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../home/home_screen.dart';
 import '../map/navigation_sos_screen.dart';
 
@@ -213,7 +214,7 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                             ),
                             const SizedBox(width: 3),
                             Text(
-                              '${service.rating!.toStringAsFixed(1)} (${service.reviewCount} avis)',
+                              '${service.rating!.toStringAsFixed(1)} (${service.reviewCount} ${context.watch<LocaleProvider>().t('services.detail.reviews')})',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -260,7 +261,7 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                         Expanded(
                           child: _FactBox(
                             icon: _getCategoryIcon(service.category),
-                            label: 'Categorie',
+                            label: context.watch<LocaleProvider>().t('services.detail.category'),
                             value: service.categoryDisplayName,
                           ),
                         ),
@@ -268,10 +269,10 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                         Expanded(
                           child: _FactBox(
                             icon: Icons.verified,
-                            label: 'Statut',
+                            label: context.watch<LocaleProvider>().t('services.detail.status'),
                             value: service.isVerified
-                                ? 'Verifie'
-                                : 'Non verifie',
+                                ? context.watch<LocaleProvider>().t('services.detail.verified')
+                                : context.watch<LocaleProvider>().t('services.detail.notVerified'),
                           ),
                         ),
                       ],
@@ -279,7 +280,7 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                   ),
                   const SizedBox(height: 22),
                   Text(
-                    'A propos du service',
+                    context.watch<LocaleProvider>().t('services.detail.about'),
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
@@ -319,12 +320,12 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                               );
                             },
                       icon: const Icon(Icons.route),
-                      label: const Text('Directions sur la carte'),
+                      label: Text(context.watch<LocaleProvider>().t('services.detail.directions')),
                     ),
                   ),
                   const SizedBox(height: 22),
                   Text(
-                    'Informations',
+                    context.watch<LocaleProvider>().t('services.detail.info'),
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
@@ -335,33 +336,33 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                   if (service.address != null)
                     _InfoTile(
                       icon: Icons.location_on,
-                      title: 'Adresse',
+                      title: context.watch<LocaleProvider>().t('services.detail.address'),
                       value: service.address!,
                     ),
                   if (service.email != null)
                     _InfoTile(
                       icon: Icons.mail_outline,
-                      title: 'Email',
+                      title: context.watch<LocaleProvider>().t('services.detail.email'),
                       value: service.email!,
                     ),
                   if (service.website != null)
                     _InfoTile(
                       icon: Icons.language,
-                      title: 'Site web',
+                      title: context.watch<LocaleProvider>().t('services.detail.website'),
                       value: service.website!,
                     ),
                   if (service.languages != null &&
                       service.languages!.isNotEmpty)
                     _InfoTile(
                       icon: Icons.translate,
-                      title: 'Langues',
+                      title: context.watch<LocaleProvider>().t('services.detail.languages'),
                       value: service.languages!.join(', '),
                     ),
                   const SizedBox(height: 18),
                   if (service.latitude != null &&
                       service.longitude != null) ...[
                     Text(
-                      'Localisation',
+                      context.watch<LocaleProvider>().t('poi.location'),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,

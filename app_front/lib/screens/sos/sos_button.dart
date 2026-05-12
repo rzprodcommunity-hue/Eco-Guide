@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/services/offline_sos_service.dart';
 import '../../core/constants/app_constants.dart';
+import '../../providers/locale_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/api_client.dart';
 import '../../services/sos_service.dart';
@@ -56,6 +58,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   double _accuracy = 0.0;
   bool _hasGoodSignal = false;
   bool _isDetectingPosition = false;
+  bool _hasReceivedFirstFix = false;
+  StreamSubscription<Position>? _positionSubscription;
   final MapController _mapController = MapController();
 
   @override
@@ -76,6 +80,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _pulseController.dispose();
+    _positionSubscription?.cancel();
     super.dispose();
   }
 
@@ -84,7 +89,10 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     setState(() => _isDetectingPosition = true);
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
+      if (!serviceEnabled) {
+        debugPrint('Location services disabled');
+        return;
+      }
 
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -93,12 +101,29 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
+        debugPrint('Location permission denied');
         return;
       }
 
+      // Try to get a quick last-known fix first for instant feedback
+      try {
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null && mounted) {
+          final pos = LatLng(lastKnown.latitude, lastKnown.longitude);
+          setState(() {
+            _currentPosition = pos;
+            _altitude = lastKnown.altitude;
+            _accuracy = lastKnown.accuracy;
+          });
+          _mapController.move(pos, 17);
+        }
+      } catch (_) {}
+
+      // Then get a fresh high-accuracy fix
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.bestForNavigation,
+          timeLimit: Duration(seconds: 15),
         ),
       );
 
@@ -109,13 +134,36 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         _altitude = position.altitude;
         _accuracy = position.accuracy;
         _hasGoodSignal = position.accuracy < 20;
+        _hasReceivedFirstFix = true;
       });
-      _mapController.move(newPos, 15);
+      _mapController.move(newPos, 17);
+
+      // Start continuous live tracking
+      _startPositionStream();
     } catch (e) {
       debugPrint('Error getting position: $e');
     } finally {
       if (mounted) setState(() => _isDetectingPosition = false);
     }
+  }
+
+  void _startPositionStream() {
+    _positionSubscription?.cancel();
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 2, // update every 2 meters of movement
+      ),
+    ).listen((position) {
+      if (!mounted) return;
+      final newPos = LatLng(position.latitude, position.longitude);
+      setState(() {
+        _currentPosition = newPos;
+        _altitude = position.altitude;
+        _accuracy = position.accuracy;
+        _hasGoodSignal = position.accuracy < 20;
+      });
+    }, onError: (e) => debugPrint('Position stream error: $e'));
   }
 
   void _startHolding() {
@@ -239,7 +287,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.sms, size: 18),
-            label: const Text('SMS d\'Urgence'),
+            label: Text(context.watch<LocaleProvider>().t('sos.smsEmergency')),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
@@ -288,7 +336,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               _buildSosButton(),
               const SizedBox(height: 60),
               Text(
-                'Maintenez 3 secondes pour alerter',
+                context.watch<LocaleProvider>().t('sos.holdInstruction'),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 15,
@@ -297,7 +345,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 4),
               Text(
-                'Les secours recevront votre position exacte',
+                context.watch<LocaleProvider>().t('sos.locationInfo'),
                 style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
               const SizedBox(height: 32),
@@ -340,7 +388,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           ),
         ),
         Text(
-          'Urgence SOS',
+          context.watch<LocaleProvider>().t('sos.title'),
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -497,7 +545,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Votre Position',
+                  context.watch<LocaleProvider>().t('sos.position'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -557,7 +605,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _hasGoodSignal ? 'Signal Fort' : 'Signal Faible',
+                        _hasGoodSignal
+                            ? context.watch<LocaleProvider>().t('sos.signal.strong')
+                            : context.watch<LocaleProvider>().t('sos.signal.weak'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -602,7 +652,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                     children: [
                       TileLayer(
                         urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                         userAgentPackageName: 'com.ecoguide.app',
                       ),
                       MarkerLayer(
@@ -711,12 +761,12 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _buildInfoColumn(
-                  'Altitude',
+                  context.watch<LocaleProvider>().t('sos.altitude'),
                   '${_altitude.toStringAsFixed(0)} m',
                 ),
                 _buildInfoColumn(
-                  'Précision',
-                  '+/- ${_accuracy.toStringAsFixed(0)} mètres',
+                  context.watch<LocaleProvider>().t('sos.precision'),
+                  '+/- ${_accuracy.toStringAsFixed(0)} m',
                 ),
               ],
             ),
@@ -758,7 +808,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Contacts d\'urgence',
+          context.watch<LocaleProvider>().t('sos.contacts'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -768,8 +818,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         const SizedBox(height: 16),
         _buildContactItem(
           icon: Icons.local_hospital,
-          title: 'Secours en Montagne',
-          subtitle: 'PGHM - Intervention rapide',
+          title: context.watch<LocaleProvider>().t('sos.contact.mountain'),
+          subtitle: context.watch<LocaleProvider>().t('sos.contact.mountain.desc'),
           number: '112',
         ),
         const SizedBox(height: 12),

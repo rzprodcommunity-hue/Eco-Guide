@@ -8,6 +8,7 @@ import '../../models/trail.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/activity_service.dart';
 import '../../services/api_client.dart';
 import '../../services/badge_service.dart';
@@ -130,7 +131,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const EcoPageHeader(title: 'Profil', showAccountBadge: false),
+      appBar: EcoPageHeader(
+          title: context.watch<LocaleProvider>().t('profile.title'),
+          showAccountBadge: false),
       body: RefreshIndicator(
         onRefresh: () async {
           await authProvider.refreshProfile();
@@ -425,10 +428,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
-                'Sentiers Favoris',
-                style: TextStyle(
+                context.watch<LocaleProvider>().t('profile.favorites'),
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF212121),
@@ -463,9 +466,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                   color: AppTheme.primaryColor.withValues(alpha: 0.4),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Aucun sentier favori pour le moment',
-                  style: TextStyle(
+                Text(
+                  context.watch<LocaleProvider>().t('profile.noFavorites'),
+                  style: const TextStyle(
                     color: Color(0xFF7A7A7A),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,

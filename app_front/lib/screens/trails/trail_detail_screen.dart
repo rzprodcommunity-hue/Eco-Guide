@@ -8,6 +8,7 @@ import '../../models/trail.dart';
 import '../../models/trail_review.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../services/map_offline_service.dart';
 import '../../services/review_service.dart';
@@ -53,13 +54,14 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
   }
 
   String _getDifficultyText(String difficulty) {
+    final lp = context.read<LocaleProvider>();
     switch (difficulty) {
       case 'easy':
-        return 'Facile';
+        return lp.t('trails.easy');
       case 'moderate':
-        return 'Intermédiaire';
+        return lp.t('trails.moderate');
       case 'difficult':
-        return 'Difficile';
+        return lp.t('trails.difficult');
       default:
         return difficulty;
     }
@@ -282,7 +284,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                   const Icon(Icons.star, color: Colors.white70, size: 14),
                   const SizedBox(width: 4),
                   Text(
-                    '${widget.trail.averageRating?.toStringAsFixed(1) ?? '4.8'} (${widget.trail.reviewCount ?? 240} avis)',
+                    '${widget.trail.averageRating?.toStringAsFixed(1) ?? '4.8'} (${widget.trail.reviewCount ?? 240} ${context.watch<LocaleProvider>().t('trail.reviewsCount')})',
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
@@ -320,13 +322,17 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         children: [
           _buildStatItem(
             Icons.route_outlined,
-            'Distance',
+            context.watch<LocaleProvider>().t('trail.distance'),
             widget.trail.distanceText,
           ),
-          _buildStatItem(Icons.access_time, 'Durée', widget.trail.durationText),
+          _buildStatItem(
+            Icons.access_time,
+            context.watch<LocaleProvider>().t('trail.duration'),
+            widget.trail.durationText,
+          ),
           _buildStatItem(
             Icons.terrain,
-            'Dénivelé',
+            context.watch<LocaleProvider>().t('trail.elevation'),
             widget.trail.elevationGain != null
                 ? '+${widget.trail.elevationGain!.toInt()} m'
                 : '+450 m',
@@ -395,7 +401,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'À propos du sentier',
+          context.watch<LocaleProvider>().t('trail.about'),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -921,7 +927,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         else if (_reviews.isEmpty)
           Center(
             child: Text(
-              'Aucun avis pour le moment. Soyez le premier !',
+              context.watch<LocaleProvider>().t('trail.noReviewsYet'),
               style: TextStyle(color: Colors.grey[500], fontSize: 13),
             ),
           )
@@ -1102,12 +1108,12 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.navigation, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
+                  children: [
+                    const Icon(Icons.navigation, color: Colors.white, size: 18),
+                    const SizedBox(width: 8),
                     Text(
-                      "DÉMARRER LE SENTIER",
-                      style: TextStyle(
+                      context.watch<LocaleProvider>().t('trail.start'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,

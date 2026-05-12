@@ -4,12 +4,14 @@ import 'package:chewie/chewie.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../models/poi.dart';
+import '../../providers/locale_provider.dart';
 import '../home/home_screen.dart';
 import '../map/navigation_sos_screen.dart';
 import '../../services/map_offline_service.dart';
@@ -261,7 +263,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                         Expanded(
                           child: _FactBox(
                             icon: _getPoiIcon(poi.type),
-                            label: 'Type',
+                            label: context.watch<LocaleProvider>().t('poi.type'),
                             value: poi.typeDisplayName,
                             color: poiColor,
                           ),
@@ -270,7 +272,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                         Expanded(
                           child: _FactBox(
                             icon: Icons.location_on,
-                            label: 'Coordonnees',
+                            label: context.watch<LocaleProvider>().t('poi.coords'),
                             value:
                                 '${poi.latitude.toStringAsFixed(4)}, ${poi.longitude.toStringAsFixed(4)}',
                             color: AppTheme.primaryColor,
@@ -282,7 +284,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                   const SizedBox(height: 24),
 
                   Text(
-                    'A propos du point',
+                    context.watch<LocaleProvider>().t('poi.about'),
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
@@ -316,13 +318,13 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                         );
                       },
                       icon: const Icon(Icons.route),
-                      label: const Text('Directions sur la carte'),
+                      label: Text(context.watch<LocaleProvider>().t('poi.directions')),
                     ),
                   ),
                   const SizedBox(height: 24),
 
                   Text(
-                    'Localisation',
+                    context.watch<LocaleProvider>().t('poi.location'),
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
@@ -410,14 +412,14 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Coordonnees: ${poi.latitude.toStringAsFixed(6)}, ${poi.longitude.toStringAsFixed(6)}',
+                    '${context.watch<LocaleProvider>().t('poi.coords')}: ${poi.latitude.toStringAsFixed(6)}, ${poi.longitude.toStringAsFixed(6)}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                   if (_currentPosition != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
-                        'Distance depuis votre position: ${const Distance().as(LengthUnit.Kilometer, _currentPosition!, LatLng(poi.latitude, poi.longitude)).toStringAsFixed(2)} km',
+                        '${context.watch<LocaleProvider>().t('poi.distance')}: ${const Distance().as(LengthUnit.Kilometer, _currentPosition!, LatLng(poi.latitude, poi.longitude)).toStringAsFixed(2)} km',
                         style: TextStyle(color: Colors.grey[700], fontSize: 12),
                       ),
                     ),
@@ -442,7 +444,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
       children: [
         if (images.isNotEmpty) ...[
           Text(
-            'Galerie',
+            context.watch<LocaleProvider>().t('poi.gallery'),
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
@@ -479,7 +481,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
           const SizedBox(height: 24),
         ],
         Text(
-          'Vidéo',
+          context.watch<LocaleProvider>().t('poi.video'),
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -518,7 +520,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                           .withValues(alpha: 0.3)),
                   const SizedBox(height: 8),
                   Text(
-                    'Aucune vidéo disponible',
+                    context.watch<LocaleProvider>().t('poi.noVideo'),
                     style: TextStyle(
                       color: Theme.of(context)
                           .colorScheme
@@ -533,7 +535,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
           ),
         const SizedBox(height: 24),
         Text(
-          'Voix off',
+          context.watch<LocaleProvider>().t('poi.voiceover'),
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -543,10 +545,10 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
         const SizedBox(height: 8),
         _MediaActionCard(
           icon: Icons.volume_up,
-          title: 'Guide audio',
+          title: context.watch<LocaleProvider>().t('poi.audioGuide'),
           subtitle: poi.audioGuideUrl != null && poi.audioGuideUrl!.isNotEmpty
-              ? 'Ecouter la voix off'
-              : 'Voix off non disponible',
+              ? context.watch<LocaleProvider>().t('poi.audioGuide')
+              : context.watch<LocaleProvider>().t('poi.noAudio'),
           enabled: poi.audioGuideUrl != null && poi.audioGuideUrl!.isNotEmpty,
           onTap: poi.audioGuideUrl != null && poi.audioGuideUrl!.isNotEmpty
               ? () => _openMediaUrl(poi.audioGuideUrl!)

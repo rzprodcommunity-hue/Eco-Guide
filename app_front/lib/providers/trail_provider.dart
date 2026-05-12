@@ -108,11 +108,13 @@ class TrailProvider extends ChangeNotifier {
         maxDistance: _maxDistance,
         maxDuration: _maxDuration,
       );
+      debugPrint('✅ loadTrails received ${response.data.length} trails');
       _trails = refresh ? response.data : [..._trails, ...response.data];
       _totalPages = response.totalPages;
       _lastLoadUsedOffline = false;
       await OfflineCacheService.instance.saveTrails(response.data);
     } catch (e) {
+      debugPrint('🔴 loadTrails error: $e');
       final cached = await OfflineCacheService.instance.getOfflineTrails();
       if (cached.isNotEmpty) {
         final filtered = _applyOfflineFilters(cached);

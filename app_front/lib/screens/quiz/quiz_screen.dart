@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_page_header.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/quiz_provider.dart';
 import '../../services/quiz_service.dart';
 import 'quiz_game_screen.dart';
@@ -130,7 +131,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   ),
                 ),
                 Text(
-                  'Testez vos connaissances',
+                  context.watch<LocaleProvider>().t('quiz.subtitle'),
                   style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                 ),
               ],

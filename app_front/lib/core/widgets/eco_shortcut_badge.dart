@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/locale_provider.dart';
 import '../../screens/sos/sos_button.dart';
 
 enum EcoShortcutTab { home, map, trails, quiz, services, settings }
@@ -20,10 +22,12 @@ class EcoShortcutBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final lp = context.watch<LocaleProvider>();
 
     const barHeight = 96.0;
     const sosSize = 86.0;
     const sosOverhang = 46.0;
+    const bumpHeight = 36.0;
 
     return SafeArea(
       top: false,
@@ -33,6 +37,26 @@ class EcoShortcutBadge extends StatelessWidget {
           clipBehavior: Clip.none,
           alignment: Alignment.topCenter,
           children: [
+            // Navbar background drawn directly with CustomPaint (curve + shadow)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: barHeight + bumpHeight,
+              child: SizedBox.expand(
+                child: CustomPaint(
+                  painter: _NavbarPainter(
+                    notchRadius: sosSize / 2 + 8,
+                    topRadius: 34,
+                    bumpHeight: bumpHeight,
+                    fillColor: isDark ? const Color(0xFF111827) : Colors.white,
+                    shadowColor: Colors.black
+                        .withValues(alpha: isDark ? 0.45 : 0.28),
+                  ),
+                ),
+              ),
+            ),
+            // Row of tab items on top
             Positioned(
               left: 0,
               right: 0,
@@ -40,25 +64,6 @@ class EcoShortcutBadge extends StatelessWidget {
               child: Container(
                 height: barHeight,
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF111827) : Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(34),
-                    topRight: Radius.circular(34),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.35 : 0.10),
-                      blurRadius: 26,
-                      offset: const Offset(0, -4),
-                    ),
-                    BoxShadow(
-                      color: _green.withOpacity(0.10),
-                      blurRadius: 28,
-                      offset: const Offset(0, -8),
-                    ),
-                  ],
-                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -68,7 +73,7 @@ class EcoShortcutBadge extends StatelessWidget {
                             child: _TabItem(
                               tab: EcoShortcutTab.home,
                               icon: Icons.home_rounded,
-                              label: 'Home',
+                              label: lp.t('tab.home'),
                               currentTab: currentTab,
                               onTap: () => onTabSelected(EcoShortcutTab.home),
                               isDark: isDark,
@@ -78,7 +83,7 @@ class EcoShortcutBadge extends StatelessWidget {
                             child: _TabItem(
                               tab: EcoShortcutTab.map,
                               icon: Icons.map_rounded,
-                              label: 'Map',
+                              label: lp.t('tab.map'),
                               currentTab: currentTab,
                               onTap: () => onTabSelected(EcoShortcutTab.map),
                               isDark: isDark,
@@ -88,7 +93,7 @@ class EcoShortcutBadge extends StatelessWidget {
                             child: _TabItem(
                               tab: EcoShortcutTab.trails,
                               icon: Icons.hiking_rounded,
-                              label: 'Trails',
+                              label: lp.t('tab.trails'),
                               currentTab: currentTab,
                               onTap: () => onTabSelected(EcoShortcutTab.trails),
                               isDark: isDark,
@@ -107,7 +112,7 @@ class EcoShortcutBadge extends StatelessWidget {
                             child: _TabItem(
                               tab: EcoShortcutTab.quiz,
                               icon: Icons.quiz_rounded,
-                              label: 'Quiz',
+                              label: lp.t('tab.quiz'),
                               currentTab: currentTab,
                               onTap: () => onTabSelected(EcoShortcutTab.quiz),
                               isDark: isDark,
@@ -117,7 +122,7 @@ class EcoShortcutBadge extends StatelessWidget {
                             child: _TabItem(
                               tab: EcoShortcutTab.services,
                               icon: Icons.storefront_rounded,
-                              label: 'Services',
+                              label: lp.t('tab.services'),
                               currentTab: currentTab,
                               onTap: () => onTabSelected(EcoShortcutTab.services),
                               isDark: isDark,
@@ -127,7 +132,7 @@ class EcoShortcutBadge extends StatelessWidget {
                             child: _TabItem(
                               tab: EcoShortcutTab.settings,
                               icon: Icons.settings_rounded,
-                              label: 'Params',
+                              label: lp.t('tab.params'),
                               currentTab: currentTab,
                               onTap: () => onTabSelected(EcoShortcutTab.settings),
                               isDark: isDark,
@@ -150,6 +155,92 @@ class EcoShortcutBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+class _NavbarPainter extends CustomPainter {
+  final double notchRadius;
+  final double topRadius;
+  final double bumpHeight;
+  final Color fillColor;
+  final Color shadowColor;
+
+  _NavbarPainter({
+    required this.notchRadius,
+    required this.topRadius,
+    required this.bumpHeight,
+    required this.fillColor,
+    required this.shadowColor,
+  });
+
+  Path _buildPath(Size size) {
+    final path = Path();
+    final centerX = size.width / 2;
+    final bumpHalfWidth = notchRadius + 70; // wider than SOS+glow
+    final flatTopY = bumpHeight;
+
+    final bumpLeft = centerX - bumpHalfWidth;
+    final bumpRight = centerX + bumpHalfWidth;
+
+    path.moveTo(0, flatTopY + topRadius);
+    path.quadraticBezierTo(0, flatTopY, topRadius, flatTopY);
+    path.lineTo(bumpLeft, flatTopY);
+    // smooth hill up to apex
+    path.cubicTo(
+      bumpLeft + bumpHalfWidth * 0.5, flatTopY,
+      centerX - notchRadius * 0.7, 0,
+      centerX, 0,
+    );
+    path.cubicTo(
+      centerX + notchRadius * 0.7, 0,
+      bumpRight - bumpHalfWidth * 0.5, flatTopY,
+      bumpRight, flatTopY,
+    );
+    path.lineTo(size.width - topRadius, flatTopY);
+    path.quadraticBezierTo(
+        size.width, flatTopY, size.width, flatTopY + topRadius);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = _buildPath(size);
+
+    // 1. Draw a blurred shadow ABOVE the path (translated up + blurred)
+    final shadowPaint = Paint()
+      ..color = shadowColor
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
+    canvas.save();
+    canvas.translate(0, -4);
+    canvas.drawPath(path, shadowPaint);
+    canvas.restore();
+
+    // 2. Also use built-in drawShadow as a backup
+    canvas.drawShadow(path, shadowColor, 16, true);
+
+    // 3. Draw the filled white shape on top
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path, fillPaint);
+
+    // 4. Draw a subtle stroke at the top of the curve for definition
+    final strokePaint = Paint()
+      ..color = shadowColor.withValues(alpha: 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawPath(path, strokePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _NavbarPainter old) =>
+      old.notchRadius != notchRadius ||
+      old.topRadius != topRadius ||
+      old.bumpHeight != bumpHeight ||
+      old.fillColor != fillColor ||
+      old.shadowColor != shadowColor;
 }
 
 class _TabItem extends StatelessWidget {
@@ -236,13 +327,49 @@ class _TabItem extends StatelessWidget {
   }
 }
 
-class _SosButton extends StatelessWidget {
+class _SosButton extends StatefulWidget {
   final double size;
 
   const _SosButton({required this.size});
 
-  static const _green = Color(0xFF22B53A);
-  static const _darkGreen = Color(0xFF15972C);
+  @override
+  State<_SosButton> createState() => _SosButtonState();
+}
+
+class _SosButtonState extends State<_SosButton>
+    with TickerProviderStateMixin {
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnim;
+  late final AnimationController _glowController;
+  late final Animation<double> _glowAnim;
+
+  static const _red = Color(0xFFE53935);
+  static const _darkRed = Color(0xFFB71C1C);
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.96, end: 1.06).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat();
+    _glowAnim = Tween<double>(begin: 0, end: 1).animate(_glowController);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _glowController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -253,53 +380,82 @@ class _SosButton extends StatelessWidget {
           fullscreenDialog: true,
         ),
       ),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              _green,
-              _darkGreen,
-            ],
-          ),
-          border: Border.all(
-            color: Colors.white,
-            width: 5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: _green.withOpacity(0.38),
-              blurRadius: 24,
-              spreadRadius: 2,
-              offset: const Offset(0, 8),
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            // Soft glow that pulses (stays within the button size visually)
+            AnimatedBuilder(
+              animation: _glowAnim,
+              builder: (context, _) {
+                final t = _glowAnim.value;
+                return Container(
+                  width: widget.size,
+                  height: widget.size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _red.withValues(alpha: 0.25 + 0.35 * t),
+                        blurRadius: 18 + 12 * t,
+                        spreadRadius: 2 + 4 * t,
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.18),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
+            // Main button — same look as green one, just red, gentle pulse
+            ScaleTransition(
+              scale: _pulseAnim,
+              child: Container(
+                width: widget.size,
+                height: widget.size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_red, _darkRed],
+                  ),
+                  border: Border.all(color: Colors.white, width: 5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _red.withValues(alpha: 0.55),
+                      blurRadius: 28,
+                      spreadRadius: 4,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'SOS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: widget.size * 0.32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                    shadows: const [
+                      Shadow(
+                        color: Color(0x55000000),
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          'SOS',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: size * 0.32,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.5,
-            shadows: const [
-              Shadow(
-                color: Color(0x55000000),
-                blurRadius: 4,
-                offset: Offset(0, 1),
-              ),
-            ],
-          ),
         ),
       ),
     );

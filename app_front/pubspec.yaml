@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
 
   # State management
@@ -37,7 +39,7 @@ dependencies:
   url_launcher: ^6.3.1
 
   # Internationalization
-  intl: ^0.19.0
+  intl: ^0.20.2
   connectivity_plus: ^7.1.0
   flutter_cache_manager: ^3.4.1
   supabase_flutter: ^2.12.4

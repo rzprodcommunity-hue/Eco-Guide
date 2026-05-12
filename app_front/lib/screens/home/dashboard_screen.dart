@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/network_service.dart';
 import '../../core/constants/app_constants.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/map_offline_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/poi.dart';
@@ -229,7 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back,',
+                  context.watch<LocaleProvider>().t('home.welcomeBack'),
                   style: TextStyle(
                     fontSize: 14,
                     color: Theme.of(
@@ -541,6 +542,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildQuickActions() {
+    final lp = context.watch<LocaleProvider>();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -548,22 +550,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           _buildQuickActionItem(
             icon: Icons.landscape,
-            label: 'Trails',
+            label: lp.t('home.trails'),
             onTap: widget.onNavigateToTrails,
           ),
           _buildQuickActionItem(
             icon: Icons.map,
-            label: 'Offline Maps',
+            label: lp.t('home.offline'),
             onTap: widget.onNavigateToOffline,
           ),
           _buildQuickActionItem(
             icon: Icons.eco,
-            label: 'Eco-Guide',
+            label: lp.t('home.ecoguide'),
             onTap: widget.onNavigateToQuiz,
           ),
           _buildQuickActionItem(
             icon: Icons.sos,
-            label: 'Emergency',
+            label: lp.t('home.emergency'),
             onTap: widget.onNavigateToSos,
           ),
         ],
@@ -835,6 +837,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildNearbyTrails(TrailProvider trailProvider) {
     final trails = trailProvider.trails.take(5).toList();
+    final lp = context.watch<LocaleProvider>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -845,7 +848,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Nearby Trails',
+                lp.t('home.nearby'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -855,7 +858,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               GestureDetector(
                 onTap: widget.onNavigateToTrails,
                 child: Text(
-                  'See All',
+                  lp.t('home.seeAll'),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -1183,7 +1186,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Current Conditions',
+                    context.watch<LocaleProvider>().t('home.currentConditions'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -1226,7 +1229,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Wind: $wind',
+                      '${context.watch<LocaleProvider>().t('home.wind')}: $wind',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(
@@ -1249,7 +1252,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Humidity: $humidity',
+                      '${context.watch<LocaleProvider>().t('home.humidity')}: $humidity',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(
@@ -1273,7 +1276,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'Perfect for hiking',
+                    context.watch<LocaleProvider>().t('home.perfectHiking'),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -1301,7 +1304,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Discover Nature',
+                context.watch<LocaleProvider>().t('home.discover'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -1311,7 +1314,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               GestureDetector(
                 onTap: widget.onNavigateToPois,
                 child: Text(
-                  'See All',
+                  context.watch<LocaleProvider>().t('home.seeAll'),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -1456,9 +1459,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? Theme.of(context).colorScheme.primary
             : Theme.of(context).primaryColor.withValues(alpha: 0.9),
         icon: const Icon(Icons.add_location_alt, color: Colors.white),
-        label: const Text(
-          'Start Trek',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        label: Text(
+          context.watch<LocaleProvider>().t('home.startTrek'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
     );

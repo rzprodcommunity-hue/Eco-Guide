@@ -6,7 +6,8 @@ class AppTheme {
   static const Color accentColor = Colors.green;
   static const Color errorColor = Color(0xFFE53935);
   static const Color sosColor = Colors.green;
-  static const Color backgroundColor = Color(0xFFF5F5F5);
+  static const Color backgroundColor = Color(0xFFFBF7F0); // warm beige bg
+  static const Color cardBeige = Color(0xFFF2EBDC); // beige cards
   static const Color surfaceColor = Colors.white;
   static const Color textPrimary = Color(0xFF212121);
   static const Color textSecondary = Color(0xFF757575);
@@ -14,12 +15,14 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      scaffoldBackgroundColor: backgroundColor,
+      cardColor: cardBeige,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         primary: primaryColor,
         secondary: secondaryColor,
         error: errorColor,
-        surface: surfaceColor,
+        surface: backgroundColor,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: primaryColor,

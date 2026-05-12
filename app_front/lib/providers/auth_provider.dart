@@ -50,33 +50,47 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (_isSupabaseInitialized) {
-        final supabaseAuth = await _authService.currentAuthResponse();
-        if (supabaseAuth != null) {
-          await _saveAuth(supabaseAuth.accessToken, supabaseAuth.user);
-          return;
-        }
-      }
-
       final isGuestMode = prefs.getBool(AppConstants.guestModeKey) ?? false;
-
       final storedToken = prefs.getString(AppConstants.tokenKey);
       final storedUserJson = prefs.getString(AppConstants.userKey);
 
-      if (isGuestMode && storedToken != null && storedUserJson != null) {
-        _token = storedToken;
-        _user = User.fromJson(
-          jsonDecode(storedUserJson) as Map<String, dynamic>,
-        );
-        return;
-      }
-
+      // 1. Load from local cache instantly if available
       if (storedToken != null && storedUserJson != null) {
         _token = storedToken;
         _user = User.fromJson(
           jsonDecode(storedUserJson) as Map<String, dynamic>,
         );
-        _apiClient.setToken(_token);
+        if (!isGuestMode) _apiClient.setToken(_token);
+        _isLoading = false;
+        notifyListeners();
+
+        // 2. Verify with Supabase in background (with timeout, non-blocking)
+        if (_isSupabaseInitialized && !isGuestMode) {
+          _authService
+              .currentAuthResponse()
+              .timeout(const Duration(seconds: 4))
+              .then((supabaseAuth) async {
+                if (supabaseAuth != null) {
+                  await _saveAuth(supabaseAuth.accessToken, supabaseAuth.user);
+                }
+              })
+              .catchError((_) {});
+        }
+        return;
+      }
+
+      // 3. No local cache — try Supabase with timeout
+      if (_isSupabaseInitialized) {
+        try {
+          final supabaseAuth = await _authService
+              .currentAuthResponse()
+              .timeout(const Duration(seconds: 5));
+          if (supabaseAuth != null) {
+            await _saveAuth(supabaseAuth.accessToken, supabaseAuth.user);
+          }
+        } catch (_) {
+          // Network issue — show login screen
+        }
       }
     } catch (e) {
       _error = e.toString();

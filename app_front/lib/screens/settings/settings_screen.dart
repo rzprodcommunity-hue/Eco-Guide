@@ -4,10 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/map_offline_service.dart';
 import '../profile/profile_screen.dart';
 import '../offline/offline_trails_screen.dart';
+import 'terms_screen.dart';
+import 'version_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -111,6 +114,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _showLanguagePicker(BuildContext context) {
+    final localeProvider = context.read<LocaleProvider>();
+    final current = localeProvider.languageCode;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44, height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(sheetContext).dividerColor
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  localeProvider.t('language.choose'),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(sheetContext).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _LanguageOption(
+                  flag: '🇫🇷',
+                  label: localeProvider.t('language.french'),
+                  code: 'fr',
+                  selected: current == 'fr',
+                  onTap: () async {
+                    await localeProvider.setLocale('fr');
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  },
+                ),
+                const SizedBox(height: 10),
+                _LanguageOption(
+                  flag: '🇬🇧',
+                  label: localeProvider.t('language.english'),
+                  code: 'en',
+                  selected: current == 'en',
+                  onTap: () async {
+                    await localeProvider.setLocale('en');
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _handleClearCache() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -145,6 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final lp = context.watch<LocaleProvider>();
 
     return Scaffold(
       backgroundColor: _pageBg(context),
@@ -160,8 +231,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: _SettingTile(
                   icon: Icons.person,
                   iconColor: AppTheme.primaryColor,
-                  title: user?.fullName ?? 'Mon profil',
-                  subtitle: 'Voir profil et progression',
+                  title: user?.fullName ?? lp.t('settings.profile'),
+                  subtitle: lp.t('settings.profile.subtitle'),
                   trailing: Icon(
                     Icons.chevron_right_rounded,
                     color: _mutedColor(context),
@@ -174,33 +245,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildSectionTitle('PREFERENCES REGIONALES'),
+              _buildSectionTitle(
+                  context.watch<LocaleProvider>().t('settings.regional')),
               const SizedBox(height: 10),
               _SettingCard(
                 child: Column(
                   children: [
-                    _SettingTile(
-                      icon: Icons.language,
-                      iconColor: AppTheme.primaryColor,
-                      title: 'Langue de l\'application',
-                      subtitle: 'Choisissez votre langue preferee',
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Francais (FR)',
-                            style: TextStyle(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w700,
-                            ),
+                    Consumer<LocaleProvider>(
+                      builder: (context, localeProvider, _) {
+                        return _SettingTile(
+                          icon: Icons.language,
+                          iconColor: AppTheme.primaryColor,
+                          title: localeProvider.t('settings.language'),
+                          subtitle:
+                              localeProvider.t('settings.language.subtitle'),
+                          onTap: () => _showLanguagePicker(context),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                localeProvider.languageLabel,
+                                style: const TextStyle(
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: _mutedColor(context),
+                              ),
+                            ],
                           ),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            color: _mutedColor(context),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 10),
                     Consumer<ThemeProvider>(
@@ -208,8 +286,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return _SettingTile(
                           icon: Icons.dark_mode,
                           iconColor: AppTheme.primaryColor,
-                          title: 'Mode sombre',
-                          subtitle: 'Activer le theme fonce',
+                          title: context
+                              .watch<LocaleProvider>()
+                              .t('settings.darkmode'),
+                          subtitle: context
+                              .watch<LocaleProvider>()
+                              .t('settings.darkmode.subtitle'),
                           trailing: _buildSwitch(
                             value: themeProvider.isDarkMode,
                             onChanged: (value) {
@@ -223,7 +305,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildSectionTitle('COMMUNICATIONS'),
+              _buildSectionTitle(lp.t('settings.communications')),
               const SizedBox(height: 10),
               _SettingCard(
                 child: Column(
@@ -231,8 +313,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.notifications_active,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Alertes de sentier',
-                      subtitle: 'Recevoir des alertes en cas de danger',
+                      title: lp.t('settings.trailAlerts'),
+                      subtitle: lp.t('settings.trailAlerts.subtitle'),
                       trailing: _buildSwitch(
                         value: _trailAlerts,
                         onChanged: (value) {
@@ -245,8 +327,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.help,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Points d\'interet',
-                      subtitle: 'Notifications a proximite des POI',
+                      title: lp.t('settings.poiAlerts'),
+                      subtitle: lp.t('settings.poiAlerts.subtitle'),
                       trailing: _buildSwitch(
                         value: _poiAlerts,
                         onChanged: (value) {
@@ -259,8 +341,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.medical_services,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Alertes de securite',
-                      subtitle: 'Informations meteo et secours',
+                      title: lp.t('settings.safetyAlerts'),
+                      subtitle: lp.t('settings.safetyAlerts.subtitle'),
                       trailing: _buildSwitch(
                         value: _securityAlerts,
                         onChanged: (value) {
@@ -273,7 +355,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildSectionTitle('SYSTEME ET GPS'),
+              _buildSectionTitle(lp.t('settings.system')),
               const SizedBox(height: 10),
               _SettingCard(
                 child: Column(
@@ -341,7 +423,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.download_for_offline,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Cartes hors ligne',
+                      title: lp.t('settings.offlineMap'),
                       subtitle: _offlineMapStatus,
                       onTap: () async {
                         await Navigator.of(context).push(
@@ -380,7 +462,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.delete_outline,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Vider le cache',
+                      title: lp.t('settings.clearCache'),
                       subtitle: 'Liberer de l\'espace local',
                       onTap: _handleClearCache,
                       trailing: Icon(
@@ -392,7 +474,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildSectionTitle('A PROPOS'),
+              _buildSectionTitle(
+                  context.watch<LocaleProvider>().t('settings.about')),
               const SizedBox(height: 10),
               _SettingCard(
                 child: Column(
@@ -400,8 +483,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.description,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Conditions d\'utilisation',
-                      subtitle: 'Mentions legales et vie privee',
+                      title: lp.t('settings.terms'),
+                      subtitle: lp.t('settings.terms.subtitle'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const TermsScreen()),
+                      ),
                       trailing: Icon(
                         Icons.chevron_right_rounded,
                         color: _mutedColor(context),
@@ -411,8 +497,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.info_outline,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Version',
-                      subtitle: 'Eco-Guide v2.4.0',
+                      title: lp.t('settings.version'),
+                      subtitle: lp.t('settings.version.app'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const VersionScreen()),
+                      ),
                       trailing: Icon(
                         Icons.chevron_right_rounded,
                         color: _mutedColor(context),
@@ -576,8 +666,8 @@ class _SettingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Row(
         children: [
@@ -627,6 +717,77 @@ class _SettingTile extends StatelessWidget {
           const SizedBox(width: 8),
           trailing,
         ],
+      ),
+    );
+  }
+}
+
+class _LanguageOption extends StatelessWidget {
+  final String flag;
+  final String label;
+  final String code;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LanguageOption({
+    required this.flag,
+    required this.label,
+    required this.code,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.primaryColor.withValues(alpha: 0.08)
+              : theme.cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? AppTheme.primaryColor
+                : theme.dividerColor.withValues(alpha: 0.2),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(flag, style: const TextStyle(fontSize: 26)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    code.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle_rounded,
+                  color: AppTheme.primaryColor, size: 22),
+          ],
+        ),
       ),
     );
   }

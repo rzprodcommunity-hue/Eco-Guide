@@ -8,6 +8,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/network_service.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/local_service_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../models/local_service.dart';
 import 'local_service_detail_screen.dart';
 import 'partner_registration_sheet.dart';
@@ -25,12 +26,15 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   Timer? _searchDebounce;
   String _searchQuery = '';
 
-  final List<Map<String, dynamic>> _categories = [
-    {'key': null, 'label': 'Tous', 'icon': Icons.apps},
-    {'key': 'accommodation', 'label': 'Hébergements', 'icon': Icons.hotel},
-    {'key': 'artisan', 'label': 'Artisans', 'icon': Icons.handyman},
-    {'key': 'guide', 'label': 'Guides', 'icon': Icons.person},
-  ];
+  List<Map<String, dynamic>> get _categories {
+    final lp = context.read<LocaleProvider>();
+    return [
+      {'key': null, 'label': lp.t('services.cat.all'), 'icon': Icons.apps},
+      {'key': 'accommodation', 'label': lp.t('services.cat.accommodation'), 'icon': Icons.hotel},
+      {'key': 'artisan', 'label': lp.t('services.cat.artisan'), 'icon': Icons.handyman},
+      {'key': 'guide', 'label': lp.t('services.cat.guide'), 'icon': Icons.person},
+    ];
+  }
 
   @override
   void initState() {
@@ -148,13 +152,13 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Annuaire Local',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+              Text(
+                context.watch<LocaleProvider>().t('services.title'),
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
               Text(
-                'Soutenez l\'économie durable',
+                context.watch<LocaleProvider>().t('services.subtitle'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -216,7 +220,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 style: TextStyle(
                     fontSize: 14, color: theme.colorScheme.onSurface),
                 decoration: InputDecoration(
-                  hintText: 'Rechercher un établissement...',
+                  hintText: context.watch<LocaleProvider>().t('services.search'),
                   hintStyle: TextStyle(
                       fontSize: 14,
                       color:
@@ -312,17 +316,17 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              'Établissements Éco-responsables',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              context.watch<LocaleProvider>().t('services.ecoFriendly'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 8),
           Text(
-            'Voir tout',
+            context.watch<LocaleProvider>().t('services.seeAll'),
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -362,7 +366,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               Text(
                 _searchQuery.isNotEmpty
                     ? 'Aucun résultat pour "$_searchQuery"'
-                    : 'Aucun établissement trouvé',
+                    : context.watch<LocaleProvider>().t('services.empty'),
                 style: TextStyle(color: Colors.grey[500]),
               ),
             ],
@@ -410,18 +414,18 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Devenir Partenaire',
-                  style: TextStyle(
+                Text(
+                  context.watch<LocaleProvider>().t('services.partner'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Vous êtes un artisan ou guide local ? Rejoignez notre réseau éco-responsable.',
-                  style: TextStyle(
+                Text(
+                  context.watch<LocaleProvider>().t('services.partner.subtitle'),
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
                     height: 1.4,
@@ -450,9 +454,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     minimumSize: const Size(0, 36),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'S\'inscrire',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  child: Text(
+                    context.watch<LocaleProvider>().t('services.register'),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -497,9 +501,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text(
-            'Autour de vous',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          Text(
+            context.watch<LocaleProvider>().t('services.nearby'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 16),
           Container(
@@ -581,7 +585,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Ouvrir la carte interactive',
+                            context.watch<LocaleProvider>().t('services.openMap'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -771,7 +775,7 @@ class _ServiceCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        "2km d'ici",
+                        "2 ${context.watch<LocaleProvider>().t('services.distance')}",
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
