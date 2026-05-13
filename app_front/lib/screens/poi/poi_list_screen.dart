@@ -64,15 +64,15 @@ class _PoiListScreenState extends State<PoiListScreen> {
 
   static Color _getTypeColor(String type) {
     switch (type) {
-      case 'fauna':       return const Color(0xFFE65100);
-      case 'flora':       return const Color(0xFF2E7D32);
-      case 'historical':  return const Color(0xFF1565C0);
-      case 'viewpoint':   return const Color(0xFF00838F);
-      case 'water':       return const Color(0xFF0277BD);
-      case 'camping':     return const Color(0xFF6D4C41);
-      case 'danger':      return const Color(0xFFD32F2F);
-      case 'rest_area':   return const Color(0xFF6A1B9A);
-      case 'information': return const Color(0xFF455A64);
+      case 'fauna':       return const Color(0xFF6D8B5F); // sage green
+      case 'flora':       return const Color(0xFF2E7D32); // forest green
+      case 'historical':  return const Color(0xFF795548); // warm earth brown
+      case 'viewpoint':   return const Color(0xFF3E7B4F); // deep green
+      case 'water':       return const Color(0xFF2E6B5E); // muted teal-green
+      case 'camping':     return const Color(0xFF5D4E37); // dark earth
+      case 'danger':      return const Color(0xFFB33A3A); // muted red
+      case 'rest_area':   return const Color(0xFF557A5A); // olive green
+      case 'information': return const Color(0xFF546B5E); // grey-green
       default:            return const Color(0xFF2E7D32);
     }
   }
@@ -163,11 +163,15 @@ class _PoiListScreenState extends State<PoiListScreen> {
     final provider = context.watch<PoiProvider>();
     final pois = provider.pois;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isTyping = _searchController.text.trim().isNotEmpty;
+
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final onSurface = cs.onSurface;
+    final subtleText = onSurface.withValues(alpha: 0.55);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A1F0C) : const Color(0xFFF6F8FA),
-      appBar: EcoPageHeader(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: const EcoPageHeader(
         title: 'Local Heritage',
       ),
       body: RefreshIndicator(
@@ -185,7 +189,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                     'Discover the wonders of the Vercors ecosystem',
                     style: TextStyle(
                       fontSize: 13,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      color: subtleText,
                       height: 1.4,
                     ),
                   ),
@@ -214,75 +218,53 @@ class _PoiListScreenState extends State<PoiListScreen> {
             const SizedBox(height: 14),
 
             // ── Search Bar ───────────────────────────────────────────────────
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF142D16) : Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isTyping
-                      ? AppTheme.primaryColor
-                      : (isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE5E7EB)),
-                  width: isTyping ? 1.5 : 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.search_rounded,
-                    color: isTyping ? AppTheme.primaryColor : Colors.grey[400],
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.1),
+                      ),
+                    ),
                     child: TextField(
                       controller: _searchController,
                       onChanged: _onSearchChanged,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF111827),
-                        fontSize: 14,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search points of interest...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                        ),
+                      style: TextStyle(color: onSurface, fontSize: 14),
+                      decoration: const InputDecoration(
+                        hintText: 'Rechercher un point d\'intérêt...',
+                        hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                        prefixIcon: Icon(Icons.search, color: Color(0xFF6B7280), size: 20),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
                   ),
-                  if (_searchController.text.isNotEmpty)
-                    GestureDetector(
-                      onTap: () {
-                        _searchController.clear();
-                        _loadPois();
-                        setState(() {});
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 14,
-                          color: isDark ? Colors.grey[300] : Colors.grey[600],
-                        ),
+                ),
+                if (_searchController.text.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                      _loadPois();
+                      setState(() {});
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
                       ),
+                      child: Icon(Icons.close_rounded, size: 18, color: subtleText),
                     ),
+                  ),
                 ],
-              ),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -338,7 +320,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                       Text(
                         'Loading points of interest...',
                         style: TextStyle(
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          color: subtleText,
                           fontSize: 13,
                         ),
                       ),
@@ -372,7 +354,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF1F2937),
+                          color: onSurface,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -380,7 +362,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                         'Try adjusting your search or filter',
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? Colors.grey[400] : Colors.grey[500],
+                          color: subtleText,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -465,7 +447,10 @@ class _PoiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = isDark ? const Color(0xFF112614) : Colors.white;
+    final theme = Theme.of(context);
+    final cardBg = theme.cardColor;
+    final onSurface = theme.colorScheme.onSurface;
+    final subtleText = onSurface.withValues(alpha: 0.55);
     final imageHeight = isFeatured ? 200.0 : 160.0;
 
     return Container(
@@ -573,22 +558,23 @@ class _PoiCard extends StatelessWidget {
                         top: 12,
                         right: 12,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: Colors.amber[700],
-                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.star_rounded, size: 11, color: Colors.white),
-                              SizedBox(width: 3),
+                              Icon(Icons.star_rounded, size: 11, color: Color(0xFFFFD54F)),
+                              SizedBox(width: 4),
                               Text(
                                 'Featured',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ],
@@ -630,65 +616,59 @@ class _PoiCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        color: subtleText,
                         fontSize: 13,
                         height: 1.5,
                       ),
                     ),
                     const SizedBox(height: 12),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Badge chip
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: typeColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: typeColor.withValues(alpha: 0.2),
+                        // Badge chip — compact, auto-width
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: typeColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: typeColor.withValues(alpha: 0.25)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(icon, size: 11, color: typeColor),
+                              const SizedBox(width: 5),
+                              Text(
+                                poi.badge?.trim().isNotEmpty == true
+                                    ? poi.badge!
+                                    : poi.typeDisplayName,
+                                style: TextStyle(
+                                  color: typeColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 11,
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              poi.badge?.trim().isNotEmpty == true
-                                  ? poi.badge!
-                                  : 'Natural Heritage',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: typeColor,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
-                              ),
-                            ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        // Learn More button
+                        // Learn More — compact pill
                         GestureDetector(
                           onTap: onTapLearnMore,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
+                              borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'Learn More',
+                                  'En savoir plus',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 SizedBox(width: 4),
@@ -756,15 +736,19 @@ class _TypeFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final chipBg = isSelected ? color : theme.cardColor;
+    final borderCol = isSelected ? color : theme.colorScheme.outline;
+    final iconCol = isSelected ? Colors.white : theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    final labelCol = isSelected ? Colors.white : theme.colorScheme.onSurface;
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeInOut,
         child: Material(
-          color: isSelected
-              ? color
-              : (isDark ? const Color(0xFF142D16) : Colors.white),
+          color: chipBg,
           borderRadius: BorderRadius.circular(20),
           child: InkWell(
             borderRadius: BorderRadius.circular(20),
@@ -774,31 +758,17 @@ class _TypeFilterChip extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected
-                      ? color
-                      : (isDark
-                          ? Colors.white.withValues(alpha: 0.1)
-                          : const Color(0xFFE5E7EB)),
-                ),
+                border: Border.all(color: borderCol),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    icon,
-                    size: 15,
-                    color: isSelected
-                        ? Colors.white
-                        : (isDark ? Colors.grey[400] : Colors.grey[600]),
-                  ),
+                  Icon(icon, size: 15, color: iconCol),
                   const SizedBox(width: 6),
                   Text(
                     label,
                     style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : (isDark ? Colors.grey[300] : const Color(0xFF374151)),
+                      color: labelCol,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       fontSize: 12,
                     ),
@@ -830,11 +800,15 @@ class _MapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(top: 4, bottom: 24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF112614) : Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.colorScheme.outline),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.07),
@@ -873,7 +847,7 @@ class _MapCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF111827),
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -885,7 +859,7 @@ class _MapCard extends StatelessWidget {
                                 : 'All nearby points shown',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? Colors.grey[400] : Colors.grey[500],
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
                         ),
                       ),
                     ],

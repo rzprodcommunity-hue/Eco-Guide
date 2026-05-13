@@ -773,7 +773,7 @@ class _FavoriteButton extends StatelessWidget {
       onTap: () => favProvider.toggle(trail),
       child: Icon(
         isFav ? Icons.favorite : Icons.favorite_border,
-        color: isFav ? const Color(0xFFE91E8C) : const Color(0xFF6B7280),
+        color: isFav ? const Color(0xFFE53935) : const Color(0xFF6B7280),
         size: 24,
       ),
     );

@@ -130,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const QuizScreen(),
       const OfflineTrailsScreen(),
       const LocalServicesScreen(),
-      const SettingsScreen(),
+      SettingsScreen(onBack: () => _navigateToTab(0)),
     ];
 
     return PopScope(
@@ -140,10 +140,19 @@ class _HomeScreenState extends State<HomeScreen> {
         _handleBackPressed();
       },
       child: Scaffold(
-        body: IndexedStack(index: _currentIndex, children: screens),
-        bottomNavigationBar: EcoShortcutBadge(
-          currentTab: _badgeTabFromIndex(_currentIndex),
-          onTabSelected: _onBadgeTabSelected,
+        body: Stack(
+          children: [
+            IndexedStack(index: _currentIndex, children: screens),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: EcoShortcutBadge(
+                currentTab: _badgeTabFromIndex(_currentIndex),
+                onTabSelected: _onBadgeTabSelected,
+              ),
+            ),
+          ],
         ),
       ),
     );

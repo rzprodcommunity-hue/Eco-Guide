@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../screens/home/home_screen.dart';
-import '../theme/app_theme.dart';
+import 'user_avatar_badge.dart';
 
 class EcoPageHeader extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -45,8 +45,9 @@ class EcoPageHeader extends StatelessWidget implements PreferredSizeWidget {
         title,
         style: TextStyle(
           color: Theme.of(context).colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          fontSize: 24,
+          letterSpacing: -0.3,
         ),
       ),
       actions: [
@@ -67,10 +68,8 @@ class _AccountBadge extends StatelessWidget {
     final user = authProvider.user;
 
     final displayName = user?.fullName ?? 'Guest';
-    final shortName = displayName.trim().isEmpty
-        ? 'Guest'
-        : displayName.split(' ').first;
     final avatarUrl = user?.avatarUrl;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {
@@ -79,47 +78,10 @@ class _AccountBadge extends StatelessWidget {
           (route) => false,
         );
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-              backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              child: avatarUrl == null || avatarUrl.isEmpty
-                  ? Text(
-                      _initials(displayName),
-                      style: const TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 6),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 84),
-              child: Text(
-                shortName,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ],
-        ),
+      child: UserAvatarBadge(
+        avatarUrl: avatarUrl,
+        initials: _initials(displayName),
+        isDark: isDark,
       ),
     );
   }

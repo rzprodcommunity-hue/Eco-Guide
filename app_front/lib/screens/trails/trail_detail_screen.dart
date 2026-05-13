@@ -14,7 +14,6 @@ import '../../services/map_offline_service.dart';
 import '../../services/review_service.dart';
 import '../map/navigation_sos_screen.dart';
 import '../offline/offline_trails_screen.dart';
-import '../sos/sos_button.dart';
 import '../poi/poi_detail_screen.dart';
 
 class TrailDetailScreen extends StatefulWidget {
@@ -1075,84 +1074,52 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
             ),
           ],
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                onPressed:
-                    widget.trail.startLatitude == null ||
-                        widget.trail.startLongitude == null
-                    ? null
-                    : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => NavigationSosScreen(
-                              destination: LatLng(
-                                widget.trail.startLatitude!,
-                                widget.trail.startLongitude!,
-                              ),
-                              destinationLabel: widget.trail.name,
-                              trail: widget.trail,
-                            ),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed:
+                widget.trail.startLatitude == null ||
+                    widget.trail.startLongitude == null
+                ? null
+                : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => NavigationSosScreen(
+                          destination: LatLng(
+                            widget.trail.startLatitude!,
+                            widget.trail.startLongitude!,
                           ),
-                        );
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.navigation, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      context.watch<LocaleProvider>().t('trail.start'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
+                          destinationLabel: widget.trail.name,
+                          trail: widget.trail,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              height: 54,
-              width: 54,
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                    );
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
               ),
-              child: InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SosScreen(),
+              elevation: 0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.navigation, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  context.watch<LocaleProvider>().t('trail.start'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                borderRadius: BorderRadius.circular(12),
-                child: const Center(
-                  child: Text(
-                    "SOS",
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1206,7 +1173,7 @@ class _DetailFavoriteButton extends StatelessWidget {
         child: Icon(
           isFav ? Icons.favorite : Icons.favorite_border,
           size: 20,
-          color: isFav ? const Color(0xFFE91E8C) : const Color(0xFF111111),
+          color: isFav ? const Color(0xFFE53935) : const Color(0xFF111111),
         ),
       ),
     );

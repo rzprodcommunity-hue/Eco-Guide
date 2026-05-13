@@ -554,7 +554,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               height: _weeklyBars[i] * _barAnimation.value,
                               decoration: BoxDecoration(
                                 color: isToday
-                                    ? const Color(0xFFE91E8C)
+                                    ? const Color(0xFFE53935)
                                     : AppTheme.primaryColor,
                                 borderRadius: BorderRadius.circular(7),
                               ),

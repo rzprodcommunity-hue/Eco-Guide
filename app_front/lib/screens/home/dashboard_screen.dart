@@ -162,42 +162,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final weatherProvider = context.watch<WeatherProvider>();
     final user = authProvider.user;
 
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // appBar: const EcoPageHeader(
-      //   title: 'Dashboard',
-      //   showBackButton: false,
-      //   showAccountBadge: false,
-      // ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            RefreshIndicator(
-              color: const Color(0xFF22B53A),
-              onRefresh: _refreshDashboard,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(user),
-                    const SizedBox(height: 16),
-                    _buildMapSection(),
-                    const SizedBox(height: 24),
-                    _buildQuickActions(),
-                    const SizedBox(height: 24),
-                    _buildNearbyTrails(trailProvider),
-                    const SizedBox(height: 24),
-                    _buildCurrentConditions(weatherProvider),
-                    const SizedBox(height: 24),
-                    _buildDiscoverNature(poiProvider),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-            _buildStartTrekButton(),
-          ],
+      backgroundColor: bgColor,
+      body: RefreshIndicator(
+        color: const Color(0xFF22B53A),
+        onRefresh: _refreshDashboard,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header is inside the map hero — scrolls away with it
+              _buildHeroMap(user, bgColor),
+              const SizedBox(height: 24),
+              _buildQuickActions(),
+              const SizedBox(height: 24),
+              _buildNearbyTrails(trailProvider),
+              const SizedBox(height: 24),
+              _buildCurrentConditions(weatherProvider),
+              const SizedBox(height: 24),
+              _buildDiscoverNature(poiProvider),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -206,7 +195,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHeader(dynamic user) {
     final lp = context.watch<LocaleProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final firstName = user?.firstName ?? (lp.languageCode == 'en' ? 'Explorer' : 'Explorateur');
+    final firstName =
+        user?.firstName ??
+        (lp.languageCode == 'en' ? 'Explorer' : 'Explorateur');
     final lastName = user?.lastName;
     final email = user?.email ?? '';
     final displayName = lastName != null ? '$firstName $lastName' : firstName;
@@ -215,15 +206,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       user?.lastName,
       email.isNotEmpty ? email : 'U',
     );
-
-    final hour = DateTime.now().hour;
-    final String greeting;
-    if (lp.languageCode == 'en') {
-      greeting = hour < 12 ? 'Good morning,' : hour < 18 ? 'Good afternoon,' : 'Good evening,';
-    } else {
-      greeting = hour < 12 ? 'Bonjour,' : hour < 18 ? 'Bon après-midi,' : 'Bonsoir,';
-    }
-
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
@@ -234,38 +216,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Greeting
-                Text(
-                  greeting,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: (isDark ? Colors.white : Colors.black)
-                        .withValues(alpha: 0.5),
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                // Name
                 Text(
                   displayName,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: Colors.black,
                     letterSpacing: -0.5,
                     height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                // Tagline
-                Text(
-                  lp.t('home.tagline'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: (isDark ? Colors.white : Colors.black)
-                        .withValues(alpha: 0.4),
                   ),
                 ),
               ],
@@ -273,7 +231,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(width: 12),
           // Avatar
-          Container(
+          Transform.translate(
+            offset: const Offset(0, -10),
+            child: Container(
             width: 58,
             height: 58,
             decoration: BoxDecoration(
@@ -299,19 +259,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: isDark ? const Color(0xFF142D16) : Colors.white,
                 ),
                 child: ClipOval(
-                  child: user?.avatarUrl != null &&
+                  child:
+                      user?.avatarUrl != null &&
                           (user!.avatarUrl as String).isNotEmpty
                       ? Image.network(
                           user.avatarUrl as String,
                           fit: BoxFit.cover,
-                          errorBuilder: (ctx, err, st) => _avatarInitials(
-                              initials, isDark),
+                          errorBuilder: (ctx, err, st) =>
+                              _avatarInitials(initials, isDark),
                         )
                       : _avatarInitials(initials, isDark),
                 ),
               ),
             ),
           ),
+          ), // Transform.translate
         ],
       ),
     );
@@ -331,181 +293,155 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildMapSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        height: 200,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+  Widget _buildHeroMap(dynamic user, Color bgColor) {
+    return SizedBox(
+      height: 340,
+      width: double.infinity,
+      child: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _currentPosition,
+              initialZoom: 13,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
             children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: _currentPosition,
-                  initialZoom: 13,
+              TileLayer(
+                key: ValueKey(_mapStyle),
+                urlTemplate: _mapStyle.urlTemplate,
+                userAgentPackageName: 'com.ecoguide.app',
+                tileProvider: LocalFirstTileProvider(
+                  service: _mapOfflineService,
                 ),
-                children: [
-                  TileLayer(
-                    key: ValueKey(_mapStyle),
-                    urlTemplate: _mapStyle.urlTemplate,
-                    userAgentPackageName: 'com.ecoguide.app',
-                    tileProvider: LocalFirstTileProvider(
-                      service: _mapOfflineService,
-                    ),
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: _currentPosition,
-                        width: 24,
-                        height: 24,
-                        child: GestureDetector(
-                          onTap: () =>
-                              _mapController.move(_currentPosition, 15),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.blue,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Theme.of(context).cardColor,
-                                width: 3,
-                              ),
-                            ),
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: _currentPosition,
+                    width: 24,
+                    height: 24,
+                    child: GestureDetector(
+                      onTap: () => _mapController.move(_currentPosition, 15),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).cardColor,
+                            width: 3,
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
-              // Action Buttons
-              Positioned(
-                top: 12,
-                left: 12,
-                right: 12,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).cardColor.withValues(alpha: 0.95),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.black12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _mapStyle.icon,
-                            size: 16,
-                            color: AppTheme.primaryColor,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _mapStyle.label,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
+            ],
+          ),
+          // Map style toggle + locate buttons (bottom-right)
+          Positioned(
+            bottom: 52,
+            right: 14,
+            child: Column(
+              children: [
+                _buildMapButton(
+                  icon: Icons.layers_outlined,
+                  onTap: _cycleMapStyle,
+                  bgColor: Theme.of(context).cardColor,
+                ),
+                const SizedBox(height: 8),
+                _buildMapButton(
+                  icon: Icons.my_location,
+                  onTap: () => _mapController.move(_currentPosition, 14),
+                  bgColor: const Color(0xFF2E7D32),
+                  iconColor: Theme.of(context).cardColor,
+                ),
+              ],
+            ),
+          ),
+          // Style label chip (bottom-left)
+          Positioned(
+            bottom: 16,
+            left: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.black12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_mapStyle.icon, size: 15, color: AppTheme.primaryColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    _mapStyle.label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
-                    Column(
-                      children: [
-                        _buildMapButton(
-                          icon: Icons.layers_outlined,
-                          onTap: _cycleMapStyle,
-                          bgColor: Theme.of(context).cardColor,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildMapButton(
-                          icon: Icons.my_location,
-                          onTap: () {
-                            _mapController.move(_currentPosition, 14);
-                          },
-                          bgColor: const Color(0xFF2E7D32),
-                          iconColor: Theme.of(context).cardColor,
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Top green shadow (light)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 280,
+            child: IgnorePointer(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x880D6B1E),
+                      Color(0x6616912A),
+                      Color(0x4D22B53A),
+                      Color(0x3322B53A),
+                      Color(0x1522B53A),
+                      Color(0x0022B53A),
+                    ],
+                    stops: [0.0, 0.2, 0.4, 0.65, 0.82, 1.0],
+                  ),
                 ),
               ),
-              // Location Label
-              Positioned(
-                bottom: 12,
-                left: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Theme.of(
-                            context,
-                          ).colorScheme.surface.withValues(alpha: 0.9)
-                        : Theme.of(context).cardColor.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.3)
-                          : Theme.of(
-                              context,
-                            ).dividerColor.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Jbel Chitana',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
+            ),
+          ),
+          // Bottom white shadow
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 60,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      bgColor.withValues(alpha: 0.8),
+                      bgColor.withValues(alpha: 0.0),
                     ],
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+          // Header overlay — no background, floats over green shadow
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(bottom: false, child: _buildHeader(user)),
+          ),
+        ],
       ),
     );
   }
@@ -604,6 +540,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildNearbyPois(PoiProvider poiProvider) {
     final pois = poiProvider.pois.take(5).toList();
 
@@ -1159,7 +1096,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Returns dynamic gradient colors based on the current weather condition.
+  // ignore: unused_element
   List<Color> _weatherGradient(String condition, bool isDay) {
     if (!isDay) {
       return [const Color(0xFF1A237E), const Color(0xFF283593)];
@@ -1183,6 +1120,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // ignore: unused_element
   String _lastUpdatedText(DateTime? lastFetch) {
     if (lastFetch == null) return '';
     final diff = DateTime.now().difference(lastFetch);
@@ -1193,8 +1131,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildCurrentConditions(WeatherProvider weatherProvider) {
     final weather = weatherProvider.currentWeather;
-    final isLoading = weatherProvider.isLoading && weather == null;
-
     final temperature = weather?.temperatureText ?? '22°C';
     final wind = weather?.windText ?? '12km/h';
     final humidity = weather?.humidityText ?? '45%';
@@ -1474,25 +1410,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStartTrekButton() {
-    return Positioned(
-      right: 20,
-      bottom: 20,
-      child: FloatingActionButton.extended(
-        heroTag: 'startTrekDashboard',
-        onPressed: widget.onNavigateToTrails,
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).primaryColor.withValues(alpha: 0.9),
-        icon: const Icon(Icons.add_location_alt, color: Colors.white),
-        label: Text(
-          context.watch<LocaleProvider>().t('home.startTrek'),
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
     );

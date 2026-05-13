@@ -60,6 +60,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   _NavPoint? _featuredPoint;
 
   _HikeStatus _hikeStatus = _HikeStatus.notStarted;
+  bool _isFullScreen = false;
   DateTime? _startTime;
   Duration _elapsedTime = Duration.zero;
   double _distanceTraveled = 0.0;
@@ -399,7 +400,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
         : 0.0;
 
     return Scaffold(
-      appBar: const EcoPageHeader(title: 'Navigation & SOS'),
+      appBar: _isFullScreen ? null : const EcoPageHeader(title: 'Navigation & SOS'),
       body: Stack(
         children: [
           FlutterMap(
@@ -611,9 +612,19 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             ),
           Positioned(
             right: 16,
-            top: 230,
+            top: _isFullScreen ? 60 : 230,
             child: Column(
               children: [
+                FloatingActionButton.small(
+                  heroTag: 'navFullscreenBtn',
+                  onPressed: () => setState(() => _isFullScreen = !_isFullScreen),
+                  backgroundColor: const Color(0xFF2E7D32),
+                  child: Icon(
+                    _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 FloatingActionButton.small(
                   heroTag: 'navStyleBtn',
                   onPressed: _cycleMapStyle,
@@ -628,7 +639,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               ],
             ),
           ),
-          if (_featuredPoint != null)
+          if (_featuredPoint != null && !_isFullScreen)
             Positioned(
               left: 16,
               right: 76,
@@ -723,12 +734,13 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
           //     ),
           //   ),
           // ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomStatsPanel(destinationKm),
-          ),
+          if (!_isFullScreen)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildBottomStatsPanel(destinationKm),
+            ),
           if (_isLoading || _isRouting)
             const Positioned(
               top: 70,

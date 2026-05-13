@@ -13,7 +13,8 @@ import 'terms_screen.dart';
 import 'version_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final VoidCallback? onBack;
+  const SettingsScreen({super.key, this.onBack});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -25,17 +26,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _securityAlerts = false;
   bool _gpsEnabled = false;
   bool _powerSaving = false;
+  String _gpsPrecision = 'Haute';
   final MapOfflineService _mapOfflineService = MapOfflineService();
   bool _hasOfflineMap = false;
   bool _isDownloadingMap = false;
   String _offlineMapStatus = 'Vérification...';
 
-  Color _pageBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark
-      ? const Color(0xFF0A1F0C)
-      : const Color(0xFFF6F5F2);
-  Color _cardBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark
-      ? const Color(0xFF142D16)
-      : const Color(0xFFEDE8DF);
   Color _titleColor(BuildContext ctx) => Theme.of(ctx).colorScheme.onSurface;
   Color _subtitleColor(BuildContext ctx) =>
       Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6);
@@ -58,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _securityAlerts = prefs.getBool('settings_security_alerts') ?? true;
         _gpsEnabled = prefs.getBool('settings_gps_enabled') ?? true;
         _powerSaving = prefs.getBool('settings_power_saving') ?? false;
+        _gpsPrecision = prefs.getString('settings_gps_precision') ?? 'Haute';
       });
     }
   }
@@ -65,6 +62,130 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _updateSetting(String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, value);
+  }
+
+  void _showGpsPrecisionPicker(BuildContext context) {
+    final options = ['Haute', 'Normale', 'Économie'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44, height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).dividerColor.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Précision GPS',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(ctx).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Choisissez selon votre besoin et autonomie batterie',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
+              ),
+              const SizedBox(height: 14),
+              ...options.map((opt) {
+                final selected = _gpsPrecision == opt;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () async {
+                      setState(() => _gpsPrecision = opt);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('settings_gps_precision', opt);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? AppTheme.primaryColor.withValues(alpha: 0.08)
+                            : Theme.of(ctx).cardColor,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: selected
+                              ? AppTheme.primaryColor
+                              : Theme.of(ctx).dividerColor.withValues(alpha: 0.2),
+                          width: selected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            opt == 'Haute'
+                                ? Icons.gps_fixed
+                                : opt == 'Normale'
+                                    ? Icons.gps_not_fixed
+                                    : Icons.battery_saver,
+                            color: selected
+                                ? AppTheme.primaryColor
+                                : Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  opt,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Theme.of(ctx).colorScheme.onSurface,
+                                  ),
+                                ),
+                                Text(
+                                  opt == 'Haute'
+                                      ? 'Meilleure précision, plus de batterie'
+                                      : opt == 'Normale'
+                                          ? 'Bon équilibre précision/batterie'
+                                          : 'Économise la batterie, moins précis',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.55),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (selected)
+                            const Icon(Icons.check_circle_rounded,
+                                color: AppTheme.primaryColor, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _checkOfflineMap() async {
@@ -77,40 +198,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? 'Disponible (Tabarka)'
             : 'Télécharger via WIFI';
       });
-    }
-  }
-
-  Future<void> _handleDownloadMap() async {
-    if (_hasOfflineMap) return;
-    setState(() {
-      _isDownloadingMap = true;
-      _offlineMapStatus = 'Téléchargement en cours...';
-    });
-
-    try {
-      await _mapOfflineService.downloadTabarkaTiles();
-      await _checkOfflineMap();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Carte de Tabarka téléchargée avec succès. Vous pouvez maintenant naviguer hors ligne !',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isDownloadingMap = false);
-        _checkOfflineMap();
-      }
     }
   }
 
@@ -218,10 +305,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final lp = context.watch<LocaleProvider>();
 
     return Scaffold(
-      backgroundColor: _pageBg(context),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom + 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -377,19 +464,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.gps_fixed,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Precision GPS',
-                      subtitle: 'Equilibre entre batterie et precision',
+                      title: 'Précision GPS',
+                      subtitle: 'Équilibre entre batterie et précision',
+                      onTap: () => _showGpsPrecisionPicker(context),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Elevee',
-                            style: TextStyle(
+                          Text(
+                            _gpsPrecision,
+                            style: const TextStyle(
                               color: AppTheme.primaryColor,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Icon(
                             Icons.chevron_right_rounded,
                             color: _mutedColor(context),
@@ -401,13 +489,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.battery_charging_full,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Economie d\'energie',
-                      subtitle: 'Reduit la frequence du GPS + mode dark',
+                      title: 'Économie d\'énergie',
+                      subtitle: 'Active le mode sombre + réduit le GPS',
                       trailing: _buildSwitch(
                         value: _powerSaving,
                         onChanged: (value) {
                           setState(() => _powerSaving = value);
                           _updateSetting('settings_power_saving', value);
+                          context.read<ThemeProvider>().toggleTheme(value);
                         },
                       ),
                     ),
@@ -543,11 +632,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           IconButton(
             onPressed: () {
-              if (Navigator.of(context).canPop()) {
+              if (widget.onBack != null) {
+                widget.onBack!();
+              } else if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
               }
             },
-            icon: Icon(Icons.arrow_back, color: _titleColor(context)),
+            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: _titleColor(context)),
           ),
           Expanded(
             child: Text(
@@ -562,9 +653,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           IconButton(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Centre d\'aide bientot disponible'),
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.help_outline, color: AppTheme.primaryColor),
+                      SizedBox(width: 10),
+                      Text('Centre d\'aide'),
+                    ],
+                  ),
+                  content: const Text(
+                    'Le centre d\'aide sera disponible dans une prochaine mise à jour.\n\nPour toute question, contactez le support via l\'application.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('OK', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
                 ),
               );
             },
@@ -637,9 +745,7 @@ class _SettingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF142D16)
-            : const Color(0xFFEDE8DF),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
       ),
       child: child,
