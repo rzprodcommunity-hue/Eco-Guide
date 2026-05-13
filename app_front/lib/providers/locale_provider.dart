@@ -119,6 +119,7 @@ const Map<String, Map<String, String>> _strings = {
     'tab.params': 'Paramètres',
     // Home dashboard
     'home.welcomeBack': 'Bon retour,',
+    'home.tagline': 'Prêt pour l\'aventure ?',
     'home.nearby': 'Sentiers à proximité',
     'home.seeAll': 'Voir tout',
     'home.discover': 'Découvrir la nature',
@@ -378,6 +379,7 @@ const Map<String, Map<String, String>> _strings = {
     'tab.params': 'Settings',
     // Home dashboard
     'home.welcomeBack': 'Welcome back,',
+    'home.tagline': 'Ready for an adventure?',
     'home.nearby': 'Nearby Trails',
     'home.seeAll': 'See All',
     'home.discover': 'Discover Nature',

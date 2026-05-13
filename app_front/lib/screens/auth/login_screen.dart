@@ -200,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen>
               child: Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF2C2C2C)
+                      ? const Color(0xFF142D16)
                       : Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -269,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen>
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF2C2C2C)
+                            ? const Color(0xFF142D16)
                             : Colors.grey[50],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -330,7 +330,7 @@ class _LoginScreenState extends State<LoginScreen>
                         filled: true,
                         fillColor:
                             Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF2C2C2C)
+                            ? const Color(0xFF142D16)
                             : Colors.grey[50],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),

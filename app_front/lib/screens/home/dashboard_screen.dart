@@ -100,18 +100,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refreshDashboard() async {
-    final isOnline = await NetworkService.hasInternetConnection();
     await _loadData();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isOnline
-              ? 'Donnees rechargees depuis Supabase.'
-              : 'Mode hors ligne: donnees rechargees depuis SQL.',
-        ),
-      ),
-    );
   }
 
   Future<void> _detectUserPosition() async {
@@ -183,24 +172,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 100),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(user),
-                  const SizedBox(height: 16),
-                  _buildMapSection(),
-                  const SizedBox(height: 24),
-                  _buildQuickActions(),
-                  const SizedBox(height: 24),
-                  _buildNearbyTrails(trailProvider),
-                  const SizedBox(height: 24),
-                  _buildCurrentConditions(weatherProvider),
-                  const SizedBox(height: 24),
-                  _buildDiscoverNature(poiProvider),
-                  const SizedBox(height: 24),
-                ],
+            RefreshIndicator(
+              color: const Color(0xFF22B53A),
+              onRefresh: _refreshDashboard,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(user),
+                    const SizedBox(height: 16),
+                    _buildMapSection(),
+                    const SizedBox(height: 24),
+                    _buildQuickActions(),
+                    const SizedBox(height: 24),
+                    _buildNearbyTrails(trailProvider),
+                    const SizedBox(height: 24),
+                    _buildCurrentConditions(weatherProvider),
+                    const SizedBox(height: 24),
+                    _buildDiscoverNature(poiProvider),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
             ),
             _buildStartTrekButton(),
@@ -211,7 +204,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHeader(dynamic user) {
-    final firstName = user?.firstName ?? 'Explorateur';
+    final lp = context.watch<LocaleProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final firstName = user?.firstName ?? (lp.languageCode == 'en' ? 'Explorer' : 'Explorateur');
     final lastName = user?.lastName;
     final email = user?.email ?? '';
     final displayName = lastName != null ? '$firstName $lastName' : firstName;
@@ -221,81 +216,117 @@ class _DashboardScreenState extends State<DashboardScreen> {
       email.isNotEmpty ? email : 'U',
     );
 
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    final hour = DateTime.now().hour;
+    final String greeting;
+    if (lp.languageCode == 'en') {
+      greeting = hour < 12 ? 'Good morning,' : hour < 18 ? 'Good afternoon,' : 'Good evening,';
+    } else {
+      greeting = hour < 12 ? 'Bonjour,' : hour < 18 ? 'Bon après-midi,' : 'Bonsoir,';
+    }
+
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Greeting
                 Text(
-                  context.watch<LocaleProvider>().t('home.welcomeBack'),
+                  greeting,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w500,
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.5),
+                    letterSpacing: 0.2,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
+                // Name
                 Text(
                   displayName,
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
                     color: Theme.of(context).colorScheme.onSurface,
+                    letterSpacing: -0.5,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Tagline
+                Text(
+                  lp.t('home.tagline'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.4),
                   ),
                 ),
               ],
             ),
           ),
-          Row(
-            children: [
-              IconButton(
-                onPressed: _refreshDashboard,
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Actualiser',
+          const SizedBox(width: 12),
+          // Avatar
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF22B53A), Color(0xFF15972C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              Container(
-                width: 48,
-                height: 48,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF22B53A).withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(3),
+              child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.transparent,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF2E7D32), width: 2),
+                  color: isDark ? const Color(0xFF142D16) : Colors.white,
                 ),
                 child: ClipOval(
-                  child: user?.avatarUrl != null && (user!.avatarUrl as String).isNotEmpty
+                  child: user?.avatarUrl != null &&
+                          (user!.avatarUrl as String).isNotEmpty
                       ? Image.network(
                           user.avatarUrl as String,
                           fit: BoxFit.cover,
-                          errorBuilder: (ctx, err, st) => Center(
-                            child: Text(
-                              initials,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                          errorBuilder: (ctx, err, st) => _avatarInitials(
+                              initials, isDark),
                         )
-                      : Center(
-                          child: Text(
-                            initials,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                      : _avatarInitials(initials, isDark),
                 ),
               ),
-            ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _avatarInitials(String initials, bool isDark) {
+    return Center(
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: const Color(0xFF22B53A),
+          fontSize: 20,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }

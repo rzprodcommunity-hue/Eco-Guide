@@ -31,10 +31,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _offlineMapStatus = 'Vérification...';
 
   Color _pageBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark
-      ? const Color(0xFF121212)
+      ? const Color(0xFF0A1F0C)
       : const Color(0xFFF6F5F2);
   Color _cardBg(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark
-      ? const Color(0xFF1E1E1E)
+      ? const Color(0xFF142D16)
       : const Color(0xFFEDE8DF);
   Color _titleColor(BuildContext ctx) => Theme.of(ctx).colorScheme.onSurface;
   Color _subtitleColor(BuildContext ctx) =>
@@ -638,7 +638,7 @@ class _SettingCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF1E1E1E)
+            ? const Color(0xFF142D16)
             : const Color(0xFFEDE8DF),
         borderRadius: BorderRadius.circular(24),
       ),

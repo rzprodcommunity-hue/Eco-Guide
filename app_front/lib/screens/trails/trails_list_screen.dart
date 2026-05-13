@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/services/network_service.dart';
 import '../../core/widgets/error_banner.dart';
+import '../../core/widgets/user_avatar_badge.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/trail_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -77,16 +79,6 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
       forceOffline: !isOnline,
     );
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isOnline
-              ? 'Sentiers recharges depuis Supabase.'
-              : 'Mode hors ligne: sentiers recharges depuis SQL.',
-        ),
-      ),
-    );
   }
 
   Color _getDifficultyColor(String difficulty) {
@@ -241,41 +233,44 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = context.watch<AuthProvider>().user;
+    final avatarUrl = user?.avatarUrl;
+    final displayName = user?.fullName ?? 'Explorateur';
+    final words = displayName.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final initials = words.isEmpty ? 'E' : words.length == 1 ? words.first[0].toUpperCase() : (words.first[0] + words.last[0]).toUpperCase();
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.watch<LocaleProvider>().t('trails.brand'),
-                style: TextStyle(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  lp.t('trails.brand'),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                context.watch<LocaleProvider>().t('trails.heading'),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
+                const SizedBox(height: 4),
+                Text(
+                  lp.t('trails.heading'),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          IconButton(
-            onPressed: _refreshTrails,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Actualiser',
-          ),
+          UserAvatarBadge(avatarUrl: avatarUrl, initials: initials, isDark: isDark),
         ],
       ),
     );

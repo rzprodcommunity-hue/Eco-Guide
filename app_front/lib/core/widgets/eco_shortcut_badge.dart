@@ -31,6 +31,7 @@ class EcoShortcutBadge extends StatelessWidget {
 
     return SafeArea(
       top: false,
+      bottom: false,
       child: SizedBox(
         height: barHeight + sosOverhang,
         child: Stack(
@@ -38,21 +39,17 @@ class EcoShortcutBadge extends StatelessWidget {
           alignment: Alignment.topCenter,
           children: [
             // Navbar background drawn directly with CustomPaint (curve + shadow)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: barHeight + bumpHeight,
-              child: SizedBox.expand(
-                child: CustomPaint(
-                  painter: _NavbarPainter(
-                    notchRadius: sosSize / 2 + 8,
-                    topRadius: 34,
-                    bumpHeight: bumpHeight,
-                    fillColor: isDark ? const Color(0xFF111827) : Colors.white,
-                    shadowColor: Colors.black
-                        .withValues(alpha: isDark ? 0.45 : 0.28),
-                  ),
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _NavbarPainter(
+                  notchRadius: sosSize / 2 + 8,
+                  topRadius: 34,
+                  bumpHeight: bumpHeight,
+                  // Top inset so the bump starts at sosOverhang height from top
+                  topInset: sosOverhang - bumpHeight,
+                  fillColor: isDark ? const Color(0xFF1C5E20) : Colors.white,
+                  shadowColor: Colors.black
+                      .withValues(alpha: isDark ? 0.45 : 0.28),
                 ),
               ),
             ),
@@ -161,6 +158,7 @@ class _NavbarPainter extends CustomPainter {
   final double notchRadius;
   final double topRadius;
   final double bumpHeight;
+  final double topInset;
   final Color fillColor;
   final Color shadowColor;
 
@@ -168,6 +166,7 @@ class _NavbarPainter extends CustomPainter {
     required this.notchRadius,
     required this.topRadius,
     required this.bumpHeight,
+    this.topInset = 0,
     required this.fillColor,
     required this.shadowColor,
   });
@@ -176,7 +175,9 @@ class _NavbarPainter extends CustomPainter {
     final path = Path();
     final centerX = size.width / 2;
     final bumpHalfWidth = notchRadius + 70; // wider than SOS+glow
-    final flatTopY = bumpHeight;
+    // Bump apex sits at y=topInset, flat top at y=topInset+bumpHeight
+    final apexY = topInset;
+    final flatTopY = topInset + bumpHeight;
 
     final bumpLeft = centerX - bumpHalfWidth;
     final bumpRight = centerX + bumpHalfWidth;
@@ -187,11 +188,11 @@ class _NavbarPainter extends CustomPainter {
     // smooth hill up to apex
     path.cubicTo(
       bumpLeft + bumpHalfWidth * 0.5, flatTopY,
-      centerX - notchRadius * 0.7, 0,
-      centerX, 0,
+      centerX - notchRadius * 0.7, apexY,
+      centerX, apexY,
     );
     path.cubicTo(
-      centerX + notchRadius * 0.7, 0,
+      centerX + notchRadius * 0.7, apexY,
       bumpRight - bumpHalfWidth * 0.5, flatTopY,
       bumpRight, flatTopY,
     );
@@ -303,7 +304,9 @@ class _TabItem extends StatelessWidget {
                 child: Icon(
                   icon,
                   size: selected ? 28 : 26,
-                  color: selected ? _green : _unselected,
+                  color: selected
+                      ? _green
+                      : (isDark ? const Color(0xFFCBD5E1) : _unselected),
                 ),
               ),
               const SizedBox(height: 4),
@@ -315,7 +318,9 @@ class _TabItem extends StatelessWidget {
                   style: TextStyle(
                     fontSize: selected ? 14 : 13,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    color: selected ? _green : _unselected,
+                    color: selected
+                        ? _green
+                        : (isDark ? const Color(0xFFCBD5E1) : _unselected),
                   ),
                 ),
               ),

@@ -105,18 +105,6 @@ class _PoiListScreenState extends State<PoiListScreen> {
     );
     if (!mounted) return;
     await _refreshNearbyCount(provider);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        content: Text(
-          isOnline
-              ? 'POIs reloaded from server.'
-              : 'Offline mode: POIs loaded from local cache.',
-        ),
-      ),
-    );
   }
 
   Future<void> _refreshNearbyCount(PoiProvider provider) async {
@@ -178,16 +166,9 @@ class _PoiListScreenState extends State<PoiListScreen> {
     final isTyping = _searchController.text.trim().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F1621) : const Color(0xFFF6F8FA),
+      backgroundColor: isDark ? const Color(0xFF0A1F0C) : const Color(0xFFF6F8FA),
       appBar: EcoPageHeader(
         title: 'Local Heritage',
-        actions: [
-          IconButton(
-            onPressed: _refreshPois,
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
-          ),
-        ],
       ),
       body: RefreshIndicator(
         color: AppTheme.primaryColor,
@@ -236,7 +217,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E2530) : Colors.white,
+                color: isDark ? const Color(0xFF142D16) : Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: isTyping
@@ -484,7 +465,7 @@ class _PoiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = isDark ? const Color(0xFF1A2030) : Colors.white;
+    final cardBg = isDark ? const Color(0xFF112614) : Colors.white;
     final imageHeight = isFeatured ? 200.0 : 160.0;
 
     return Container(
@@ -783,7 +764,7 @@ class _TypeFilterChip extends StatelessWidget {
         child: Material(
           color: isSelected
               ? color
-              : (isDark ? const Color(0xFF1E2530) : Colors.white),
+              : (isDark ? const Color(0xFF142D16) : Colors.white),
           borderRadius: BorderRadius.circular(20),
           child: InkWell(
             borderRadius: BorderRadius.circular(20),
@@ -852,7 +833,7 @@ class _MapCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 4, bottom: 24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A2030) : Colors.white,
+        color: isDark ? const Color(0xFF112614) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(

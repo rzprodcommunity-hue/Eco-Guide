@@ -9,6 +9,11 @@ class AppTheme {
   static const Color backgroundColor = Color(0xFFFBF7F0); // warm beige bg
   static const Color cardBeige = Color(0xFFF2EBDC); // beige cards
   static const Color surfaceColor = Colors.white;
+  // Dark mode palette
+  static const Color darkBg = Color(0xFF0A1F0C);
+  static const Color darkSurface = Color(0xFF112614);
+  static const Color darkCard = Color(0xFF142D16);
+  static const Color darkNavbar = Color(0xFF1C5E20);
   static const Color textPrimary = Color(0xFF212121);
   static const Color textSecondary = Color(0xFF757575);
 
@@ -92,11 +97,12 @@ class AppTheme {
         primary: primaryColor,
         secondary: secondaryColor,
         error: errorColor,
-        surface: const Color(0xFF1E1E1E),
+        surface: darkSurface,
       ),
-      scaffoldBackgroundColor: const Color(0xFF121212),
+      scaffoldBackgroundColor: darkBg,
+      cardColor: darkCard,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: darkSurface,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -143,11 +149,11 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 2,
-        color: const Color(0xFF1E1E1E),
+        color: darkCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: Color(0xFF1C5E20),
         selectedItemColor: primaryColor,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,

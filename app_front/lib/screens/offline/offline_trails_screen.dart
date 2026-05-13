@@ -414,16 +414,13 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: EcoPageHeader(
         title: 'Mode Hors Ligne',
-        actions: [
-          IconButton(
-            onPressed: _isLoading ? null : _initialize,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
+          : RefreshIndicator(
+              color: const Color(0xFF22B53A),
+              onRefresh: _initialize,
+              child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 _buildStorageCard(storageRatio, freeGb),
@@ -483,6 +480,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
                 ),
               ],
             ),
+          ),
     );
   }
 
@@ -492,7 +490,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
             ? Theme.of(context).cardColor
-            : const Color(0xFF0E1212),
+            : const Color(0xFF112614),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
