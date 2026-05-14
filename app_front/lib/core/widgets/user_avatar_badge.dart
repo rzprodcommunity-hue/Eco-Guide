@@ -19,14 +19,10 @@ class UserAvatarBadge extends StatelessWidget {
       height: 46,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF22B53A), Color(0xFF15972C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFFD6C9A8),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF22B53A).withValues(alpha: 0.30),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),

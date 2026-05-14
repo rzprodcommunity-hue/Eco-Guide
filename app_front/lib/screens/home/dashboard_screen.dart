@@ -193,14 +193,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHeader(dynamic user) {
-    final lp = context.watch<LocaleProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final firstName =
-        user?.firstName ??
-        (lp.languageCode == 'en' ? 'Explorer' : 'Explorateur');
-    final lastName = user?.lastName;
     final email = user?.email ?? '';
-    final displayName = lastName != null ? '$firstName $lastName' : firstName;
     final initials = _getUserInitials(
       user?.firstName,
       user?.lastName,
@@ -211,43 +205,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    letterSpacing: -0.5,
-                    height: 1.1,
-                  ),
+          // Logo
+          Transform.translate(
+            offset: const Offset(0, -16),
+            child: Image.asset(
+              'assets/images/logo.png',
+              width: 46,
+              height: 46,
+              fit: BoxFit.contain,
+              errorBuilder: (_, e, s) => Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22B53A).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ],
+                child: const Icon(Icons.spa, color: Color(0xFF22B53A), size: 32),
+              ),
             ),
           ),
-          const SizedBox(width: 12),
           // Avatar
           Transform.translate(
             offset: const Offset(0, -10),
             child: Container(
-            width: 58,
-            height: 58,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF22B53A), Color(0xFF15972C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: const Color(0xFFD6C9A8),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF22B53A).withValues(alpha: 0.35),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -384,32 +376,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-          // Top green shadow (light)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 280,
-            child: IgnorePointer(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x880D6B1E),
-                      Color(0x6616912A),
-                      Color(0x4D22B53A),
-                      Color(0x3322B53A),
-                      Color(0x1522B53A),
-                      Color(0x0022B53A),
-                    ],
-                    stops: [0.0, 0.2, 0.4, 0.65, 0.82, 1.0],
-                  ),
-                ),
               ),
             ),
           ),

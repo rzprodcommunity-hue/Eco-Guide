@@ -1,8 +1,7 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../providers/locale_provider.dart';
 import '../../screens/sos/sos_button.dart';
 
@@ -18,45 +17,32 @@ class EcoShortcutBadge extends StatelessWidget {
     required this.onTabSelected,
   });
 
-  static const _green = Color(0xFF22B53A);
-  static const _darkGreen = Color(0xFF15972C);
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final lp = context.watch<LocaleProvider>();
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     const barHeight = 68.0;
-    const sosSize = 74.0;
+    const sosSize = 62.0;
     const sosOverhang = 32.0;
     const bumpHeight = 24.0;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-      child: SafeArea(
-        top: false,
-        bottom: false,
-        child: SizedBox(
-          height: barHeight + sosOverhang,
-          child: Stack(
+    final navBg = isDark ? AppTheme.darkNavbar : AppTheme.cardBeige;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+          child: SizedBox(
+            height: barHeight + sosOverhang,
+            child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.topCenter,
             children: [
-              // Shadow layer (no fill)
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _NavbarPainter(
-                    notchRadius: sosSize / 2 + 8,
-                    topRadius: 34,
-                    bumpHeight: bumpHeight,
-                    topInset: sosOverhang - bumpHeight,
-                    shadowColor: const Color(
-                      0xFF22B53A,
-                    ).withValues(alpha: isDark ? 0.25 : 0.20),
-                  ),
-                ),
-              ),
-              // Glassmorphism: clip → blur backdrop → semi-transparent tint
+              // Solid fill clipped to navbar shape
               Positioned.fill(
                 child: ClipPath(
                   clipper: _NavbarClipper(
@@ -68,27 +54,18 @@ class EcoShortcutBadge extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Layer 1: blur the content behind
-                      BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                        child: Container(color: Colors.transparent),
-                      ),
-                      // Layer 2: semi-transparent tint on top of blur
-                      Container(
-                        color: isDark
-                            ? Colors.black.withValues(alpha: 0.18)
-                            : Colors.white.withValues(alpha: 0.28),
-                      ),
-                      // Layer 3: thin top border for glass edge
+                      // Solid beige/dark background
+                      Container(color: navBg),
+                      // Thin top border for definition
                       Positioned(
                         top: 0,
                         left: 0,
                         right: 0,
                         child: Container(
-                          height: 0.8,
+                          height: 1.0,
                           color: isDark
-                              ? Colors.white.withValues(alpha: 0.10)
-                              : Colors.white.withValues(alpha: 0.70),
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.07),
                         ),
                       ),
                     ],
@@ -193,110 +170,18 @@ class EcoShortcutBadge extends StatelessWidget {
           ),
         ),
       ),
+        // Fill system navigation bar area with matching background
+        Container(
+          width: double.infinity,
+          height: bottomInset > 0 ? bottomInset : 4,
+          color: navBg,
+        ),
+      ],
     );
   }
 }
 
-class _NavbarPainter extends CustomPainter {
-  final double notchRadius;
-  final double topRadius;
-  final double bumpHeight;
-  final double topInset;
-  final Color shadowColor;
-
-  _NavbarPainter({
-    required this.notchRadius,
-    required this.topRadius,
-    required this.bumpHeight,
-    this.topInset = 0,
-    required this.shadowColor,
-  });
-
-  Path _buildPath(Size size) {
-    final path = Path();
-    final centerX = size.width / 2;
-    final bumpHalfWidth = notchRadius + 70; // wider than SOS+glow
-    // Bump apex sits at y=topInset, flat top at y=topInset+bumpHeight
-    final apexY = topInset;
-    final flatTopY = topInset + bumpHeight;
-
-    final bumpLeft = centerX - bumpHalfWidth;
-    final bumpRight = centerX + bumpHalfWidth;
-
-    path.moveTo(0, flatTopY + topRadius);
-    path.quadraticBezierTo(0, flatTopY, topRadius, flatTopY);
-    path.lineTo(bumpLeft, flatTopY);
-    // smooth hill up to apex
-    path.cubicTo(
-      bumpLeft + bumpHalfWidth * 0.5,
-      flatTopY,
-      centerX - notchRadius * 0.7,
-      apexY,
-      centerX,
-      apexY,
-    );
-    path.cubicTo(
-      centerX + notchRadius * 0.7,
-      apexY,
-      bumpRight - bumpHalfWidth * 0.5,
-      flatTopY,
-      bumpRight,
-      flatTopY,
-    );
-    path.lineTo(size.width - topRadius, flatTopY);
-    path.quadraticBezierTo(
-      size.width,
-      flatTopY,
-      size.width,
-      flatTopY + topRadius,
-    );
-    const br = 28.0;
-    path.lineTo(size.width, size.height - br);
-    path.quadraticBezierTo(
-      size.width,
-      size.height,
-      size.width - br,
-      size.height,
-    );
-    path.lineTo(br, size.height);
-    path.quadraticBezierTo(0, size.height, 0, size.height - br);
-    path.close();
-    return path;
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = _buildPath(size);
-
-    // 1. Draw a blurred shadow ABOVE the path (translated up + blurred)
-    final shadowPaint = Paint()
-      ..color = shadowColor
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
-    canvas.save();
-    canvas.translate(0, -4);
-    canvas.drawPath(path, shadowPaint);
-    canvas.restore();
-
-    // 2. Also use built-in drawShadow as a backup
-    canvas.drawShadow(path, shadowColor, 16, true);
-
-    // 3. Draw a subtle stroke at the top of the curve for definition
-    final strokePaint = Paint()
-      ..color = shadowColor.withValues(alpha: 0.18)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    canvas.drawPath(path, strokePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _NavbarPainter old) =>
-      old.notchRadius != notchRadius ||
-      old.topRadius != topRadius ||
-      old.bumpHeight != bumpHeight ||
-      old.shadowColor != shadowColor;
-}
-
-// Clips content to the navbar shape (same path as _NavbarPainter)
+// Clips content to the navbar shape
 class _NavbarClipper extends CustomClipper<Path> {
   final double notchRadius;
   final double topRadius;
@@ -376,7 +261,7 @@ class _TabItem extends StatelessWidget {
   final VoidCallback onTap;
   final bool isDark;
 
-  static const _green = Color(0xFF22B53A);
+  static const _green = Color(0xFF0E7A23);
   static const _unselected = Color(0xFF64748B);
 
   const _TabItem({
@@ -456,9 +341,6 @@ class _SosButtonState extends State<_SosButton>
   late final AnimationController _shadowController;
   late final Animation<double> _shadowAnim;
 
-  static const _redTop = Color(0xFFFF5252);
-  static const _redMid = Color(0xFFE53935);
-  static const _redBottom = Color(0xFF8B0000);
 
   @override
   void initState() {
@@ -481,6 +363,10 @@ class _SosButtonState extends State<_SosButton>
 
   @override
   Widget build(BuildContext context) {
+    final s = widget.size;
+    final mid = s * (128 / 140);
+    final inner = s * (118 / 140);
+
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
@@ -493,83 +379,85 @@ class _SosButtonState extends State<_SosButton>
         builder: (context, _) {
           final t = _shadowAnim.value;
           return SizedBox(
-            width: widget.size,
-            height: widget.size,
+            width: s,
+            height: s,
             child: Container(
-              width: widget.size,
-              height: widget.size,
+              width: s,
+              height: s,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                // 3D radial gradient: bright top-left → deep dark bottom-right
                 gradient: const RadialGradient(
-                  center: Alignment(-0.35, -0.45),
-                  radius: 1.1,
-                  colors: [_redTop, _redMid, _redBottom],
-                  stops: [0.0, 0.45, 1.0],
+                  center: Alignment(0, -0.36),
+                  radius: 0.75,
+                  colors: [Color(0xFFFF7065), Color(0xFFE53935), Color(0xFFBD2723)],
+                  stops: [0.0, 0.55, 1.0],
                 ),
                 boxShadow: [
-                  // Animated outer glow
                   BoxShadow(
-                    color: _redMid.withValues(alpha: 0.20 + 0.18 * t),
-                    blurRadius: 16 + 8 * t,
-                    spreadRadius: 1 + 2 * t,
-                  ),
-                  // Deep bottom shadow for 3D lift
-                  BoxShadow(
-                    color: _redBottom.withValues(alpha: 0.45 + 0.10 * t),
-                    blurRadius: 12 + 4 * t,
-                    offset: Offset(0, 5 + 2 * t),
-                    spreadRadius: 1,
-                  ),
-                  // Subtle dark base shadow
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.30),
-                    blurRadius: 10,
+                    color: const Color(0xFFE53935).withValues(alpha: 0.30 + t * 0.25),
+                    blurRadius: 18 + t * 18,
                     offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.16),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Inner highlight arc for 3D sheen
-                  Positioned(
-                    top: widget.size * 0.10,
-                    left: widget.size * 0.18,
+              child: Center(
+                child: Container(
+                  width: mid,
+                  height: mid,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const RadialGradient(
+                      center: Alignment(0, -0.30),
+                      radius: 0.65,
+                      colors: [Color(0xFFC42924), Color(0xFFC62828), Color(0xFFBC2724)],
+                      stops: [0.0, 0.70, 1.0],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                        spreadRadius: -3,
+                      ),
+                    ],
+                  ),
+                  child: Center(
                     child: Container(
-                      width: widget.size * 0.45,
-                      height: widget.size * 0.22,
+                      width: inner,
+                      height: inner,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(widget.size),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.28),
-                            Colors.white.withValues(alpha: 0.0),
-                          ],
+                        shape: BoxShape.circle,
+                        gradient: const RadialGradient(
+                          center: Alignment(0, -0.40),
+                          radius: 0.65,
+                          colors: [Color(0xFFFF8C81), Color(0xFFEF4945), Color(0xFFC62828)],
+                          stops: [0.0, 0.40, 1.0],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'SOS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: s * 0.28,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: s * 0.014,
+                            height: 1,
+                            shadows: const [
+                              Shadow(color: Colors.black38, blurRadius: 0, offset: Offset(0, 1)),
+                              Shadow(color: Colors.black26, blurRadius: 8),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  // SOS text
-                  Text(
-                    'SOS',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: widget.size * 0.30,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2.0,
-                      shadows: const [
-                        Shadow(
-                          color: Color(0x88000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           );

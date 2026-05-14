@@ -46,7 +46,6 @@ class SosScreen extends StatefulWidget {
 
 class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
   bool _isHolding = false;
   bool _isSending = false;
   double _holdProgress = 0.0;
@@ -58,7 +57,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   double _accuracy = 0.0;
   bool _hasGoodSignal = false;
   bool _isDetectingPosition = false;
-  bool _hasReceivedFirstFix = false;
   StreamSubscription<Position>? _positionSubscription;
   final MapController _mapController = MapController();
 
@@ -69,10 +67,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.25).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
 
     _detectUserPosition();
   }
@@ -134,7 +128,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         _altitude = position.altitude;
         _accuracy = position.accuracy;
         _hasGoodSignal = position.accuracy < 20;
-        _hasReceivedFirstFix = true;
       });
       _mapController.move(newPos, 17);
 
@@ -406,97 +399,158 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       onTapUp: (_) => _stopHolding(),
       onTapCancel: _stopHolding,
       child: AnimatedBuilder(
-        animation: _pulseAnimation,
-        builder: (context, child) {
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              // Outer pulse rings
-              if (!_isHolding) ...[
-                Transform.scale(
-                  scale: _pulseAnimation.value * 1.3,
-                  child: Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFC83226).withValues(alpha: 0.1),
+        animation: _pulseController,
+        builder: (context, _) {
+          final t = _pulseController.value; // 0 → 1 → 0
+
+          return SizedBox(
+            width: 180,
+            height: 180,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // ── Halo 1 — outer ──────────────────────────────────────────
+                if (!_isHolding)
+                  Transform.scale(
+                    scale: 1.0 + t * 0.18,
+                    child: Opacity(
+                      opacity: (0.85 - t * 0.50).clamp(0.0, 1.0),
+                      child: Container(
+                        width: 180,
+                        height: 180,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFE53935).withValues(alpha: 0.10),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                Transform.scale(
-                  scale: _pulseAnimation.value * 1.15,
-                  child: Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFC83226).withValues(alpha: 0.2),
+                // ── Halo 2 — inner ──────────────────────────────────────────
+                if (!_isHolding)
+                  Transform.scale(
+                    scale: 1.0 + t * 0.10,
+                    child: Opacity(
+                      opacity: (0.80 - t * 0.35).clamp(0.0, 1.0),
+                      child: Container(
+                        width: 152,
+                        height: 152,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFE53935).withValues(alpha: 0.16),
+                        ),
+                      ),
+                    ),
+                  ),
+                // ── Progress ring when holding ───────────────────────────────
+                if (_isHolding)
+                  SizedBox(
+                    width: 158,
+                    height: 158,
+                    child: CircularProgressIndicator(
+                      value: _holdProgress,
+                      strokeWidth: 6,
+                      backgroundColor: const Color(0xFFE53935).withValues(alpha: 0.2),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE53935)),
+                    ),
+                  ),
+                // ── Outer shell — animated shadow ────────────────────────────
+                Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const RadialGradient(
+                      center: Alignment(0, -0.36),
+                      radius: 0.75,
+                      colors: [Color(0xFFFF7065), Color(0xFFE53935), Color(0xFFBD2723)],
+                      stops: [0.0, 0.55, 1.0],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE53935).withValues(alpha: 0.30 + t * 0.25),
+                        blurRadius: 18 + t * 18,
+                        offset: const Offset(0, 8),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.16),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    // ── Middle shell ────────────────────────────────────────
+                    child: Container(
+                      width: 128,
+                      height: 128,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const RadialGradient(
+                          center: Alignment(0, -0.30),
+                          radius: 0.65,
+                          colors: [Color(0xFFC42924), Color(0xFFC62828), Color(0xFFBC2724)],
+                          stops: [0.0, 0.70, 1.0],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.22),
+                            blurRadius: 14,
+                            offset: const Offset(0, 8),
+                            spreadRadius: -4,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        // ── Inner face ────────────────────────────────────
+                        child: Container(
+                          width: 118,
+                          height: 118,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const RadialGradient(
+                              center: Alignment(0, -0.40),
+                              radius: 0.65,
+                              colors: [Color(0xFFFF8C81), Color(0xFFEF4945), Color(0xFFC62828)],
+                              stops: [0.0, 0.40, 1.0],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.16),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: _isSending
+                                ? const SizedBox(
+                                    width: 32, height: 32,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 3,
+                                    ),
+                                  )
+                                : const Text(
+                                    'SOS',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 34,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 2.0,
+                                      height: 1,
+                                      shadows: [
+                                        Shadow(color: Colors.black38, blurRadius: 0, offset: Offset(0, 1)),
+                                        Shadow(color: Colors.black26, blurRadius: 14),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ],
-              // Progress ring when holding
-              if (_isHolding)
-                SizedBox(
-                  width: 160,
-                  height: 160,
-                  child: CircularProgressIndicator(
-                    value: _holdProgress,
-                    strokeWidth: 8,
-                    backgroundColor: const Color(
-                      0xFFC83226,
-                    ).withValues(alpha: 0.2),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFFC83226),
-                    ),
-                  ),
-                ),
-              // Main button
-              Container(
-                width: 130,
-                height: 130,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _isSending
-                      ? Colors.grey
-                      : (_isHolding
-                            ? const Color(0xFFC83226).withValues(alpha: 0.9)
-                            : const Color(0xFFC83226)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFC83226).withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: _isSending
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
-                    : const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: Colors.white,
-                            size: 36,
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'SOS',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ],
+            ),
           );
         },
       ),
