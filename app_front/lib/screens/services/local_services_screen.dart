@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/network_service.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../core/widgets/user_avatar_badge.dart';
 import '../../providers/auth_provider.dart';
@@ -525,8 +526,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate: mapTileUrlForTheme(context),
                         userAgentPackageName: 'com.ecoguide.app',
                       ),
                       MarkerLayer(

@@ -10,13 +10,19 @@ import '../../core/constants/app_constants.dart';
 import '../../providers/locale_provider.dart';
 import '../../services/map_offline_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/local_service.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/local_service_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
 import '../../providers/weather_provider.dart';
+import '../chatbot/eco_chatbot_screen.dart';
+import '../help/help_center_screen.dart';
 import '../poi/poi_detail_screen.dart';
+import '../services/local_service_detail_screen.dart';
+import '../services/local_services_screen.dart';
 import '../trails/trail_detail_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -48,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final ScrollController _scrollController = ScrollController();
   _DashboardMapStyle _mapStyle = _DashboardMapStyle.standard;
   bool _hasCenteredOnUser = false;
+  bool _styleAutoSet = false;
   LatLng _currentPosition = LatLng(
     AppConstants.defaultLatitude,
     AppConstants.defaultLongitude,
@@ -64,6 +71,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_styleAutoSet) {
+      _styleAutoSet = true;
+      if (Theme.of(context).brightness == Brightness.dark) {
+        _mapStyle = _DashboardMapStyle.satellite;
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     try {
@@ -75,6 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadData() async {
     final trailProvider = context.read<TrailProvider>();
     final poiProvider = context.read<PoiProvider>();
+    final localServiceProvider = context.read<LocalServiceProvider>();
     final weatherProvider = context.read<WeatherProvider>();
     final isOnline = await NetworkService.hasInternetConnection();
     if (!mounted) return;
@@ -82,6 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await Future.wait([
       trailProvider.loadTrails(refresh: true, forceOffline: !isOnline),
       poiProvider.loadPois(forceOffline: !isOnline),
+      localServiceProvider.loadServices(),
     ]);
 
     if (isOnline) {
@@ -162,6 +182,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final authProvider = context.watch<AuthProvider>();
     final trailProvider = context.watch<TrailProvider>();
     final poiProvider = context.watch<PoiProvider>();
+    final localServiceProvider = context.watch<LocalServiceProvider>();
     final weatherProvider = context.watch<WeatherProvider>();
     final user = authProvider.user;
 
@@ -170,6 +191,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
+      floatingActionButton: _buildChatbotFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: RefreshIndicator(
         color: const Color(0xFF22B53A),
         onRefresh: _refreshDashboard,
@@ -187,7 +210,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header is inside the map hero — scrolls away with it
-              _buildHeroMap(user, bgColor),
+              _buildHeroMap(
+                user,
+                bgColor,
+                trails: trailProvider.trails,
+                pois: poiProvider.pois,
+                services: localServiceProvider.services,
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Divider(
@@ -224,28 +253,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+      margin: const EdgeInsets.fromLTRB(14, 6, 14, 0),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: isDark
                   ? const Color(0xFF1E2A1E).withValues(alpha: 0.80)
                   : const Color(0xFFFBF8F3).withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: isDark
                     ? Colors.white.withValues(alpha: 0.06)
@@ -259,29 +288,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Logo
           Image.asset(
             'assets/images/logo.png',
-            width: 46,
-            height: 46,
+            width: 34,
+            height: 34,
             fit: BoxFit.contain,
             errorBuilder: (_, e, s) => Container(
-              width: 46,
-              height: 46,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: const Color(0xFF22B53A).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.spa, color: Color(0xFF22B53A), size: 32),
+              child: const Icon(Icons.spa, color: Color(0xFF22B53A), size: 22),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           // App name
           Expanded(
             child: Text(
               'EcoGuide',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 17,
                 fontWeight: FontWeight.w900,
                 color: isDark ? Colors.white : const Color(0xFF1A2E1A),
-                letterSpacing: 0.5,
+                letterSpacing: 0.4,
               ),
             ),
           ),
@@ -294,21 +323,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 46,
-                  height: 46,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFFD6C9A8),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(2.5),
+                    padding: const EdgeInsets.all(2),
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -344,17 +373,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Center(
       child: Text(
         initials,
-        style: TextStyle(
-          color: const Color(0xFF22B53A),
-          fontSize: 20,
+        style: const TextStyle(
+          color: Color(0xFF22B53A),
+          fontSize: 14,
           fontWeight: FontWeight.w900,
-          letterSpacing: 0.5,
+          letterSpacing: 0.3,
         ),
       ),
     );
   }
 
-  Widget _buildHeroMap(dynamic user, Color bgColor) {
+  Widget _buildHeroMap(
+    dynamic user,
+    Color bgColor, {
+    List<Trail> trails = const [],
+    List<Poi> pois = const [],
+    List<LocalService> services = const [],
+  }) {
     return SizedBox(
       height: 340,
       width: double.infinity,
@@ -365,18 +400,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
             options: MapOptions(
               initialCenter: _currentPosition,
               initialZoom: 13,
+              minZoom: 3,
+              maxZoom: 18,
             ),
             children: [
               TileLayer(
                 key: ValueKey(_mapStyle),
                 urlTemplate: _mapStyle.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
+                maxZoom: 18,
+                maxNativeZoom: 18,
                 tileProvider: LocalFirstTileProvider(
                   service: _mapOfflineService,
                 ),
               ),
               MarkerLayer(
                 markers: [
+                  ..._buildTrailMarkers(trails),
+                  ..._buildPoiMarkers(pois),
+                  ..._buildServiceMarkers(services),
                   Marker(
                     point: _currentPosition,
                     width: 24,
@@ -481,6 +523,108 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildChatbotFab() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 80),
+      child: FloatingActionButton.extended(
+        heroTag: 'ecoChatbotFab',
+        onPressed: _openChatbot,
+        backgroundColor: const Color(0xFF0E7A23),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.smart_toy_outlined),
+        label: const Text(
+          'EcoBot',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+  }
+
+  void _openChatbot() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => EcoChatbotScreen(userPosition: _currentPosition),
+    );
+  }
+
+  List<Marker> _buildTrailMarkers(List<Trail> trails) {
+    return trails
+        .where((t) => t.startLatitude != null && t.startLongitude != null)
+        .map((trail) {
+      final point = LatLng(trail.startLatitude!, trail.startLongitude!);
+      return Marker(
+        point: point,
+        width: 32,
+        height: 32,
+        child: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TrailDetailScreen(trail: trail),
+            ),
+          ),
+          child: const CircleAvatar(
+            backgroundColor: Color(0xFF2E7D32),
+            child: Icon(Icons.terrain, size: 16, color: Colors.white),
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  List<Marker> _buildPoiMarkers(List<Poi> pois) {
+    return pois.map((poi) {
+      final point = LatLng(poi.latitude, poi.longitude);
+      return Marker(
+        point: point,
+        width: 28,
+        height: 28,
+        child: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PoiDetailScreen(poi: poi),
+            ),
+          ),
+          child: const CircleAvatar(
+            backgroundColor: Color(0xFF212121),
+            child: Icon(Icons.place, size: 14, color: Colors.white),
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  List<Marker> _buildServiceMarkers(List<LocalService> services) {
+    return services
+        .where((s) => s.latitude != null && s.longitude != null)
+        .map((service) {
+      final point = LatLng(service.latitude!, service.longitude!);
+      return Marker(
+        point: point,
+        width: 28,
+        height: 28,
+        child: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => LocalServiceDetailScreen(
+                serviceId: service.id,
+                fallbackService: service,
+              ),
+            ),
+          ),
+          child: const CircleAvatar(
+            backgroundColor: Color(0xFF1E9A35),
+            child: Icon(Icons.storefront, size: 14, color: Colors.white),
+          ),
+        ),
+      );
+    }).toList();
+  }
+
   void _cycleMapStyle() {
     final styles = _DashboardMapStyle.values;
     final currentIndex = styles.indexOf(_mapStyle);
@@ -551,9 +695,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildQuickActionItem(
-            icon: Icons.landscape,
-            label: lp.t('home.trails'),
-            onTap: widget.onNavigateToTrails,
+            icon: Icons.storefront,
+            label: 'Annuaire',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const LocalServicesScreen(),
+              ),
+            ),
           ),
           _buildQuickActionItem(
             icon: Icons.map,
@@ -566,9 +715,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: widget.onNavigateToQuiz,
           ),
           _buildQuickActionItem(
-            icon: Icons.sos,
-            label: lp.t('home.emergency'),
-            onTap: widget.onNavigateToSos,
+            icon: Icons.help_outline,
+            label: 'Aide',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const HelpCenterScreen(),
+              ),
+            ),
           ),
         ],
       ),

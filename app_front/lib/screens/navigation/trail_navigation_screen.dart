@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/poi_provider.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../../services/map_offline_service.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
@@ -147,8 +148,7 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                   options: MapOptions(initialCenter: current, initialZoom: 15),
                   children: [
                     TileLayer(
-                      urlTemplate:
-                          'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                      urlTemplate: mapTileUrlForTheme(context),
                       userAgentPackageName: 'com.ecoguide.app',
                       tileProvider: LocalFirstTileProvider(
                         service: _mapOfflineService,

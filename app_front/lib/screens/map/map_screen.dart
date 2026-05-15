@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../core/widgets/error_banner.dart';
@@ -297,8 +298,7 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate:
-                          'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                      urlTemplate: mapTileUrlForTheme(context),
                       userAgentPackageName: 'com.ecoguide.app',
                       tileProvider: LocalFirstTileProvider(
                         service: _mapOfflineService,

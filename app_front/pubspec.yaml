@@ -48,6 +48,7 @@ dependencies:
   chewie: ^1.8.5
   youtube_player_flutter: ^9.1.1
   flutter_tts: ^4.2.0
+  flutter_compass: ^0.8.1
 
 dev_dependencies:
   flutter_test:

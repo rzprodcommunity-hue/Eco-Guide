@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -14,6 +15,7 @@ import '../../models/local_service.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/local_service_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
 import '../../services/map_offline_service.dart';
@@ -53,6 +55,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
 
   bool _isLoading = false;
   bool _isRouting = false;
+  bool _styleAutoSet = false;
   _MapVisualStyle _mapStyle = _MapVisualStyle.standard;
 
   LatLng? _activeOrigin;
@@ -63,6 +66,12 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   List<LatLng> _routePoints = [];
 
   final Set<String> _dismissedNearbyKeys = <String>{};
+  final FlutterTts _tts = FlutterTts();
+  String? _speakingItemKey;
+
+  bool _showTrails = true;
+  bool _showPois = true;
+  bool _showServices = true;
 
   @override
   void initState() {
@@ -72,6 +81,13 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     _activeOriginLabel = 'Ma position';
     _activeDestination = widget.destination;
     _activeDestinationLabel = widget.destinationLabel;
+
+    _tts.setCompletionHandler(() {
+      if (mounted) setState(() => _speakingItemKey = null);
+    });
+    _tts.setCancelHandler(() {
+      if (mounted) setState(() => _speakingItemKey = null);
+    });
 
     Connectivity().checkConnectivity().then((results) {
       if (mounted) {
@@ -92,10 +108,56 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_styleAutoSet) {
+      _styleAutoSet = true;
+      if (Theme.of(context).brightness == Brightness.dark) {
+        _mapStyle = _MapVisualStyle.satellite;
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _gpsTimer?.cancel();
     _connectivitySub?.cancel();
+    _tts.stop();
     super.dispose();
+  }
+
+  Future<void> _toggleVoice(_NearbyItem item) async {
+    final key = _nearbyItemKey(item);
+    if (_speakingItemKey == key) {
+      await _tts.stop();
+      if (mounted) setState(() => _speakingItemKey = null);
+      return;
+    }
+
+    final langCode = context.read<LocaleProvider>().locale.languageCode;
+    await _tts.stop();
+    await _tts.setLanguage(
+      langCode == 'ar'
+          ? 'ar-SA'
+          : langCode == 'en'
+              ? 'en-US'
+              : 'fr-FR',
+    );
+    await _tts.setSpeechRate(0.45);
+    await _tts.setPitch(1.0);
+
+    String text = item.name;
+    if (item.poi != null) {
+      text = '${item.poi!.name}. ${item.poi!.description}';
+    } else if (item.trail != null) {
+      text =
+          '${item.trail!.name}. ${item.trail!.description}. Difficulté ${item.trail!.difficulty}.';
+    } else if (item.service != null) {
+      text = '${item.service!.name}. ${item.service!.description}';
+    }
+
+    if (mounted) setState(() => _speakingItemKey = key);
+    await _tts.speak(text);
   }
 
   void _startGpsTracking() {
@@ -225,9 +287,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     final services = localServiceProvider.services;
 
     final nearbyItems = _collectNearbyItems(
-      trails: trails,
-      pois: pois,
-      services: services,
+      trails: _showTrails ? trails : const [],
+      pois: _showPois ? pois : const [],
+      services: _showServices ? services : const [],
     );
     final notifications = _getVisibleNearbyNotifications(nearbyItems);
 
@@ -242,11 +304,15 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
             options: MapOptions(
               initialCenter: destination ?? _currentPosition,
               initialZoom: 13,
+              minZoom: 3,
+              maxZoom: _mapStyle.maxZoom,
             ),
             children: [
               TileLayer(
                 urlTemplate: _mapStyle.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
+                maxZoom: _mapStyle.maxZoom,
+                maxNativeZoom: _mapStyle.maxZoom.toInt(),
                 tileProvider: LocalFirstTileProvider(
                   service: _mapOfflineService,
                 ),
@@ -284,9 +350,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                         child: Icon(Icons.flag, color: Colors.white),
                       ),
                     ),
-                  ..._buildTrailMarkers(trails),
-                  ..._buildPoiMarkers(pois),
-                  ..._buildServiceMarkers(services),
+                  if (_showTrails) ..._buildTrailMarkers(trails),
+                  if (_showPois) ..._buildPoiMarkers(pois),
+                  if (_showServices) ..._buildServiceMarkers(services),
                 ],
               ),
             ],
@@ -321,7 +387,11 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                           Icons.menu,
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
-                        onPressed: () => Scaffold.of(context).openDrawer(),
+                        onPressed: () => _openNearbyListSheet(
+                          trails: trails,
+                          pois: pois,
+                          services: services,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -398,7 +468,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                           Icons.filter_list,
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
-                        onPressed: () {},
+                        onPressed: _openCategoryFilterSheet,
                       ),
                     ),
                   ],
@@ -453,7 +523,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: 120,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -463,7 +533,6 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // _buildSOSButton(),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: _buildOfflineIndicator(),
@@ -472,10 +541,8 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 if (notifications.isNotEmpty) _buildNearbyPanel(notifications),
-                if (notifications.isNotEmpty) const SizedBox(height: 16),
-                _buildBottomNavigationBlock(context),
               ],
             ),
           ),
@@ -499,27 +566,33 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
       children: [
         _buildRoundButton(icon: Icons.layers, onPressed: _cycleMapStyle),
         const SizedBox(height: 8),
-        _buildRoundButton(icon: Icons.explore, onPressed: () {}),
+        _buildRoundButton(
+          icon: Icons.explore,
+          onPressed: () => _mapController.rotate(0),
+        ),
         const SizedBox(height: 8),
         _buildRoundButton(
           icon: Icons.my_location,
-          onPressed: () => _mapController.move(_currentPosition, 14),
+          onPressed: () =>
+              _mapController.move(_currentPosition, _mapStyle.maxZoom),
         ),
         const SizedBox(height: 8),
         _buildRoundButton(
           icon: Icons.add,
-          onPressed: () => _mapController.move(
-            _mapController.camera.center,
-            _mapController.camera.zoom + 1,
-          ),
+          onPressed: () {
+            final next = (_mapController.camera.zoom + 1)
+                .clamp(3.0, _mapStyle.maxZoom);
+            _mapController.move(_mapController.camera.center, next);
+          },
         ),
         const SizedBox(height: 8),
         _buildRoundButton(
           icon: Icons.remove,
-          onPressed: () => _mapController.move(
-            _mapController.camera.center,
-            _mapController.camera.zoom - 1,
-          ),
+          onPressed: () {
+            final next = (_mapController.camera.zoom - 1)
+                .clamp(3.0, _mapStyle.maxZoom);
+            _mapController.move(_mapController.camera.center, next);
+          },
         ),
       ],
     );
@@ -639,90 +712,175 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     );
   }
 
-  Widget _buildBottomNavigationBlock(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
+  Future<void> _openCategoryFilterSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        MediaQuery.of(context).padding.bottom + 20,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Current Position',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.54),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.onSurface,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx).dividerColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        _activeOriginLabel ?? 'Massif du Mont-Blanc',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Filtrer les markers',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    secondary: const Icon(
+                      Icons.terrain,
+                      color: Color(0xFF2E7D32),
+                    ),
+                    title: const Text('Sentiers'),
+                    value: _showTrails,
+                    onChanged: (v) {
+                      setSheetState(() {});
+                      setState(() => _showTrails = v);
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.place, color: Colors.black87),
+                    title: const Text("Points d'intérêt"),
+                    value: _showPois,
+                    onChanged: (v) {
+                      setSheetState(() {});
+                      setState(() => _showPois = v);
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(
+                      Icons.storefront,
+                      color: Color(0xFF1E9A35),
+                    ),
+                    title: const Text('Services locaux'),
+                    value: _showServices,
+                    onChanged: (v) {
+                      setSheetState(() {});
+                      setState(() => _showServices = v);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openNearbyListSheet({
+    required List<Trail> trails,
+    required List<Poi> pois,
+    required List<LocalService> services,
+  }) async {
+    final items = _collectNearbyItems(
+      trails: _showTrails ? trails : const [],
+      pois: _showPois ? pois : const [],
+      services: _showServices ? services : const [],
+    );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          builder: (_, scrollController) => Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).dividerColor,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.list_alt, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'À proximité (${items.length})',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          FilledButton.icon(
-            onPressed: () {
-              final trails = context.read<TrailProvider>().trails;
-              final pois = context.read<PoiProvider>().pois;
-              final services = context.read<LocalServiceProvider>().services;
-              _showRoutePlanner(trails: trails, pois: pois, services: services);
-            },
-            icon: const Icon(Icons.directions_walk),
-            label: const Text('Start Navigation'),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
               ),
-              textStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+              const SizedBox(height: 8),
+              Expanded(
+                child: items.isEmpty
+                    ? const Center(
+                        child: Text('Aucun élément à proximité'),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        itemCount: items.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (_, i) {
+                          final item = items[i];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor:
+                                  item.color.withValues(alpha: 0.18),
+                              child: Icon(item.icon, color: item.color),
+                            ),
+                            title: Text(
+                              item.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              '${item.subtitle} · ${item.distanceKm.toStringAsFixed(1)} km',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _onNearbyTap(item);
+                            },
+                          );
+                        },
+                      ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -736,161 +894,139 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
 
   Widget _buildNearbyPanel(List<_NearbyItem> items) {
     if (items.isEmpty) return const SizedBox.shrink();
-    final item = items.first;
 
-    String difficulty = 'Moderate';
-    int durationMins = 135;
-    List<String> images = [
-      'https://images.unsplash.com/photo-1551632811-561f3222ef86?q=80&w=400&auto=format&fit=crop',
-    ];
+    return SizedBox(
+      height: 140,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) => _buildNearbyCard(items[index]),
+      ),
+    );
+  }
 
+  Widget _buildNearbyCard(_NearbyItem item) {
+    String? imageUrl;
     if (item.trail != null) {
-      difficulty = item.trail!.difficulty;
-      durationMins = item.trail!.estimatedDuration ?? 135;
       if (item.trail!.imageUrls != null && item.trail!.imageUrls!.isNotEmpty) {
-        images = item.trail!.imageUrls!;
+        imageUrl = item.trail!.imageUrls!.first;
       }
+    } else if (item.poi != null) {
+      imageUrl = item.poi!.mediaUrl;
     }
 
-    final int h = durationMins ~/ 60;
-    final int m = durationMins % 60;
-    final durationStr = h > 0 ? '${h}h ${m}m' : '${m}m';
+    final isSpeaking = _speakingItemKey == _nearbyItemKey(item);
 
-    return GestureDetector(
-      onTap: () => _onNearbyTap(item),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                images.first,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 80,
-                  height: 80,
-                  color: Colors.grey.shade300,
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey,
+    return Container(
+      width: 110,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: () => _onNearbyTap(item),
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Row 1: Image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: imageUrl != null && imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => _imageFallback(item),
+                          )
+                        : _imageFallback(item),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                      color: Theme.of(context).colorScheme.onSurface,
+                const SizedBox(height: 4),
+                // Row 2: Title
+                Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    height: 1.1,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                // Row 3: Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildCardButton(
+                      icon: isSpeaking
+                          ? Icons.stop_rounded
+                          : Icons.volume_up_rounded,
+                      color: const Color(0xFF0E7A23),
+                      onTap: () => _toggleVoice(item),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.terrain,
-                        size: 14,
-                        color: Colors.black54,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        difficulty,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: Colors.green,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        durationStr,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Icon(
-                        Icons.straighten,
-                        size: 14,
-                        color: Colors.green,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${item.distanceKm.toStringAsFixed(1)} km',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    _buildCardButton(
+                      icon: Icons.close_rounded,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.55),
+                      onTap: () => _dismissNearbyItem(item),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            if (images.length > 1) ...[
-              const SizedBox(width: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  images[1],
-                  width: 60,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            ] else ...[
-              const SizedBox(width: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=200&auto=format&fit=crop',
-                  width: 60,
-                  height: 80,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCardButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 16, color: color),
+        ),
+      ),
+    );
+  }
+
+  Widget _imageFallback(_NearbyItem item) {
+    return Container(
+      color: item.color.withValues(alpha: 0.15),
+      child: Icon(item.icon, color: item.color, size: 28),
     );
   }
 
@@ -899,10 +1035,15 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     for (final item in items) {
       if (!_dismissedNearbyKeys.contains(_nearbyItemKey(item))) {
         visible.add(item);
-        break; // Show at most 1 item for the new card design
       }
     }
     return visible;
+  }
+
+  void _dismissNearbyItem(_NearbyItem item) {
+    setState(() {
+      _dismissedNearbyKeys.add(_nearbyItemKey(item));
+    });
   }
 
   String _nearbyItemKey(_NearbyItem item) {
@@ -1423,16 +1564,26 @@ class _RoutePointOption {
 }
 
 enum _MapVisualStyle {
-  standard('Normal', 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'),
-  relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png'),
-  dark('Dark', 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'),
+  standard(
+    'Normal',
+    'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    19,
+  ),
+  relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png', 17),
+  dark(
+    'Dark',
+    'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    19,
+  ),
   satellite(
     'Satellite',
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    18,
   );
 
   final String label;
   final String urlTemplate;
+  final double maxZoom;
 
-  const _MapVisualStyle(this.label, this.urlTemplate);
+  const _MapVisualStyle(this.label, this.urlTemplate, this.maxZoom);
 }

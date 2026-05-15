@@ -29,7 +29,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppTheme.darkBg : AppTheme.backgroundColor;
     final surface = isDark ? AppTheme.darkSurface : Colors.white;
-    final primary = isDark ? AppTheme.darkPrimary : AppTheme.primaryColor;
+    final primary =   AppTheme.primaryColor;
     final textMain = isDark ? AppTheme.darkTextMain : AppTheme.textPrimary;
     final textSub = isDark ? AppTheme.darkTextSub : AppTheme.textSecondary;
 

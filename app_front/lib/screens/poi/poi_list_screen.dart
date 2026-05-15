@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/network_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/poi_provider.dart';
@@ -910,8 +911,7 @@ class _MapCard extends StatelessWidget {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate:
-                            'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                        urlTemplate: mapTileUrlForTheme(context),
                         userAgentPackageName: 'com.ecoguide.app',
                       ),
                       MarkerLayer(

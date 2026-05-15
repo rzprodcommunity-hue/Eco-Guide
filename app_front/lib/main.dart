@@ -215,9 +215,24 @@ class _AppWrapperState extends State<AppWrapper> {
       );
     }
 
-    // Navigate based on auth state
-    return authProvider.isAuthenticated
-        ? const HomeScreen()
-        : const LoginScreen();
+    // Navigate based on auth state — animated transition
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 450),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0, 0.04),
+          end: Offset.zero,
+        ).animate(animation);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      child: authProvider.isAuthenticated
+          ? const HomeScreen(key: ValueKey('home'))
+          : const LoginScreen(key: ValueKey('login')),
+    );
   }
 }

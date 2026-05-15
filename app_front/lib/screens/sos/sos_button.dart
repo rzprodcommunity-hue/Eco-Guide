@@ -10,6 +10,7 @@ import '../../core/services/offline_sos_service.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/locale_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../services/api_client.dart';
 import '../../services/sos_service.dart';
 
@@ -705,8 +706,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate:
-                            'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                        urlTemplate: mapTileUrlForTheme(context),
                         userAgentPackageName: 'com.ecoguide.app',
                       ),
                       MarkerLayer(

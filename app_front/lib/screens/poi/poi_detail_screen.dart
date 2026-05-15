@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../core/widgets/fullscreen_image_viewer.dart';
 import '../../models/poi.dart';
@@ -35,6 +36,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
   LatLng? _currentPosition;
   bool _ttsPlaying = false;
   bool _heroCollapsed = false;
+  bool _navigatingToDirections = false;
   int _heroImageIndex = 0;
 
   @override
@@ -256,19 +258,42 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => NavigationSosScreen(
-                              destination: LatLng(poi.latitude, poi.longitude),
-                              destinationLabel: poi.name,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.route),
-                      label: Text(context.watch<LocaleProvider>().t('poi.directions')),
+                      onPressed: _navigatingToDirections
+                          ? null
+                          : () async {
+                              setState(() => _navigatingToDirections = true);
+                              try {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => NavigationSosScreen(
+                                      destination: LatLng(
+                                          poi.latitude, poi.longitude),
+                                      destinationLabel: poi.name,
+                                    ),
+                                  ),
+                                );
+                              } finally {
+                                if (mounted) {
+                                  setState(() =>
+                                      _navigatingToDirections = false);
+                                }
+                              }
+                            },
+                      icon: _navigatingToDirections
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.route),
+                      label: Text(_navigatingToDirections
+                          ? 'Calcul de l\'itinéraire...'
+                          : context.watch<LocaleProvider>().t('poi.directions')),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -293,8 +318,7 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate:
-                                'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                            urlTemplate: mapTileUrlForTheme(context),
                             userAgentPackageName: 'com.ecoguide.app',
                             tileProvider: LocalFirstTileProvider(
                               service: _mapOfflineService,

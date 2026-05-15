@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../core/widgets/fullscreen_image_viewer.dart';
 import '../../models/trail.dart';
@@ -30,6 +31,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
   final MapOfflineService _mapOfflineService = MapOfflineService();
   final PageController _heroPageController = PageController();
   final ScrollController _scrollController = ScrollController();
+  final MapController _trailMapController = MapController();
   int _heroImageIndex = 0;
   bool _heroCollapsed = false;
   List<TrailReview> _reviews = [];
@@ -569,6 +571,18 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
 
     if (startPoint == null) return const SizedBox.shrink();
 
+    final endPoint = routePoints.length > 1 ? routePoints.last : null;
+
+    final allPoints = <LatLng>[
+      startPoint,
+      ...routePoints,
+      ?endPoint,
+    ];
+
+    final bounds = allPoints.length > 1
+        ? LatLngBounds.fromPoints(allPoints)
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -584,60 +598,163 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            height: 180,
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: startPoint,
-                initialZoom: routePoints.length > 1 ? 13 : 14,
-                interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.none,
-                ),
-              ),
+            height: 220,
+            child: Stack(
               children: [
-                TileLayer(
-                  urlTemplate:
-                      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-                  userAgentPackageName: 'com.ecoguide.app',
-                  tileProvider: LocalFirstTileProvider(
-                    service: _mapOfflineService,
+                FlutterMap(
+                  mapController: _trailMapController,
+                  options: MapOptions(
+                    initialCenter: startPoint,
+                    initialZoom: 14,
+                    minZoom: 3,
+                    maxZoom: 18,
+                    initialCameraFit: bounds != null
+                        ? CameraFit.bounds(
+                            bounds: bounds,
+                            padding: const EdgeInsets.all(40),
+                          )
+                        : null,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.pinchZoom |
+                          InteractiveFlag.drag |
+                          InteractiveFlag.doubleTapZoom,
+                    ),
                   ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: mapTileUrlForTheme(context),
+                      userAgentPackageName: 'com.ecoguide.app',
+                      maxZoom: 18,
+                      maxNativeZoom: 18,
+                      tileProvider: LocalFirstTileProvider(
+                        service: _mapOfflineService,
+                      ),
+                    ),
+                    if (routePoints.length > 1)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: routePoints,
+                            strokeWidth: 4,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ],
+                      ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: startPoint,
+                          width: 38,
+                          height: 38,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.hiking,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        if (endPoint != null)
+                          Marker(
+                            point: endPoint,
+                            width: 38,
+                            height: 38,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD32F2F),
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(
+                                Icons.flag,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
-                if (routePoints.length > 1)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: routePoints,
-                        strokeWidth: 4,
-                        color: Theme.of(context).primaryColor,
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: Column(
+                    children: [
+                      _buildMapZoomButton(
+                        icon: Icons.add,
+                        onTap: () {
+                          final next = (_trailMapController.camera.zoom + 1)
+                              .clamp(3.0, 18.0);
+                          _trailMapController.move(
+                            _trailMapController.camera.center,
+                            next,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMapZoomButton(
+                        icon: Icons.remove,
+                        onTap: () {
+                          final next = (_trailMapController.camera.zoom - 1)
+                              .clamp(3.0, 18.0);
+                          _trailMapController.move(
+                            _trailMapController.camera.center,
+                            next,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMapZoomButton(
+                        icon: Icons.fit_screen,
+                        onTap: () {
+                          if (bounds == null) return;
+                          _trailMapController.fitCamera(
+                            CameraFit.bounds(
+                              bounds: bounds,
+                              padding: const EdgeInsets.all(40),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: startPoint,
-                      width: 38,
-                      height: 38,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.hiking,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMapZoomButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Theme.of(context).cardColor,
+      elevation: 2,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ),
     );
   }
 

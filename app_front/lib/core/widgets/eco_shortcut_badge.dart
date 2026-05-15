@@ -18,253 +18,219 @@ class EcoShortcutBadge extends StatelessWidget {
     required this.onTabSelected,
   });
 
+  // Layout constants
+  static const _barH = 64.0;
+  static const _sosSize = 56.0;
+  static const _overhang = 22.0;
+  static const _bumpH = 24.0;
+  static const _notchR = _sosSize / 2 + 10.0;
+
+  static const _clipper = _NavbarClipper(
+    notchRadius: _notchR,
+    bumpHeight: _bumpH,
+    topInset: _overhang - _bumpH,
+  );
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final lp = context.watch<LocaleProvider>();
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    const barHeight = 72.0;
-    const sosSize = 68.0;
-    const sosOverhang = 32.0;
-    const bumpHeight = 22.0;
-    const notchR = sosSize / 2 + 10;
-
-    // Glass background colors
-    final barColor = isDark
-        ? const Color(0xFF1C2820).withValues(alpha: 0.94)
-        : Colors.white.withValues(alpha: 0.90);
+    final tabs = <(EcoShortcutTab, IconData, String)>[
+      (EcoShortcutTab.home, Icons.home_rounded, lp.t('tab.home')),
+      (EcoShortcutTab.map, Icons.map_rounded, lp.t('tab.map')),
+      (EcoShortcutTab.trails, Icons.hiking_rounded, lp.t('tab.trails')),
+      (EcoShortcutTab.settings, Icons.settings_rounded, lp.t('tab.params')),
+    ];
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: barHeight + sosOverhang,
+          height: _barH + _overhang,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.topCenter,
             children: [
-              // ── Frosted glass background ──────────────────────────
+              // ── Glass background + shimmer + top border (single clip) ──
               Positioned.fill(
                 child: ClipPath(
-                  clipper: _NavbarClipper(
-                    notchRadius: notchR,
-                    topRadius: 24,
-                    bumpHeight: bumpHeight,
-                    topInset: sosOverhang - bumpHeight,
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-                    child: Container(color: barColor),
-                  ),
-                ),
-              ),
-
-              // ── Arch gradient shimmer ─────────────────────────────
-              Positioned.fill(
-                child: ClipPath(
-                  clipper: _NavbarClipper(
-                    notchRadius: notchR,
-                    topRadius: 24,
-                    bumpHeight: bumpHeight,
-                    topInset: sosOverhang - bumpHeight,
-                  ),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Container(
-                      height: sosOverhang + 4,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white.withValues(alpha: isDark ? 0.06 : 0.55),
-                            Colors.white.withValues(alpha: 0.0),
-                          ],
+                  clipper: _clipper,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: isDark
+                                  ? const [
+                                      Color(0xFF223028),
+                                      Color(0xFF18221C),
+                                    ]
+                                  : const [
+                                      Colors.white,
+                                      Color(0xFFF4F7F5),
+                                    ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── Top border line ───────────────────────────────────
-              Positioned.fill(
-                child: ClipPath(
-                  clipper: _NavbarClipper(
-                    notchRadius: notchR,
-                    topRadius: 24,
-                    bumpHeight: bumpHeight,
-                    topInset: sosOverhang - bumpHeight,
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.09)
-                              : Colors.white.withValues(alpha: 0.80),
-                          width: 1.0,
+                      // Arch shimmer
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: IgnorePointer(
+                          child: Container(
+                            height: _overhang + 6,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.white.withValues(alpha: isDark ? 0.07 : 0.55),
+                                  Colors.white.withValues(alpha: 0.0),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      // Hairline top border
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.09)
+                                  : Colors.black.withValues(alpha: 0.05),
+                              width: 0.8,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-              // ── Tab row ───────────────────────────────────────────
+              // ── Tab row ────────────────────────────────────────────────
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: SizedBox(
-                  height: barHeight,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-                    child: Row(
-                      children: [
-                        // Left pair
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _TabItem(
-                                  tab: EcoShortcutTab.home,
-                                  icon: Icons.home_rounded,
-                                  label: lp.t('tab.home'),
-                                  currentTab: currentTab,
-                                  onTap: () => onTabSelected(EcoShortcutTab.home),
-                                  isDark: isDark,
-                                ),
-                              ),
-                              _Divider(isDark: isDark),
-                              Expanded(
-                                child: _TabItem(
-                                  tab: EcoShortcutTab.map,
-                                  icon: Icons.map_rounded,
-                                  label: lp.t('tab.map'),
-                                  currentTab: currentTab,
-                                  onTap: () => onTabSelected(EcoShortcutTab.map),
-                                  isDark: isDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // SOS gap
-                        const SizedBox(width: sosSize + 8),
-
-                        // Right pair
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _TabItem(
-                                  tab: EcoShortcutTab.trails,
-                                  icon: Icons.hiking_rounded,
-                                  label: lp.t('tab.trails'),
-                                  currentTab: currentTab,
-                                  onTap: () => onTabSelected(EcoShortcutTab.trails),
-                                  isDark: isDark,
-                                ),
-                              ),
-                              _Divider(isDark: isDark),
-                              Expanded(
-                                child: _TabItem(
-                                  tab: EcoShortcutTab.settings,
-                                  icon: Icons.settings_rounded,
-                                  label: lp.t('tab.params'),
-                                  currentTab: currentTab,
-                                  onTap: () => onTabSelected(EcoShortcutTab.settings),
-                                  isDark: isDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                height: _barH,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    children: [
+                      _pair(tabs[0], tabs[1], isDark),
+                      const SizedBox(width: _sosSize + 16),
+                      _pair(tabs[2], tabs[3], isDark),
+                    ],
                   ),
                 ),
               ),
 
-              // ── SOS button ────────────────────────────────────────
-              Positioned(top: 0, child: _SosButton(size: sosSize)),
+              // ── SOS button ─────────────────────────────────────────────
+              const Positioned(top: 0, child: _SosButton(size: _sosSize)),
             ],
           ),
         ),
 
-        // System nav bar fill
+        // Safe-area fill
         Container(
           width: double.infinity,
           height: bottomInset > 0 ? bottomInset : 4,
           color: isDark
-              ? const Color(0xFF1C2820).withValues(alpha: 0.94)
-              : Colors.white.withValues(alpha: 0.90),
+              ? const Color(0xFF18221C)
+              : const Color(0xFFF4F7F5),
         ),
       ],
     );
   }
+
+  Widget _pair(
+    (EcoShortcutTab, IconData, String) a,
+    (EcoShortcutTab, IconData, String) b,
+    bool isDark,
+  ) {
+    return Expanded(
+      child: Row(
+        children: [
+          Expanded(child: _item(a, isDark)),
+          _Divider(isDark: isDark),
+          Expanded(child: _item(b, isDark)),
+        ],
+      ),
+    );
+  }
+
+  Widget _item((EcoShortcutTab, IconData, String) t, bool isDark) => _TabItem(
+        icon: t.$2,
+        label: t.$3,
+        selected: currentTab == t.$1,
+        onTap: () => onTabSelected(t.$1),
+        isDark: isDark,
+      );
 }
 
-// ── Navbar clipper ────────────────────────────────────────────────────────────
+// ── Navbar clipper ───────────────────────────────────────────────────────────
 
 class _NavbarClipper extends CustomClipper<Path> {
   final double notchRadius;
-  final double topRadius;
   final double bumpHeight;
   final double topInset;
 
   const _NavbarClipper({
     required this.notchRadius,
-    required this.topRadius,
     required this.bumpHeight,
     this.topInset = 0,
   });
 
   @override
   Path getClip(Size size) {
-    final path = Path();
+    const topR = 24.0;
+    const botR = 0.0;
     final cx = size.width / 2;
     final bumpHW = notchRadius + 86;
     final apexY = topInset;
     final flatY = topInset + bumpHeight;
 
-    path.moveTo(0, flatY + topRadius);
-    path.quadraticBezierTo(0, flatY, topRadius, flatY);
-    path.lineTo(cx - bumpHW, flatY);
-    path.cubicTo(
-      cx - bumpHW + bumpHW * 0.48, flatY,
-      cx - notchRadius * 0.72, apexY,
-      cx, apexY,
-    );
-    path.cubicTo(
-      cx + notchRadius * 0.72, apexY,
-      cx + bumpHW - bumpHW * 0.48, flatY,
-      cx + bumpHW, flatY,
-    );
-    path.lineTo(size.width - topRadius, flatY);
-    path.quadraticBezierTo(size.width, flatY, size.width, flatY + topRadius);
-
-    const br = 28.0;
-    path.lineTo(size.width, size.height - br);
-    path.quadraticBezierTo(size.width, size.height, size.width - br, size.height);
-    path.lineTo(br, size.height);
-    path.quadraticBezierTo(0, size.height, 0, size.height - br);
-    path.close();
-    return path;
+    return Path()
+      ..moveTo(0, flatY + topR)
+      ..quadraticBezierTo(0, flatY, topR, flatY)
+      ..lineTo(cx - bumpHW, flatY)
+      ..cubicTo(
+        cx - bumpHW + bumpHW * 0.48, flatY,
+        cx - notchRadius * 0.72, apexY,
+        cx, apexY,
+      )
+      ..cubicTo(
+        cx + notchRadius * 0.72, apexY,
+        cx + bumpHW - bumpHW * 0.48, flatY,
+        cx + bumpHW, flatY,
+      )
+      ..lineTo(size.width - topR, flatY)
+      ..quadraticBezierTo(size.width, flatY, size.width, flatY + topR)
+      ..lineTo(size.width, size.height - botR)
+      ..quadraticBezierTo(size.width, size.height, size.width - botR, size.height)
+      ..lineTo(botR, size.height)
+      ..quadraticBezierTo(0, size.height, 0, size.height - botR)
+      ..close();
   }
 
   @override
   bool shouldReclip(covariant _NavbarClipper old) =>
       old.notchRadius != notchRadius ||
-      old.topRadius != topRadius ||
       old.bumpHeight != bumpHeight ||
       old.topInset != topInset;
 }
 
-// ── Subtle divider ────────────────────────────────────────────────────────────
+// ── Divider ──────────────────────────────────────────────────────────────────
 
 class _Divider extends StatelessWidget {
   final bool isDark;
@@ -282,9 +248,8 @@ class _Divider extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [
             Colors.transparent,
-            isDark
-                ? Colors.white.withValues(alpha: 0.12)
-                : Colors.black.withValues(alpha: 0.10),
+            (isDark ? Colors.white : Colors.black)
+                .withValues(alpha: isDark ? 0.12 : 0.10),
             Colors.transparent,
           ],
         ),
@@ -293,114 +258,71 @@ class _Divider extends StatelessWidget {
   }
 }
 
-// ── Tab item ──────────────────────────────────────────────────────────────────
+// ── Tab item ─────────────────────────────────────────────────────────────────
 
 class _TabItem extends StatelessWidget {
-  final EcoShortcutTab tab;
   final IconData icon;
   final String label;
-  final EcoShortcutTab currentTab;
+  final bool selected;
   final VoidCallback onTap;
   final bool isDark;
 
   static const _green = Color(0xFF0E7A23);
-  static const _unselected = Color(0xFF8A9BB0);
+  static const _muted = Color(0xFF8A9BB0);
 
   const _TabItem({
-    required this.tab,
     required this.icon,
     required this.label,
-    required this.currentTab,
+    required this.selected,
     required this.onTap,
     required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    final selected = currentTab == tab;
+    final color = selected ? _green : _muted;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: double.infinity,
-        height: double.infinity,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.max,
-          children: [
-            // Icon with scale + subtle bounce
-            AnimatedScale(
-              scale: selected ? 1.18 : 1.0,
-              duration: const Duration(milliseconds: 240),
-              curve: Curves.easeOutBack,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? (isDark
-                          ? _green.withValues(alpha: 0.20)
-                          : _green.withValues(alpha: 0.10))
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  size: 28,
-                  color: selected
-                      ? _green
-                      : (isDark ? _unselected : _unselected),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 2),
-
-            // Label
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected
-                    ? _green
-                    : (isDark ? _unselected : _unselected),
-                letterSpacing: selected ? 0.2 : 0.0,
-              ),
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-
-            const SizedBox(height: 4),
-
-            // Active dot indicator
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
-              width: selected ? 18 : 0,
-              height: selected ? 3 : 0,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          AnimatedScale(
+            scale: selected ? 1.15 : 1.0,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutBack,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: _green,
-                borderRadius: BorderRadius.circular(2),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: _green.withValues(alpha: 0.45),
-                          blurRadius: 6,
-                          spreadRadius: 0,
-                        ),
-                      ]
-                    : null,
+                color: selected
+                    ? _green.withValues(alpha: isDark ? 0.22 : 0.12)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Icon(icon, size: 26, color: color),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 3),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: color,
+              letterSpacing: selected ? 0.2 : 0.0,
+            ),
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ── SOS button ────────────────────────────────────────────────────────────────
+// ── SOS button ───────────────────────────────────────────────────────────────
 
 class _SosButton extends StatefulWidget {
   final double size;
@@ -412,20 +334,13 @@ class _SosButton extends StatefulWidget {
 
 class _SosButtonState extends State<_SosButton>
     with SingleTickerProviderStateMixin {
-  late AnimationController _pulse;
-  late Animation<double> _pulseAnim;
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..repeat(reverse: true);
 
-  @override
-  void initState() {
-    super.initState();
-    _pulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
-    );
-  }
+  late final Animation<double> _t =
+      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut);
 
   @override
   void dispose() {
@@ -445,8 +360,9 @@ class _SosButtonState extends State<_SosButton>
         ),
       ),
       child: AnimatedBuilder(
-        animation: _pulseAnim,
-        builder: (_, _) {
+        animation: _t,
+        builder: (_, __) {
+          final t = _t.value;
           return SizedBox(
             width: s + 16,
             height: s + 16,
@@ -455,31 +371,29 @@ class _SosButtonState extends State<_SosButton>
               children: [
                 // Outer pulse ring
                 Container(
-                  width: s + 14 + _pulseAnim.value * 6,
-                  height: s + 14 + _pulseAnim.value * 6,
+                  width: s + 14 + t * 6,
+                  height: s + 14 + t * 6,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFFE53935).withValues(
-                        alpha: 0.18 - _pulseAnim.value * 0.12,
-                      ),
+                      color: const Color(0xFFE53935)
+                          .withValues(alpha: 0.20 - t * 0.14),
                       width: 2,
                     ),
                   ),
                 ),
-                // Inner glow halo
+                // Inner halo
                 Container(
                   width: s + 6,
                   height: s + 6,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFFE53935).withValues(
-                      alpha: 0.12 + _pulseAnim.value * 0.08,
-                    ),
+                    color: const Color(0xFFE53935)
+                        .withValues(alpha: 0.12 + t * 0.08),
                   ),
                 ),
                 // Main button
-                _buildButton(s),
+                _button(s),
               ],
             ),
           );
@@ -488,61 +402,49 @@ class _SosButtonState extends State<_SosButton>
     );
   }
 
-  Widget _buildButton(double s) {
-    return Container(
-      width: s,
-      height: s,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const RadialGradient(
-          center: Alignment(0, -0.30),
-          radius: 0.85,
-          colors: [
-            Color(0xFFFF6B60),
-            Color(0xFFE53935),
-            Color(0xFFC62828),
-          ],
-          stops: [0.0, 0.55, 1.0],
-        ),
-        border: Border.all(color: Colors.white, width: 3.0),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFE53935).withValues(alpha: 0.35),
-            blurRadius: 16,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
+  Widget _button(double s) => Container(
+        width: s,
+        height: s,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const RadialGradient(
+            center: Alignment(0, -0.30),
+            radius: 0.85,
+            colors: [Color(0xFFFF6B60), Color(0xFFE53935), Color(0xFFC62828)],
+            stops: [0.0, 0.55, 1.0],
           ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'SOS',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: s * 0.28,
-                fontWeight: FontWeight.w900,
-                letterSpacing: s * 0.020,
-                height: 1.0,
-                shadows: const [
-                  Shadow(
-                    color: Color(0x55000000),
-                    blurRadius: 6,
-                    offset: Offset(0, 1),
-                  ),
-                ],
-              ),
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFE53935).withValues(alpha: 0.40),
+              blurRadius: 18,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-      ),
-    );
-  }
+        child: Center(
+          child: Text(
+            'SOS',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: s * 0.28,
+              fontWeight: FontWeight.w900,
+              letterSpacing: s * 0.020,
+              height: 1.0,
+              shadows: const [
+                Shadow(
+                  color: Color(0x55000000),
+                  blurRadius: 6,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }

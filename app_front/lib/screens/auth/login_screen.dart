@@ -23,30 +23,10 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthProvider>().addListener(_onAuthError);
-    });
-  }
-
-  void _onAuthError() {
-    if (!mounted) return;
-    final authProvider = context.read<AuthProvider>();
-    final err = authProvider.error;
-    if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(err),
-          backgroundColor: AppTheme.errorColor,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-      authProvider.clearError();
-    }
   }
 
   @override
   void dispose() {
-    context.read<AuthProvider>().removeListener(_onAuthError);
     _emailController.dispose();
     _passwordController.dispose();
     _tabController.dispose();
@@ -60,13 +40,35 @@ class _LoginScreenState extends State<LoginScreen>
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Erreur de connexion'),
-          backgroundColor: AppTheme.errorColor,
+    if (!mounted) return;
+    if (!success) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          icon: const Icon(
+            Icons.error_outline,
+            color: AppTheme.errorColor,
+            size: 48,
+          ),
+          title: const Text('Connexion échouée'),
+          content: Text(
+            authProvider.error ??
+                'Email ou mot de passe incorrect. Veuillez réessayer.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+          actionsAlignment: MainAxisAlignment.center,
         ),
       );
+      authProvider.clearError();
     }
   }
 
@@ -91,7 +93,14 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final bg = const Color(0xFFF5F0EA);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF12181C) : const Color(0xFFF5F0EA);
+    final fieldFill =
+        isDark ? const Color(0xFF1E262C) : const Color(0xFFF0EBE3);
+    final onSurface = theme.colorScheme.onSurface;
+    final mutedText = isDark ? Colors.grey[400] : Colors.grey[500];
+    final dividerColor = isDark ? Colors.white24 : Colors.grey[300]!;
 
     return Scaffold(
       backgroundColor: bg,
@@ -190,8 +199,8 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     indicatorSize: TabBarIndicatorSize.label,
                     dividerColor: Colors.transparent,
-                    labelColor: Colors.black,
-                    unselectedLabelColor: Colors.grey[500],
+                    labelColor: onSurface,
+                    unselectedLabelColor: mutedText,
                     labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                     unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
                     tabs: const [Tab(text: 'Sign In'), Tab(text: 'Create Account')],
@@ -222,6 +231,8 @@ class _LoginScreenState extends State<LoginScreen>
                           hint: 'hiker@forest.com',
                           icon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
+                          fillColor: fieldFill,
+                          isDark: isDark,
                           validator: (v) {
                             if (v == null || v.isEmpty) return 'Please enter your email';
                             if (!v.contains('@')) return 'Please enter a valid email';
@@ -239,6 +250,8 @@ class _LoginScreenState extends State<LoginScreen>
                           hint: '••••••••',
                           icon: Icons.lock_outline,
                           obscure: _obscurePassword,
+                          fillColor: fieldFill,
+                          isDark: isDark,
                           suffix: IconButton(
                             icon: Icon(
                               _obscurePassword
@@ -263,10 +276,10 @@ class _LoginScreenState extends State<LoginScreen>
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.only(top: 8, bottom: 4),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Forgot Password?',
                               style: TextStyle(
-                                color: Colors.black,
+                                color: onSurface,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
@@ -307,20 +320,20 @@ class _LoginScreenState extends State<LoginScreen>
                         // OR CONTINUE WITH
                         Row(
                           children: [
-                            Expanded(child: Divider(color: Colors.grey[300])),
+                            Expanded(child: Divider(color: dividerColor)),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 14),
                               child: Text(
                                 'OR CONTINUE WITH',
                                 style: TextStyle(
-                                  color: Colors.grey[500],
+                                  color: mutedText,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 0.8,
                                 ),
                               ),
                             ),
-                            Expanded(child: Divider(color: Colors.grey[300])),
+                            Expanded(child: Divider(color: dividerColor)),
                           ],
                         ),
 
@@ -334,14 +347,18 @@ class _LoginScreenState extends State<LoginScreen>
                               icon: Image.network(
                                 'https://www.google.com/favicon.ico',
                                 width: 20, height: 20,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 22),
+                                errorBuilder: (_, _, _) => const Icon(Icons.g_mobiledata, size: 22),
                               ),
                               label: 'Google',
                             )),
                             const SizedBox(width: 14),
                             Expanded(child: _socialButton(
                               onTap: () {},
-                              icon: const Icon(Icons.apple, size: 22, color: Colors.black),
+                              icon: Icon(
+                                Icons.apple,
+                                size: 22,
+                                color: isDark ? Colors.white : Colors.black,
+                              ),
                               label: 'Apple',
                             )),
                           ],
@@ -353,20 +370,24 @@ class _LoginScreenState extends State<LoginScreen>
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: bg,
+                            color: fieldFill,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey[300]!),
+                            border: Border.all(color: dividerColor),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.eco, color: Colors.black54, size: 20),
+                              Icon(
+                                Icons.eco,
+                                color: onSurface.withValues(alpha: 0.6),
+                                size: 20,
+                              ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: RichText(
                                   text: TextSpan(
                                     style: TextStyle(
-                                      color: Colors.grey[600],
+                                      color: onSurface.withValues(alpha: 0.7),
                                       fontSize: 12,
                                       height: 1.5,
                                     ),
@@ -396,64 +417,61 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
 
-            // ── Dark Green Footer ──
-            Container(
-              color: const Color(0xFF1A3A1F),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _footerLink('Recents'),
-                  _footerLink('Explore'),
-                  _footerLink('Services'),
-                  _footerLink('Guides'),
-                ],
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _fieldLabel(String text) => Text(
-        text,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.0,
-          color: Colors.black87,
-        ),
-      );
+  Widget _fieldLabel(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.0,
+        color: isDark ? Colors.white : Colors.black87,
+      ),
+    );
+  }
 
   Widget _buildField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
+    required Color fillColor,
+    required bool isDark,
     TextInputType? keyboardType,
     bool obscure = false,
     Widget? suffix,
     String? Function(String?)? validator,
   }) {
+    final hintColor = isDark ? Colors.grey[500] : Colors.grey[400];
+    final borderColor = isDark ? Colors.white12 : Colors.grey[300]!;
+
     return TextFormField(
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 15),
+      style: TextStyle(
+        fontSize: 15,
+        color: isDark ? Colors.white : Colors.black87,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-        prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
+        hintStyle: TextStyle(color: hintColor, fontSize: 14),
+        prefixIcon: Icon(icon, color: hintColor, size: 20),
         suffixIcon: suffix,
         filled: true,
-        fillColor: const Color(0xFFF0EBE3),
+        fillColor: fillColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
@@ -478,14 +496,19 @@ class _LoginScreenState extends State<LoginScreen>
     required Widget icon,
     required String label,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1E262C) : const Color(0xFFF0EBE3);
+    final borderColor = isDark ? Colors.white12 : Colors.grey[300]!;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF0EBE3),
+          color: bgColor,
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: borderColor),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -494,10 +517,10 @@ class _LoginScreenState extends State<LoginScreen>
             const SizedBox(width: 10),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
-                color: Colors.black87,
+                color: textColor,
               ),
             ),
           ],
@@ -505,13 +528,4 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     );
   }
-
-  Widget _footerLink(String label) => Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-      );
 }

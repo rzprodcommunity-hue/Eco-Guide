@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../models/local_service.dart';
 import '../../providers/local_service_provider.dart';
@@ -32,6 +33,7 @@ class LocalServiceDetailScreen extends StatefulWidget {
 class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
   final MapController _mapController = MapController();
   final MapOfflineService _mapOfflineService = MapOfflineService();
+  bool _navigatingToDirections = false;
 
   @override
   void initState() {
@@ -307,25 +309,48 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed:
-                          service.latitude == null || service.longitude == null
+                      onPressed: (service.latitude == null ||
+                              service.longitude == null ||
+                              _navigatingToDirections)
                           ? null
-                          : () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => NavigationSosScreen(
-                                    destination: LatLng(
-                                      service.latitude!,
-                                      service.longitude!,
+                          : () async {
+                              setState(() => _navigatingToDirections = true);
+                              try {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => NavigationSosScreen(
+                                      destination: LatLng(
+                                        service.latitude!,
+                                        service.longitude!,
+                                      ),
+                                      destinationLabel: service.name,
                                     ),
-                                    destinationLabel: service.name,
                                   ),
-                                ),
-                              );
+                                );
+                              } finally {
+                                if (mounted) {
+                                  setState(() =>
+                                      _navigatingToDirections = false);
+                                }
+                              }
                             },
-                      icon: const Icon(Icons.route),
-                      label: Text(context.watch<LocaleProvider>().t('services.detail.directions')),
+                      icon: _navigatingToDirections
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.route),
+                      label: Text(_navigatingToDirections
+                          ? 'Calcul de l\'itinéraire...'
+                          : context
+                              .watch<LocaleProvider>()
+                              .t('services.detail.directions')),
                     ),
                   ),
                   const SizedBox(height: 22),
@@ -394,8 +419,7 @@ class _LocalServiceDetailScreenState extends State<LocalServiceDetailScreen> {
                               ),
                               children: [
                                 TileLayer(
-                                  urlTemplate:
-                                      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                                  urlTemplate: mapTileUrlForTheme(context),
                                   userAgentPackageName: 'com.ecoguide.app',
                                   tileProvider: LocalFirstTileProvider(
                                     service: _mapOfflineService,
