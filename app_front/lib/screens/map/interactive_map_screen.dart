@@ -5,12 +5,12 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/services/location_service.dart';
 import '../../models/local_service.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
@@ -182,49 +182,40 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     setState(() => _isLoading = false);
   }
 
-  Future<void> _detectUserPosition() async {
-    final enabled = await Geolocator.isLocationServiceEnabled();
-    if (!enabled) return;
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+  Future<void> _detectUserPosition({bool feedback = false}) async {
+    final result = await LocationService.getBestFix();
+    if (!result.isSuccess) {
+      debugPrint('[GPS] no fix: ${result.message}');
       return;
     }
 
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    );
-
+    final fix = result.fix!;
     if (!mounted) return;
     setState(() {
-      _currentPosition = LatLng(position.latitude, position.longitude);
+      _currentPosition = LatLng(fix.latitude, fix.longitude);
     });
 
-    _mapController.move(_activeDestination ?? _currentPosition, 14);
+    _mapController.move(
+      _activeDestination ?? _currentPosition,
+      _mapStyle.maxZoom.clamp(14, 18),
+    );
+    debugPrint(
+      '[GPS] fix lat=${fix.latitude.toStringAsFixed(6)} '
+      'lng=${fix.longitude.toStringAsFixed(6)} '
+      'accuracy=${fix.accuracy.toStringAsFixed(1)}m',
+    );
     if (_activeDestination != null) {
       _refreshRoute(force: true);
     }
   }
 
   Future<void> _updatePositionSilently() async {
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-      if (!mounted) return;
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-      });
-      _refreshRoute();
-    } catch (_) {
-      // Ignore temporary GPS failures.
-    }
+    final fix = await LocationService.getQuickFix();
+    if (fix == null || !mounted) return;
+    setState(() {
+      _currentPosition = LatLng(fix.latitude, fix.longitude);
+    });
+    _refreshRoute();
   }
 
   LatLng get _routingOrigin {
@@ -573,8 +564,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
         const SizedBox(height: 8),
         _buildRoundButton(
           icon: Icons.my_location,
-          onPressed: () =>
-              _mapController.move(_currentPosition, _mapStyle.maxZoom),
+          onPressed: () => _detectUserPosition(feedback: true),
         ),
         const SizedBox(height: 8),
         _buildRoundButton(

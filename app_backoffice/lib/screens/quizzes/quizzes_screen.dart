@@ -374,17 +374,19 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
           SizedBox(height: isCompact ? 20 : 32),
           Expanded(
             child: isCompact
-                ? SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildQuizForm(),
-                        const SizedBox(height: 24),
-                        _buildInsightsCard(provider),
-                        const SizedBox(height: 24),
-                        _buildRecentQuizzes(provider),
-                      ],
-                    ),
+                // On compact / mobile we use a plain ListView so that nothing
+                // nested inside (form / recent quizzes) needs its own
+                // scrollable — that was making the whole content silently
+                // collapse to 0 px height.
+                ? ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _buildQuizForm(),
+                      const SizedBox(height: 24),
+                      _buildInsightsCard(provider),
+                      const SizedBox(height: 24),
+                      _buildRecentQuizzes(provider),
+                    ],
                   )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,22 +412,10 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
   }
 
   Widget _buildQuizForm() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: Form(
+    final isCompact = Responsive.isCompact(context);
+    final formContent = Padding(
+      padding: EdgeInsets.all(isCompact ? 16 : 32),
+      child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,151 +436,57 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              _ResponsiveTriRow(
+                isCompact: isCompact,
+                spacing: 20,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Category',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<QuizCategory>(
-                          value: _selectedCategory,
-                          isExpanded: true,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: AppColors.divider,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: AppColors.divider,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                          ),
-                          items: QuizCategory.values.map((cat) {
-                            return DropdownMenuItem(
-                              value: cat,
-                              child: Text(cat.name.toUpperCase()),
-                            );
-                          }).toList(),
-                          onChanged: (v) => setState(
-                            () => _selectedCategory = v ?? QuizCategory.flora,
-                          ),
-                        ),
-                      ],
+                  _buildLabeledField(
+                    'Category',
+                    DropdownButtonFormField<QuizCategory>(
+                      value: _selectedCategory,
+                      isExpanded: true,
+                      decoration: _fieldDecoration(),
+                      items: QuizCategory.values.map((cat) {
+                        return DropdownMenuItem(
+                          value: cat,
+                          child: Text(cat.name.toUpperCase()),
+                        );
+                      }).toList(),
+                      onChanged: (v) => setState(
+                        () => _selectedCategory = v ?? QuizCategory.flora,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Associated Trail (Optional)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: _selectedTrail,
-                          isExpanded: true,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: AppColors.divider,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: AppColors.divider,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'None',
-                              child: Text('None'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Blueberry Loop',
-                              child: Text('Blueberry Loop'),
-                            ),
-                          ],
-                          onChanged: (v) =>
-                              setState(() => _selectedTrail = v ?? 'None'),
+                  _buildLabeledField(
+                    'Associated Trail (Optional)',
+                    DropdownButtonFormField<String>(
+                      value: _selectedTrail,
+                      isExpanded: true,
+                      decoration: _fieldDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: 'None', child: Text('None')),
+                        DropdownMenuItem(
+                          value: 'Blueberry Loop',
+                          child: Text('Blueberry Loop'),
                         ),
                       ],
+                      onChanged: (v) =>
+                          setState(() => _selectedTrail = v ?? 'None'),
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Reward Points',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _pointsController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: AppColors.divider,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: AppColors.divider,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                          ),
-                          validator: (v) =>
-                              v?.isEmpty == true ? 'Required' : null,
-                        ),
-                      ],
+                  _buildLabeledField(
+                    'Reward Points',
+                    TextFormField(
+                      controller: _pointsController,
+                      keyboardType: TextInputType.number,
+                      decoration: _fieldDecoration(),
+                      validator: (v) =>
+                          v?.isEmpty == true ? 'Required' : null,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 40),
+              SizedBox(height: isCompact ? 24 : 40),
               Container(height: 1, color: AppColors.divider.withOpacity(0.5)),
               const SizedBox(height: 32),
 
@@ -681,14 +577,73 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
             ],
           ),
         ),
+      );
+    
+
+    final decoration = BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.02),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+
+    // Compact (mobile / narrow): no inner scroll — the parent ListView
+    // handles the page scroll. Desktop: keep the inner scroll so the form
+    // can scroll independently of the sidebar.
+    return Container(
+      decoration: decoration,
+      child: isCompact ? formContent : SingleChildScrollView(child: formContent),
+    );
+  }
+
+  InputDecoration _fieldDecoration({String? hintText, Widget? prefixIcon}) {
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.divider),
       ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.divider),
+      ),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
+  Widget _buildLabeledField(String label, Widget field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        field,
+      ],
     );
   }
 
   Widget _buildQuestionBlock(int index, QuestionDraft q) {
+    final isCompact = Responsive.isCompact(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isCompact ? 16 : 24),
       decoration: BoxDecoration(
         color: Colors.grey[50], // Professional slight contrast
         borderRadius: BorderRadius.circular(12),
@@ -747,122 +702,105 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+          // Question text field + photo upload: side-by-side on desktop,
+          // stacked on mobile.
+          isCompact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextFormField(
-                      controller: q.questionCtrl,
-                      decoration: InputDecoration(
-                        hintText: 'Enter question text...',
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.divider,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: AppColors.divider,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                      validator: (v) =>
-                          v?.trim().isEmpty == true ? 'Required' : null,
-                    ),
+                    _buildQuestionTextField(q),
+                    const SizedBox(height: 12),
+                    Center(child: _buildPhotoUpload(q)),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: q.correctCtrl,
-                            decoration: InputDecoration(
-                              hintText: 'Correct Answer...',
-                              fillColor: Colors.white,
-                              filled: true,
-                              prefixIcon: const Icon(
-                                Icons.check_circle,
-                                color: AppColors.success,
-                                size: 20,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: AppColors.success,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: AppColors.success,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: q.distractor1Ctrl,
-                            decoration: InputDecoration(
-                              hintText: 'Distractor 1',
-                              fillColor: Colors.white,
-                              filled: true,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: AppColors.divider,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: AppColors.divider,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: q.distractor2Ctrl,
-                            decoration: InputDecoration(
-                              hintText: 'Distractor 2',
-                              fillColor: Colors.white,
-                              filled: true,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: AppColors.divider,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: AppColors.divider,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    _buildAnswerFields(q, stacked: true),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildQuestionTextField(q),
+                          const SizedBox(height: 16),
+                          _buildAnswerFields(q, stacked: false),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 16),
+                    _buildPhotoUpload(q),
                   ],
                 ),
-              ),
-              const SizedBox(width: 16),
-              // Photo Upload Component
-              GestureDetector(
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestionTextField(QuestionDraft q) {
+    return TextFormField(
+      controller: q.questionCtrl,
+      decoration: _fieldDecoration(hintText: 'Enter question text...'),
+      validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
+    );
+  }
+
+  Widget _buildAnswerFields(QuestionDraft q, {required bool stacked}) {
+    final correct = TextFormField(
+      controller: q.correctCtrl,
+      decoration: InputDecoration(
+        hintText: 'Correct Answer...',
+        fillColor: Colors.white,
+        filled: true,
+        prefixIcon: const Icon(
+          Icons.check_circle,
+          color: AppColors.success,
+          size: 20,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.success),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.success),
+        ),
+      ),
+    );
+    final d1 = TextFormField(
+      controller: q.distractor1Ctrl,
+      decoration: _fieldDecoration(hintText: 'Distractor 1'),
+    );
+    final d2 = TextFormField(
+      controller: q.distractor2Ctrl,
+      decoration: _fieldDecoration(hintText: 'Distractor 2'),
+    );
+
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          correct,
+          const SizedBox(height: 10),
+          d1,
+          const SizedBox(height: 10),
+          d2,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: correct),
+        const SizedBox(width: 12),
+        Expanded(child: d1),
+        const SizedBox(width: 12),
+        Expanded(child: d2),
+      ],
+    );
+  }
+
+  Widget _buildPhotoUpload(QuestionDraft q) {
+    // Photo Upload Component
+    return GestureDetector(
                 onTap: q.isUploading ? null : () => _pickAndUploadImage(q),
                 child: Container(
                   width: 110,
@@ -931,11 +869,6 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                           ],
                         ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -1169,6 +1102,44 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                   },
                 ),
         ),
+      ],
+    );
+  }
+}
+
+/// Lays out 3 children side-by-side when `isCompact` is false, or stacked
+/// in a single column with [spacing] between them when compact (mobile).
+class _ResponsiveTriRow extends StatelessWidget {
+  final bool isCompact;
+  final double spacing;
+  final List<Widget> children;
+
+  const _ResponsiveTriRow({
+    required this.isCompact,
+    required this.children,
+    this.spacing = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isCompact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i != children.length - 1) SizedBox(height: spacing),
+          ],
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          Expanded(child: children[i]),
+          if (i != children.length - 1) SizedBox(width: spacing),
+        ],
       ],
     );
   }

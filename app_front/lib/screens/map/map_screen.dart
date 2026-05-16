@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/location_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_page_header.dart';
@@ -60,55 +60,29 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _detectUserPosition({bool centerMap = true}) async {
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (!mounted) return;
-        setState(() {
-          _locationError =
-              'Le service de localisation est desactive. Activez le GPS.';
-        });
-        return;
-      }
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        if (!mounted) return;
-        setState(() {
-          _locationError =
-              'Permission de localisation refusee. Autorisez-la dans les parametres.';
-        });
-        return;
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
+    final result = await LocationService.getBestFix();
+    if (!result.isSuccess) {
       if (!mounted) return;
-      final userPosition = LatLng(position.latitude, position.longitude);
-      setState(() {
-        _currentPosition = userPosition;
-        _locationError = null;
-      });
-
-      if (centerMap) {
-        _mapController.move(userPosition, 14);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _locationError =
-            'Impossible de recuperer votre position GPS pour le moment.';
-      });
+      setState(() => _locationError = result.message);
+      return;
     }
+
+    final fix = result.fix!;
+    if (!mounted) return;
+    final userPosition = LatLng(fix.latitude, fix.longitude);
+    setState(() {
+      _currentPosition = userPosition;
+      _locationError = null;
+    });
+
+    if (centerMap) {
+      _mapController.move(userPosition, 16);
+    }
+    debugPrint(
+      '[GPS] fix lat=${fix.latitude.toStringAsFixed(6)} '
+      'lng=${fix.longitude.toStringAsFixed(6)} '
+      'accuracy=${fix.accuracy.toStringAsFixed(1)}m',
+    );
   }
 
   void _centerOnUser() {

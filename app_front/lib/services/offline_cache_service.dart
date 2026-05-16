@@ -216,4 +216,62 @@ class OfflineCacheService {
     await db.delete('offline_trails', where: 'id = ?', whereArgs: [trailId]);
     await db.delete('offline_pois', where: 'trailId = ?', whereArgs: [trailId]);
   }
+
+  Future<void> removePoi(String poiId) async {
+    final db = await _db;
+    await db.delete('offline_pois', where: 'id = ?', whereArgs: [poiId]);
+  }
+
+  Future<void> removeLocalService(String serviceId) async {
+    final db = await _db;
+    await db.delete(
+      'offline_local_services',
+      where: 'id = ?',
+      whereArgs: [serviceId],
+    );
+  }
+
+  Future<Set<String>> getOfflineTrailIds() async {
+    final db = await _db;
+    final rows = await db.query('offline_trails', columns: ['id']);
+    return rows.map((row) => row['id'] as String).toSet();
+  }
+
+  Future<Set<String>> getOfflinePoiIds() async {
+    final db = await _db;
+    final rows = await db.query('offline_pois', columns: ['id']);
+    return rows.map((row) => row['id'] as String).toSet();
+  }
+
+  Future<Set<String>> getOfflineLocalServiceIds() async {
+    final db = await _db;
+    final rows = await db.query('offline_local_services', columns: ['id']);
+    return rows.map((row) => row['id'] as String).toSet();
+  }
+
+  Future<void> savePoi(Poi poi) async {
+    final db = await _db;
+    await db.insert(
+      'offline_pois',
+      {
+        'id': poi.id,
+        'trailId': poi.trailId,
+        'payload': jsonEncode(poi.toJson()),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> saveLocalService(LocalService service) async {
+    final db = await _db;
+    await db.insert(
+      'offline_local_services',
+      {
+        'id': service.id,
+        'payload': jsonEncode(service.toJson()),
+        'downloadedAt': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
 }

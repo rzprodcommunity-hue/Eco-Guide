@@ -7,6 +7,11 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
+  // Static admin credentials — the only login accepted by the backoffice.
+  // Change these two constants if you need to rotate the password.
+  static const String _adminEmail = 'admin@ecoguide.com';
+  static const String _adminPassword = 'EcoAdmin2026!';
+
   UserModel? _user;
   bool _isLoading = false;
   String? _error;
@@ -52,28 +57,34 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await AuthService.login(email, password);
-      _user = UserModel.fromJson(response['user']);
+    // Small delay so the login button shows a spinner — purely cosmetic.
+    await Future<void>.delayed(const Duration(milliseconds: 250));
 
-      if (!_user!.isAdmin) {
-        _error = 'Acces reserve aux administrateurs';
-        await AuthService.logout();
-        _user = null;
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
+    final emailMatches =
+        email.trim().toLowerCase() == _adminEmail.toLowerCase();
+    final passwordMatches = password == _adminPassword;
 
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
+    if (!emailMatches || !passwordMatches) {
+      _error = 'Email ou mot de passe incorrect.';
+      _user = null;
       _isLoading = false;
       notifyListeners();
       return false;
     }
+
+    _user = UserModel(
+      id: 'static-admin',
+      email: _adminEmail,
+      role: 'admin',
+      firstName: 'Admin',
+      lastName: null,
+      avatarUrl: null,
+      isActive: true,
+      createdAt: DateTime.now(),
+    );
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   Future<bool> loginWithGoogle() async {

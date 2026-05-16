@@ -188,7 +188,7 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
                     : displayedTrails.isEmpty
                     ? ListView(
                         children: [
-                          _buildOfflineBanner(),
+                          // _buildOfflineBanner(),
                           Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,

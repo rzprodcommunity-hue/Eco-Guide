@@ -1,18 +1,19 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import '../../core/services/network_service.dart';
 
+import '../../core/services/network_service.dart';
 import '../../core/widgets/eco_page_header.dart';
+import '../../models/local_service.dart';
+import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/local_service_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
 import '../../services/api_client.dart';
-import '../../services/offline_cache_service.dart';
 import '../../services/map_offline_service.dart';
+import '../../services/offline_cache_service.dart';
 import '../../services/offline_service.dart';
 
 class OfflineTrailsScreen extends StatefulWidget {
@@ -22,48 +23,61 @@ class OfflineTrailsScreen extends StatefulWidget {
   State<OfflineTrailsScreen> createState() => _OfflineTrailsScreenState();
 }
 
-class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
-  static const Map<String, double> _resolutionFactor = {
-    'Basse': 0.7,
-    'Moyenne': 1.0,
-    'Haute': 1.45,
-  };
+class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
+    with SingleTickerProviderStateMixin {
+  static const _kInstalledTrailsKey = 'offline_installed_trails';
+  static const _kInstalledPoisKey = 'offline_installed_pois';
+  static const _kInstalledServicesKey = 'offline_installed_services';
+  static const _kAutoSyncKey = 'offline_auto_sync';
+  static const _kTileModeKey = 'offline_tile_mode';
+  static const _kMapInstalledKey = 'offline_map_installed';
 
-  static const Map<String, int> _basePackageMb = {
-    'topo': 450,
-    'poi_flora': 120,
-    'services': 45,
-  };
+  static const _green = Color(0xFF22B53A);
+  static const _greenDark = Color(0xFF1B8A2C);
 
+  late final TabController _tabController;
   late final OfflineService _offlineService;
   late final MapOfflineService _mapOfflineService;
 
   bool _isLoading = false;
-  Map<String, double> _downloadProgress = {};
-  Map<String, String> _downloadStatusText = {};
   bool _autoSync = true;
-  String _resolution = 'Moyenne';
-  double _deviceStorageGb = 128;
-  double _usedStorageGb = 0;
+  OfflineTileMode _tileMode = OfflineTileMode.standard;
+  bool _isMapInstalled = false;
+  double _mapDownloadProgress = 0;
+  String _mapDownloadStatus = '';
+  bool _isDownloadingMap = false;
+  double _cachedMapMb = 0;
 
-  List<Trail> _allTrails = [];
-  List<Trail> _regionTrails = [];
-  final Set<String> _installedPackages = <String>{};
+  final Set<String> _installedTrailIds = <String>{};
+  final Set<String> _installedPoiIds = <String>{};
+  final Set<String> _installedServiceIds = <String>{};
+  final Map<String, double> _itemProgress = <String, double>{};
+
+  bool _isBulkDownloading = false;
+  String _bulkStatus = '';
+
+  String _trailQuery = '';
+  String _poiQuery = '';
+  String _serviceQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _offlineService = OfflineService(context.read<ApiClient>());
     _mapOfflineService = MapOfflineService();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initialize();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initialize());
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
-
     try {
       final isOnline = await NetworkService.hasInternetConnection();
       await Future.wait([
@@ -77,324 +91,79 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
         ),
         _mapOfflineService.initialize(),
       ]);
-
-      _allTrails = context.read<TrailProvider>().trails;
-      _regionTrails = _resolveTabarkaRegion(_allTrails);
-
       await _loadPersistedState();
-      await _refreshStorageUsage();
+      await _refreshCachedSizes();
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  List<Trail> _resolveTabarkaRegion(List<Trail> trails) {
-    final tabarka = trails
-        .where(
-          (trail) => (trail.region ?? '').toLowerCase().contains('tabarka'),
-        )
-        .toList();
-    if (tabarka.isNotEmpty) return tabarka;
-
-    final grouped = <String, List<Trail>>{};
-    for (final trail in trails) {
-      final region = (trail.region ?? 'Region principale').trim();
-      grouped.putIfAbsent(region, () => <Trail>[]).add(trail);
-    }
-
-    if (grouped.isEmpty) return <Trail>[];
-    final largestRegion = grouped.entries.reduce(
-      (a, b) => a.value.length >= b.value.length ? a : b,
-    );
-    return largestRegion.value;
   }
 
   Future<void> _loadPersistedState() async {
     final prefs = await SharedPreferences.getInstance();
-    final stored =
-        prefs.getStringList('offline_installed_packages') ?? <String>[];
-    final autoSync = prefs.getBool('offline_auto_sync') ?? true;
-    final selectedResolution =
-        prefs.getString('offline_resolution') ?? 'Moyenne';
 
-    if (!mounted) return;
-    setState(() {
-      _installedPackages
-        ..clear()
-        ..addAll(stored);
-      _autoSync = autoSync;
-      _resolution = _resolutionFactor.containsKey(selectedResolution)
-          ? selectedResolution
-          : 'Moyenne';
-    });
+    _installedTrailIds
+      ..clear()
+      ..addAll(prefs.getStringList(_kInstalledTrailsKey) ?? const <String>[]);
+    _installedPoiIds
+      ..clear()
+      ..addAll(prefs.getStringList(_kInstalledPoisKey) ?? const <String>[]);
+    _installedServiceIds
+      ..clear()
+      ..addAll(prefs.getStringList(_kInstalledServicesKey) ?? const <String>[]);
+
+    // Reconcile with what's actually in the SQLite cache.
+    final cachedTrails = await OfflineCacheService.instance.getOfflineTrailIds();
+    final cachedPois = await OfflineCacheService.instance.getOfflinePoiIds();
+    final cachedServices =
+        await OfflineCacheService.instance.getOfflineLocalServiceIds();
+    _installedTrailIds.addAll(cachedTrails);
+    _installedPoiIds.addAll(cachedPois);
+    _installedServiceIds.addAll(cachedServices);
+
+    _autoSync = prefs.getBool(_kAutoSyncKey) ?? true;
+    _tileMode = OfflineTileMode.fromId(prefs.getString(_kTileModeKey));
+    _isMapInstalled = prefs.getBool(_kMapInstalledKey) ?? false;
+
+    if (mounted) setState(() {});
   }
 
-  Future<void> _persistInstalledPackages() async {
+  Future<void> _refreshCachedSizes() async {
+    final mb = await _mapOfflineService.getCachedTilesSizeMb();
+    if (!mounted) return;
+    setState(() => _cachedMapMb = mb);
+  }
+
+  Future<void> _persistTrails() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kInstalledTrailsKey, _installedTrailIds.toList());
+  }
+
+  Future<void> _persistPois() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kInstalledPoisKey, _installedPoiIds.toList());
+  }
+
+  Future<void> _persistServices() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
-      'offline_installed_packages',
-      _installedPackages.toList(),
+      _kInstalledServicesKey,
+      _installedServiceIds.toList(),
     );
-  }
-
-  Future<void> _persistResolution() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('offline_resolution', _resolution);
   }
 
   Future<void> _persistAutoSync() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('offline_auto_sync', _autoSync);
+    await prefs.setBool(_kAutoSyncKey, _autoSync);
   }
 
-  Future<void> _refreshStorageUsage() async {
-    final offlineUsedMb = await OfflineCacheService.instance.getTotalUsageMb();
-    if (!mounted) return;
-    setState(() {
-      _usedStorageGb = (offlineUsedMb / 1024).clamp(0, _deviceStorageGb);
-    });
+  Future<void> _persistTileMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kTileModeKey, _tileMode.id);
   }
 
-  int _packageSizeMb(String packageId) {
-    final base = _basePackageMb[packageId] ?? 50;
-    final factor = _resolutionFactor[_resolution] ?? 1.0;
-    return (base * factor).round();
-  }
-
-  int _totalDownloadSizeMb() {
-    return _basePackageMb.keys
-        .where((id) => !_installedPackages.contains(id))
-        .map(_packageSizeMb)
-        .fold(0, (a, b) => a + b);
-  }
-
-  int _installedSizeMb() {
-    return _installedPackages.map(_packageSizeMb).fold(0, (a, b) => a + b);
-  }
-
-  Future<void> _installPackage(String packageId) async {
-    final isOnline = await NetworkService.hasInternetConnection();
-    if (!isOnline) {
-      _showMessage(
-        'Connexion internet requise pour telecharger les cartes hors ligne.',
-      );
-      return;
-    }
-
-    if (_regionTrails.isEmpty) {
-      _showMessage(
-        'Aucune donnee regionale disponible pour le telechargement.',
-      );
-      return;
-    }
-
-    setState(() {
-      _downloadProgress[packageId] = 0.0;
-      _downloadStatusText[packageId] = 'Préparation...';
-    });
-    final packageSizeMb = _packageSizeMb(packageId);
-
-    try {
-      final poiProvider = context.read<PoiProvider>();
-      final localServiceProvider = context.read<LocalServiceProvider>();
-
-      // Téléchargement de TOUTE la table (Trails) au lieu d'une seule région
-      // Téléchargement de TOUTE la table (POIs)
-      final allPois = poiProvider.pois;
-
-      final bytesPerTrail =
-          ((packageSizeMb * 1024 * 1024) /
-                  (_allTrails.isNotEmpty ? _allTrails.length : 1))
-              .round();
-
-      if (packageId == 'topo') {
-        int totalTilesToMap = 0;
-        final zoomsToDownload = _resolution == 'Basse'
-            ? [11, 12, 13]
-            : (_resolution == 'Haute'
-                  ? [11, 12, 13, 14, 15, 16]
-                  : [11, 12, 13, 14, 15]);
-        for (final z in zoomsToDownload) {
-          totalTilesToMap += _mapOfflineService.estimateTileCount(zooms: [z]);
-        }
-
-        final mapResult = await _mapOfflineService.downloadTabarkaTiles(
-          zooms: zoomsToDownload,
-          onProgress: (progress, downloaded, total) {
-            if (mounted) {
-              setState(() {
-                _downloadProgress[packageId] = progress;
-                _downloadStatusText[packageId] =
-                    'Tuiles: $downloaded / $totalTilesToMap';
-              });
-            }
-          },
-        );
-
-        for (final trail in _allTrails) {
-          // Téléchargement physique des Tsawer (Images) pour les Trails !
-          if (trail.imageUrls != null) {
-            for (final url in trail.imageUrls!) {
-              try {
-                await DefaultCacheManager().downloadFile(url);
-              } catch (_) {}
-            }
-          }
-
-          await OfflineCacheService.instance.saveTrailPackage(
-            trail: trail,
-            pois: allPois.where((poi) => poi.trailId == trail.id).toList(),
-            quality: _resolution,
-            sizeMb:
-                packageSizeMb / (_allTrails.isNotEmpty ? _allTrails.length : 1),
-          );
-
-          try {
-            await _offlineService.markDownloaded(
-              resourceType: 'trail',
-              resourceId: trail.id,
-              sizeBytes: bytesPerTrail,
-            );
-          } catch (e) {
-            debugPrint(
-              'Could not track offline download in backend for trail: $e',
-            );
-          }
-        }
-
-        if (mapResult.failed > 0 && mounted) {
-          _showMessage('Carte: ${mapResult.downloaded} tuiles telechargees.');
-        }
-      } else if (packageId == 'poi_flora') {
-        // Téléchargement physique des Tsawer (Images) pour les POIs
-        for (final poi in allPois) {
-          if (poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty) {
-            try {
-              await DefaultCacheManager().downloadFile(poi.mediaUrl!);
-            } catch (_) {}
-          }
-          if (poi.additionalMediaUrls != null) {
-            for (final url in poi.additionalMediaUrls!) {
-              try {
-                await DefaultCacheManager().downloadFile(url);
-              } catch (_) {}
-            }
-          }
-        }
-
-        await OfflineCacheService.instance.savePois(allPois);
-
-        final representativeTrail = _allTrails.isNotEmpty
-            ? _allTrails.first.id
-            : 'global';
-        try {
-          await _offlineService.markDownloaded(
-            resourceType: 'poi',
-            resourceId: allPois.isNotEmpty
-                ? allPois.first.id
-                : representativeTrail,
-            sizeBytes: packageSizeMb * 1024 * 1024,
-          );
-        } catch (e) {
-          debugPrint('Could not track offline download in backend for poi: $e');
-        }
-      } else {
-        if (localServiceProvider.services.isEmpty) {
-          await localServiceProvider.loadServices();
-        }
-        final allServices = localServiceProvider.services;
-
-        // Téléchargement physique des Tsawer (Images) pour les Services
-        for (final service in allServices) {
-          if (service.imageUrl != null && service.imageUrl!.isNotEmpty) {
-            try {
-              await DefaultCacheManager().downloadFile(service.imageUrl!);
-            } catch (_) {}
-          }
-          if (service.additionalImages != null) {
-            for (final url in service.additionalImages!) {
-              try {
-                await DefaultCacheManager().downloadFile(url);
-              } catch (_) {}
-            }
-          }
-        }
-
-        await OfflineCacheService.instance.saveLocalServices(allServices);
-
-        final representativeTrail = _allTrails.isNotEmpty
-            ? _allTrails.first.id
-            : 'global';
-        try {
-          await _offlineService.markDownloaded(
-            resourceType: 'service',
-            resourceId: representativeTrail,
-            sizeBytes: packageSizeMb * 1024 * 1024,
-          );
-        } catch (e) {
-          debugPrint(
-            'Could not track offline download in backend for service: $e',
-          );
-        }
-      }
-
-      _installedPackages.add(packageId);
-      await _persistInstalledPackages();
-      await _refreshStorageUsage();
-      _showMessage('Package installe avec succes (${packageSizeMb} Mo).');
-    } catch (e) {
-      debugPrint('Installation error: $e');
-      final errorMsg = e.toString();
-      _showMessage(
-        errorMsg.contains('ApiException')
-            ? 'Erreur backend: ${errorMsg.split('-').last.trim()}'
-            : 'Echec du telechargement. Verifiez la connexion backend.',
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _downloadProgress.remove(packageId);
-          _downloadStatusText.remove(packageId);
-        });
-      }
-    }
-  }
-
-  Future<void> _removePackage(String packageId) async {
-    setState(() => _isLoading = true);
-
-    try {
-      if (packageId == 'topo') {
-        await _mapOfflineService.clearTabarkaTiles();
-        await OfflineCacheService.instance.clearOfflineTrails();
-        await OfflineCacheService.instance.clearOfflinePois();
-      } else if (packageId == 'poi_flora') {
-        await OfflineCacheService.instance.clearOfflinePois();
-      } else if (packageId == 'services') {
-        await OfflineCacheService.instance.clearOfflineLocalServices();
-      }
-
-      _installedPackages.remove(packageId);
-      await _persistInstalledPackages();
-      await _refreshStorageUsage();
-      _showMessage('Package supprime.');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _installAllPackages() async {
-    final pending = _basePackageMb.keys
-        .where((id) => !_installedPackages.contains(id))
-        .toList();
-
-    for (final packageId in pending) {
-      await _installPackage(packageId);
-    }
+  Future<void> _persistMapInstalled() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kMapInstalledKey, _isMapInstalled);
   }
 
   void _showMessage(String text) {
@@ -402,140 +171,455 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  Future<bool> _requireOnline() async {
+    final isOnline = await NetworkService.hasInternetConnection();
+    if (!isOnline) {
+      _showMessage('Connexion Internet requise pour le téléchargement.');
+    }
+    return isOnline;
+  }
+
+  // ───── MAP TILES ──────────────────────────────────────────────────────────
+
+  Future<void> _downloadMapTiles() async {
+    if (!await _requireOnline()) return;
+
+    setState(() {
+      _isDownloadingMap = true;
+      _mapDownloadProgress = 0;
+      _mapDownloadStatus = 'Préparation...';
+    });
+
+    try {
+      final result = await _mapOfflineService.downloadTiles(
+        bounds: TileBounds.jbelChitana,
+        zooms: _tileMode.zooms,
+        onProgress: (progress, downloaded, total) {
+          if (!mounted) return;
+          setState(() {
+            _mapDownloadProgress = progress;
+            _mapDownloadStatus = 'Tuiles: $downloaded / $total';
+          });
+        },
+      );
+
+      _isMapInstalled = true;
+      await _persistMapInstalled();
+      await _refreshCachedSizes();
+      _showMessage(
+        'Carte téléchargée (${result.downloaded + result.alreadyCached} tuiles, ${result.failed} échouées).',
+      );
+    } catch (e) {
+      debugPrint('Map tile download error: $e');
+      _showMessage('Erreur de téléchargement de la carte.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDownloadingMap = false;
+          _mapDownloadProgress = 0;
+          _mapDownloadStatus = '';
+        });
+      }
+    }
+  }
+
+  Future<void> _clearMapTiles() async {
+    setState(() => _isLoading = true);
+    try {
+      await _mapOfflineService.clearTabarkaTiles();
+      _isMapInstalled = false;
+      await _persistMapInstalled();
+      await _refreshCachedSizes();
+      _showMessage('Cartes hors ligne supprimées.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ───── PER-ITEM DOWNLOADS ────────────────────────────────────────────────
+
+  Future<void> _downloadTrail(Trail trail, {bool silent = false}) async {
+    if (!await _requireOnline()) return;
+    setState(() => _itemProgress['trail:${trail.id}'] = 0.05);
+
+    try {
+      // Cache hero images.
+      if (trail.imageUrls != null) {
+        for (final url in trail.imageUrls!) {
+          try {
+            await DefaultCacheManager().downloadFile(url);
+          } catch (_) {}
+        }
+      }
+
+      final pois = context
+          .read<PoiProvider>()
+          .pois
+          .where((p) => p.trailId == trail.id)
+          .toList();
+
+      // Tiles around the trail start.
+      if (trail.startLatitude != null && trail.startLongitude != null) {
+        final bounds = TileBounds.aroundPoint(
+          trail.startLatitude!,
+          trail.startLongitude!,
+          radiusKm: 3,
+        );
+        await _mapOfflineService.downloadTiles(
+          bounds: bounds,
+          zooms: _tileMode.zooms,
+          onProgress: (progress, _, __) {
+            if (!mounted) return;
+            setState(() => _itemProgress['trail:${trail.id}'] = progress);
+          },
+        );
+      }
+
+      await OfflineCacheService.instance.saveTrailPackage(
+        trail: trail,
+        pois: pois,
+        quality: _tileMode.label,
+        sizeMb: 0,
+      );
+
+      _installedTrailIds.add(trail.id);
+      await _persistTrails();
+      await _refreshCachedSizes();
+
+      try {
+        await _offlineService.markDownloaded(
+          resourceType: 'trail',
+          resourceId: trail.id,
+          sizeBytes: 0,
+        );
+      } catch (_) {}
+
+      if (!silent) _showMessage('Sentier "${trail.name}" enregistré.');
+    } catch (e) {
+      debugPrint('Trail download error: $e');
+      if (!silent) _showMessage('Échec téléchargement du sentier.');
+    } finally {
+      if (mounted) {
+        setState(() => _itemProgress.remove('trail:${trail.id}'));
+      }
+    }
+  }
+
+  Future<void> _removeTrail(Trail trail) async {
+    await OfflineCacheService.instance.removeTrailPackage(trail.id);
+    _installedTrailIds.remove(trail.id);
+    await _persistTrails();
+    if (mounted) setState(() {});
+    _showMessage('Sentier retiré.');
+  }
+
+  Future<void> _downloadPoi(Poi poi, {bool silent = false}) async {
+    if (!await _requireOnline()) return;
+    setState(() => _itemProgress['poi:${poi.id}'] = 0.1);
+
+    try {
+      if (poi.mediaUrl != null && poi.mediaUrl!.isNotEmpty) {
+        try {
+          await DefaultCacheManager().downloadFile(poi.mediaUrl!);
+        } catch (_) {}
+      }
+      if (poi.additionalMediaUrls != null) {
+        for (final url in poi.additionalMediaUrls!) {
+          try {
+            await DefaultCacheManager().downloadFile(url);
+          } catch (_) {}
+        }
+      }
+
+      await OfflineCacheService.instance.savePoi(poi);
+      _installedPoiIds.add(poi.id);
+      await _persistPois();
+
+      try {
+        await _offlineService.markDownloaded(
+          resourceType: 'poi',
+          resourceId: poi.id,
+          sizeBytes: 0,
+        );
+      } catch (_) {}
+
+      if (!silent) _showMessage('POI "${poi.name}" enregistré.');
+    } catch (e) {
+      debugPrint('POI download error: $e');
+      if (!silent) _showMessage('Échec téléchargement du POI.');
+    } finally {
+      if (mounted) setState(() => _itemProgress.remove('poi:${poi.id}'));
+    }
+  }
+
+  Future<void> _removePoi(Poi poi) async {
+    await OfflineCacheService.instance.removePoi(poi.id);
+    _installedPoiIds.remove(poi.id);
+    await _persistPois();
+    if (mounted) setState(() {});
+    _showMessage('POI retiré.');
+  }
+
+  Future<void> _downloadService(LocalService service, {bool silent = false}) async {
+    if (!await _requireOnline()) return;
+    setState(() => _itemProgress['service:${service.id}'] = 0.1);
+
+    try {
+      if (service.imageUrl != null && service.imageUrl!.isNotEmpty) {
+        try {
+          await DefaultCacheManager().downloadFile(service.imageUrl!);
+        } catch (_) {}
+      }
+      if (service.additionalImages != null) {
+        for (final url in service.additionalImages!) {
+          try {
+            await DefaultCacheManager().downloadFile(url);
+          } catch (_) {}
+        }
+      }
+
+      await OfflineCacheService.instance.saveLocalService(service);
+      _installedServiceIds.add(service.id);
+      await _persistServices();
+
+      try {
+        await _offlineService.markDownloaded(
+          resourceType: 'service',
+          resourceId: service.id,
+          sizeBytes: 0,
+        );
+      } catch (_) {}
+
+      if (!silent) _showMessage('Service "${service.name}" enregistré.');
+    } catch (e) {
+      debugPrint('Service download error: $e');
+      if (!silent) _showMessage('Échec téléchargement du service.');
+    } finally {
+      if (mounted) {
+        setState(() => _itemProgress.remove('service:${service.id}'));
+      }
+    }
+  }
+
+  Future<void> _removeService(LocalService service) async {
+    await OfflineCacheService.instance.removeLocalService(service.id);
+    _installedServiceIds.remove(service.id);
+    await _persistServices();
+    if (mounted) setState(() {});
+    _showMessage('Service retiré.');
+  }
+
+  // ───── BULK DOWNLOADS ────────────────────────────────────────────────────
+
+  Future<void> _bulkDownloadTrails() async {
+    if (_isBulkDownloading) return;
+    if (!await _requireOnline()) return;
+
+    final trails = context.read<TrailProvider>().trails;
+    final pending = trails.where((t) => !_installedTrailIds.contains(t.id)).toList();
+    if (pending.isEmpty) {
+      _showMessage('Tous les sentiers sont déjà téléchargés.');
+      return;
+    }
+
+    setState(() {
+      _isBulkDownloading = true;
+      _bulkStatus = 'Sentiers 0 / ${pending.length}';
+    });
+
+    for (var i = 0; i < pending.length; i++) {
+      if (!mounted) break;
+      setState(() => _bulkStatus = 'Sentiers ${i + 1} / ${pending.length}');
+      await _downloadTrail(pending[i], silent: true);
+    }
+
+    if (mounted) {
+      setState(() {
+        _isBulkDownloading = false;
+        _bulkStatus = '';
+      });
+      _showMessage('${pending.length} sentier(s) téléchargé(s).');
+    }
+  }
+
+  Future<void> _bulkDownloadPois() async {
+    if (_isBulkDownloading) return;
+    if (!await _requireOnline()) return;
+
+    final pois = context.read<PoiProvider>().pois;
+    final pending = pois.where((p) => !_installedPoiIds.contains(p.id)).toList();
+    if (pending.isEmpty) {
+      _showMessage('Tous les POIs sont déjà téléchargés.');
+      return;
+    }
+
+    setState(() {
+      _isBulkDownloading = true;
+      _bulkStatus = 'POIs 0 / ${pending.length}';
+    });
+
+    for (var i = 0; i < pending.length; i++) {
+      if (!mounted) break;
+      setState(() => _bulkStatus = 'POIs ${i + 1} / ${pending.length}');
+      await _downloadPoi(pending[i], silent: true);
+    }
+
+    if (mounted) {
+      setState(() {
+        _isBulkDownloading = false;
+        _bulkStatus = '';
+      });
+      _showMessage('${pending.length} POI(s) téléchargé(s).');
+    }
+  }
+
+  Future<void> _bulkDownloadServices() async {
+    if (_isBulkDownloading) return;
+    if (!await _requireOnline()) return;
+
+    final services = context.read<LocalServiceProvider>().services;
+    final pending =
+        services.where((s) => !_installedServiceIds.contains(s.id)).toList();
+    if (pending.isEmpty) {
+      _showMessage('Tous les services sont déjà téléchargés.');
+      return;
+    }
+
+    setState(() {
+      _isBulkDownloading = true;
+      _bulkStatus = 'Services 0 / ${pending.length}';
+    });
+
+    for (var i = 0; i < pending.length; i++) {
+      if (!mounted) break;
+      setState(() => _bulkStatus = 'Services ${i + 1} / ${pending.length}');
+      await _downloadService(pending[i], silent: true);
+    }
+
+    if (mounted) {
+      setState(() {
+        _isBulkDownloading = false;
+        _bulkStatus = '';
+      });
+      _showMessage('${pending.length} service(s) téléchargé(s).');
+    }
+  }
+
+  // ───── BUILD ─────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final storageRatio = (_usedStorageGb / _deviceStorageGb).clamp(0.0, 1.0);
-    final freeGb = (_deviceStorageGb - _usedStorageGb).clamp(
-      0.0,
-      _deviceStorageGb,
+    final estimatedMapMb = _mapOfflineService.estimateSizeMb(
+      zooms: _tileMode.zooms,
+      bounds: TileBounds.jbelChitana,
     );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: EcoPageHeader(
-        title: 'Mode Hors Ligne',
-      ),
+      appBar: EcoPageHeader(title: 'Mode Hors Ligne'),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              color: const Color(0xFF22B53A),
+              color: _green,
               onRefresh: _initialize,
               child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildStorageCard(storageRatio, freeGb),
-                const SizedBox(height: 18),
-                _buildRegionTitle(),
-                const SizedBox(height: 12),
-                _buildPackageCard(
-                  id: 'topo',
-                  title: 'Cartographie topographique',
-                  subtitle:
-                      'Relief HD et traces des sentiers de la region selectionnee.',
-                  icon: Icons.map,
-                ),
-                const SizedBox(height: 12),
-                _buildPackageCard(
-                  id: 'poi_flora',
-                  title: 'Points d\'interet & Flore',
-                  subtitle:
-                      'Guide multimedia des points cles et plantes locales.',
-                  icon: Icons.park,
-                ),
-                const SizedBox(height: 12),
-                _buildPackageCard(
-                  id: 'services',
-                  title: 'Annuaire des Services',
-                  subtitle: 'Refuges, secours et services d\'urgence proches.',
-                  icon: Icons.cabin,
-                ),
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed:
-                      _basePackageMb.keys.any(
-                        (id) => !_installedPackages.contains(id),
-                      )
-                      ? _installAllPackages
-                      : null,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF3FAE4E),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  _buildHeroCard(estimatedMapMb),
+                  const SizedBox(height: 16),
+                  _buildMapDownloadCard(estimatedMapMb),
+                  const SizedBox(height: 16),
+                  _buildTabsCard(),
+                  const SizedBox(height: 16),
+                  _buildAutoSyncCard(),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Données: OpenStreetMap + Eco-Guide',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
-                  icon: const Icon(Icons.download),
-                  label: Text(
-                    'Tout telecharger (${_totalDownloadSizeMb()} Mo)',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildAutoSyncCard(),
-                const SizedBox(height: 12),
-                Text(
-                  'Donnees fournies par OpenStreetMap + Eco-Guide',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
     );
   }
 
-  Widget _buildStorageCard(double storageRatio, double freeGb) {
+  Widget _buildHeroCard(int estimatedMapMb) {
+    final totalItems = _installedTrailIds.length +
+        _installedPoiIds.length +
+        _installedServiceIds.length;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).cardColor
-            : const Color(0xFF112614),
-        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [_greenDark, _green],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _green.withValues(alpha: 0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Stockage de l\'appareil',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+              const Icon(Icons.cloud_done, color: Colors.white, size: 26),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Préparez votre randonnée',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
                 ),
               ),
-              Text(
-                '${_usedStorageGb.toStringAsFixed(1)} Go utilises / ${_deviceStorageGb.toStringAsFixed(0)} Go',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _tileMode.label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              minHeight: 7,
-              value: storageRatio,
-              backgroundColor: Colors.white12,
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF39C85A),
-              ),
-            ),
+          const Text(
+            'Téléchargez la cartographie, les sentiers, points d\'intérêt et services pour les consulter sans connexion.',
+            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildStorageMetric(
-                '${(_usedStorageGb * 1024).toStringAsFixed(0)} Mo',
-                'Apps',
+              _heroStat(
+                value: '${_cachedMapMb.toStringAsFixed(0)} Mo',
+                label: 'Carte',
               ),
-              _buildStorageMetric('${_installedSizeMb()} Mo', 'Cartes & POI'),
-              _buildStorageMetric(
-                '${freeGb.toStringAsFixed(1)} Go',
-                'Espace libre',
+              _heroStat(value: '$totalItems', label: 'Éléments'),
+              _heroStat(
+                value: '${(estimatedMapMb / 1).toStringAsFixed(0)} Mo',
+                label: 'À prévoir',
               ),
             ],
           ),
@@ -544,60 +628,392 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
     );
   }
 
-  Widget _buildStorageMetric(String value, String label) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
+  Widget _heroStat({required String value, required String label}) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
           ),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapDownloadCard(int estimatedMapMb) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
         ),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontSize: 11),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.map_outlined, color: _green),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Carte ${JbelChitanaMapBounds.label}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _isMapInstalled
+                          ? 'Cache: ${_cachedMapMb.toStringAsFixed(1)} Mo · zone Jbel Chitana'
+                          : 'Massif des Mogods – hors ligne',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isMapInstalled)
+                IconButton(
+                  tooltip: 'Supprimer le cache carte',
+                  onPressed: _isDownloadingMap ? null : _clearMapTiles,
+                  icon: const Icon(Icons.delete_outline),
+                  color: Colors.red[400],
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Niveau de détail',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: OfflineTileMode.values.map((mode) {
+              final selected = _tileMode.id == mode.id;
+              return ChoiceChip(
+                label: Text(mode.label),
+                selected: selected,
+                selectedColor: _green,
+                labelStyle: TextStyle(
+                  color: selected ? Colors.white : null,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+                onSelected: _isDownloadingMap
+                    ? null
+                    : (_) async {
+                        setState(() => _tileMode = mode);
+                        await _persistTileMode();
+                      },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: _green.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: _greenDark),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Zoom max: ${_tileMode.maxZoom}  ·  ~$estimatedMapMb Mo à télécharger',
+                    style: const TextStyle(fontSize: 11, color: _greenDark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isDownloadingMap) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _mapDownloadStatus,
+                  style: const TextStyle(fontSize: 12, color: _greenDark),
+                ),
+                Text(
+                  '${(_mapDownloadProgress * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _greenDark,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: _mapDownloadProgress,
+                minHeight: 6,
+                backgroundColor: _green.withValues(alpha: 0.15),
+                valueColor: const AlwaysStoppedAnimation<Color>(_green),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _isDownloadingMap ? null : _downloadMapTiles,
+              style: FilledButton.styleFrom(
+                backgroundColor: _green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: Icon(
+                _isMapInstalled ? Icons.refresh : Icons.download,
+              ),
+              label: Text(
+                _isMapInstalled
+                    ? 'Mettre à jour la carte ($estimatedMapMb Mo)'
+                    : 'Télécharger la carte ($estimatedMapMb Mo)',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabsCard() {
+    final trails = context.watch<TrailProvider>().trails;
+    final pois = context.watch<PoiProvider>().pois;
+    final services = context.watch<LocalServiceProvider>().services;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Column(
+        children: [
+          if (_isBulkDownloading)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: _green.withValues(alpha: 0.07),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(_green),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Téléchargement: $_bulkStatus',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: _greenDark,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          TabBar(
+            controller: _tabController,
+            labelColor: _greenDark,
+            unselectedLabelColor: Colors.grey[600],
+            indicatorColor: _green,
+            indicatorWeight: 3,
+            labelStyle:
+                const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            tabs: [
+              Tab(
+                icon: const Icon(Icons.terrain, size: 18),
+                text: 'Sentiers (${trails.length})',
+              ),
+              Tab(
+                icon: const Icon(Icons.place, size: 18),
+                text: 'POIs (${pois.length})',
+              ),
+              Tab(
+                icon: const Icon(Icons.storefront, size: 18),
+                text: 'Services (${services.length})',
+              ),
+            ],
+          ),
+          SizedBox(
+            height: 480,
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildTrailsList(trails),
+                _buildPoisList(pois),
+                _buildServicesList(services),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar({
+    required String hint,
+    required String value,
+    required ValueChanged<String> onChanged,
+  }) {
+    return TextField(
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search, size: 20),
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+        filled: true,
+        fillColor: Theme.of(context).scaffoldBackgroundColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBulkBar({
+    required String label,
+    required int pending,
+    required VoidCallback onPressed,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.tonalIcon(
+            onPressed: _isBulkDownloading || pending == 0 ? null : onPressed,
+            style: FilledButton.styleFrom(
+              backgroundColor: _green.withValues(alpha: 0.12),
+              foregroundColor: _greenDark,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.download_for_offline, size: 18),
+            label: Text(
+              pending == 0
+                  ? 'Tout est téléchargé'
+                  : 'Tout télécharger ($pending)',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildRegionTitle() {
-    final regionLabel = _regionTrails.isEmpty
-        ? 'Region indisponible'
-        : (_regionTrails.first.region ?? 'Tabarka');
+  Widget _buildTrailsList(List<Trail> trails) {
+    final filtered = trails.where((t) {
+      if (_trailQuery.isEmpty) return true;
+      return t.name.toLowerCase().contains(_trailQuery.toLowerCase());
+    }).toList();
+    final pending =
+        trails.where((t) => !_installedTrailIds.contains(t.id)).length;
 
-    return Text(
-      'Telechargement complet du parc - $regionLabel',
-      style: TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.w700,
-        color: Theme.of(context).colorScheme.onSurface,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      child: Column(
+        children: [
+          _buildSearchBar(
+            hint: 'Rechercher un sentier...',
+            value: _trailQuery,
+            onChanged: (v) => setState(() => _trailQuery = v),
+          ),
+          const SizedBox(height: 10),
+          _buildBulkBar(
+            label: 'sentier(s)',
+            pending: pending,
+            onPressed: _bulkDownloadTrails,
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: filtered.isEmpty
+                ? _emptyState('Aucun sentier disponible')
+                : ListView.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, i) => const SizedBox(height: 8),
+                    itemBuilder: (ctx, i) => _buildTrailTile(filtered[i]),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPackageCard({
-    required String id,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    final isInstalled = _installedPackages.contains(id);
-    final sizeMb = _packageSizeMb(id);
-    final isDownloading = _downloadProgress.containsKey(id);
-    final progress = _downloadProgress[id] ?? 0.0;
-    final statusText = _downloadStatusText[id] ?? '';
+  Widget _buildTrailTile(Trail trail) {
+    final installed = _installedTrailIds.contains(trail.id);
+    final progress = _itemProgress['trail:${trail.id}'];
+    final downloading = progress != null;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(14),
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+          color: installed
+              ? _green.withValues(alpha: 0.4)
+              : Theme.of(context).dividerColor.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -606,111 +1022,337 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F5EA),
+              color: _green.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: const Color(0xFF2E8A3F)),
+            child: const Icon(Icons.hiking, color: _green),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: TextStyle(
+                  trail.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 3),
                 Text(
-                  subtitle,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  '${trail.distanceText} · ${trail.difficulty}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 11),
                 ),
-                const SizedBox(height: 4),
-                if (isDownloading) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        statusText,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.blue,
-                        ),
-                      ),
-                      Text(
-                        '${(progress * 100).toStringAsFixed(1)}%',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+                if (downloading) ...[
                   const SizedBox(height: 4),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: progress,
-                      minHeight: 4,
-                      backgroundColor: Colors.blue.withValues(alpha: 0.2),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Colors.blue,
-                      ),
+                      minHeight: 3,
+                      backgroundColor: _green.withValues(alpha: 0.15),
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(_green),
                     ),
                   ),
-                ] else
-                  Text(
-                    '$sizeMb Mo - ${isInstalled ? 'Pret' : 'Non installe'}',
-                    style: TextStyle(
-                      color: isInstalled
-                          ? const Color(0xFF2E8A3F)
-                          : Colors.grey[600],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              FilledButton(
-                onPressed: isDownloading ? null : () => _installPackage(id),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF39B653),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(130, 34),
-                ),
-                child: Text(
-                  isDownloading
-                      ? 'En cours...'
-                      : (isInstalled ? 'Mise a jour' : 'Telecharger'),
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextButton(
-                onPressed: isInstalled && !isDownloading
-                    ? () => _removePackage(id)
-                    : null,
-                child: const Text('Retirer'),
-              ),
-            ],
+          _actionButton(
+            installed: installed,
+            downloading: downloading,
+            onDownload: () => _downloadTrail(trail),
+            onRemove: () => _removeTrail(trail),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildPoisList(List<Poi> pois) {
+    final filtered = pois.where((p) {
+      if (_poiQuery.isEmpty) return true;
+      return p.name.toLowerCase().contains(_poiQuery.toLowerCase());
+    }).toList();
+    final pending = pois.where((p) => !_installedPoiIds.contains(p.id)).length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      child: Column(
+        children: [
+          _buildSearchBar(
+            hint: 'Rechercher un POI...',
+            value: _poiQuery,
+            onChanged: (v) => setState(() => _poiQuery = v),
+          ),
+          const SizedBox(height: 10),
+          _buildBulkBar(
+            label: 'POI(s)',
+            pending: pending,
+            onPressed: _bulkDownloadPois,
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: filtered.isEmpty
+                ? _emptyState('Aucun POI disponible')
+                : ListView.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, i) => const SizedBox(height: 8),
+                    itemBuilder: (ctx, i) => _buildPoiTile(filtered[i]),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPoiTile(Poi poi) {
+    final installed = _installedPoiIds.contains(poi.id);
+    final progress = _itemProgress['poi:${poi.id}'];
+    final downloading = progress != null;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: installed
+              ? _green.withValues(alpha: 0.4)
+              : Theme.of(context).dividerColor.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.place, color: Colors.black87),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  poi.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  poi.typeDisplayName,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                ),
+                if (downloading) ...[
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 3,
+                      backgroundColor: _green.withValues(alpha: 0.15),
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(_green),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _actionButton(
+            installed: installed,
+            downloading: downloading,
+            onDownload: () => _downloadPoi(poi),
+            onRemove: () => _removePoi(poi),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServicesList(List<LocalService> services) {
+    final filtered = services.where((s) {
+      if (_serviceQuery.isEmpty) return true;
+      return s.name.toLowerCase().contains(_serviceQuery.toLowerCase());
+    }).toList();
+    final pending =
+        services.where((s) => !_installedServiceIds.contains(s.id)).length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      child: Column(
+        children: [
+          _buildSearchBar(
+            hint: 'Rechercher un service...',
+            value: _serviceQuery,
+            onChanged: (v) => setState(() => _serviceQuery = v),
+          ),
+          const SizedBox(height: 10),
+          _buildBulkBar(
+            label: 'service(s)',
+            pending: pending,
+            onPressed: _bulkDownloadServices,
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: filtered.isEmpty
+                ? _emptyState('Aucun service disponible')
+                : ListView.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, i) => const SizedBox(height: 8),
+                    itemBuilder: (ctx, i) => _buildServiceTile(filtered[i]),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServiceTile(LocalService service) {
+    final installed = _installedServiceIds.contains(service.id);
+    final progress = _itemProgress['service:${service.id}'];
+    final downloading = progress != null;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: installed
+              ? _green.withValues(alpha: 0.4)
+              : Theme.of(context).dividerColor.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E9A35).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.storefront, color: Color(0xFF1E9A35)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  service.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  service.categoryDisplayName,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                ),
+                if (downloading) ...[
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 3,
+                      backgroundColor: _green.withValues(alpha: 0.15),
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(_green),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _actionButton(
+            installed: installed,
+            downloading: downloading,
+            onDownload: () => _downloadService(service),
+            onRemove: () => _removeService(service),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required bool installed,
+    required bool downloading,
+    required VoidCallback onDownload,
+    required VoidCallback onRemove,
+  }) {
+    if (downloading) {
+      return const SizedBox(
+        width: 32,
+        height: 32,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(_green),
+        ),
+      );
+    }
+    if (installed) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.check_circle, color: _green, size: 24),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20),
+            color: Colors.red[400],
+            onPressed: onRemove,
+            tooltip: 'Retirer',
+          ),
+        ],
+      );
+    }
+    return IconButton(
+      onPressed: onDownload,
+      icon: const Icon(Icons.download_rounded, color: _green, size: 28),
+      tooltip: 'Télécharger',
+    );
+  }
+
+  Widget _emptyState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAutoSyncCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
@@ -720,48 +1362,29 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.sync, color: Color(0xFF2E8A3F)),
+          const Icon(Icons.sync, color: _greenDark),
           const SizedBox(width: 10),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Synchronisation Automatique',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                Text(
+                  'Synchronisation automatique',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  'Mettre a jour les donnees via Wi-Fi.',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  'Mettre à jour via Wi-Fi.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
                 ),
               ],
             ),
           ),
           Switch(
             value: _autoSync,
-            onChanged: (value) async {
-              setState(() => _autoSync = value);
+            activeThumbColor: _green,
+            onChanged: (v) async {
+              setState(() => _autoSync = v);
               await _persistAutoSync();
-            },
-            activeColor: const Color(0xFF2EA043),
-          ),
-          const SizedBox(width: 8),
-          DropdownButton<String>(
-            value: _resolution,
-            borderRadius: BorderRadius.circular(12),
-            underline: const SizedBox.shrink(),
-            items: _resolutionFactor.keys
-                .map(
-                  (value) => DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) async {
-              if (value == null) return;
-              setState(() => _resolution = value);
-              await _persistResolution();
             },
           ),
         ],

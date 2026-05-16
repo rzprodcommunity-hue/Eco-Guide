@@ -2,9 +2,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import '../../core/services/location_service.dart';
 import '../../core/services/network_service.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/locale_provider.dart';
@@ -127,45 +127,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _detectUserPosition() async {
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
+    final result = await LocationService.getBestFix();
+    if (!result.isSuccess) return;
+    final fix = result.fix!;
 
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-      });
-      if (!_hasCenteredOnUser) {
-        _mapController.move(_currentPosition, 14);
-        _hasCenteredOnUser = true;
-      }
-      final isOnline = await NetworkService.hasInternetConnection();
-      if (!mounted || !isOnline) return;
-      context.read<WeatherProvider>().loadCurrentWeather(
-        lat: position.latitude,
-        lng: position.longitude,
-      );
-      context.read<WeatherProvider>().startAutoRefresh(
-        lat: position.latitude,
-        lng: position.longitude,
-      );
-    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _currentPosition = LatLng(fix.latitude, fix.longitude);
+    });
+    if (!_hasCenteredOnUser) {
+      _mapController.move(_currentPosition, 15);
+      _hasCenteredOnUser = true;
+    }
+    final isOnline = await NetworkService.hasInternetConnection();
+    if (!mounted || !isOnline) return;
+    context.read<WeatherProvider>().loadCurrentWeather(
+      lat: fix.latitude,
+      lng: fix.longitude,
+    );
+    context.read<WeatherProvider>().startAutoRefresh(
+      lat: fix.latitude,
+      lng: fix.longitude,
+    );
   }
 
   String _getUserInitials(String? firstName, String? lastName, String email) {

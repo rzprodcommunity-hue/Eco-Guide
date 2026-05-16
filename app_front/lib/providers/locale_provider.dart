@@ -128,7 +128,7 @@ const Map<String, Map<String, String>> _strings = {
     'home.discover': 'Découvrir la nature',
     'home.trails': 'Sentiers',
     'home.offline': 'Cartes hors ligne',
-    'home.ecoguide': 'Éco-Guide',
+    'home.ecoguide': 'Quiz',
     'home.emergency': 'Urgence',
     'home.currentConditions': 'Conditions actuelles',
     'home.wind': 'Vent',

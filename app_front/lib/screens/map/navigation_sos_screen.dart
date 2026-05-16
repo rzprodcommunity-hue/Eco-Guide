@@ -13,6 +13,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/services/location_service.dart';
 import '../../services/activity_service.dart';
 import '../../services/api_client.dart';
 import '../../services/map_offline_service.dart';
@@ -63,6 +64,14 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   bool _isLoading = false;
   bool _isRouting = false;
   bool _offTrailAlert = false;
+  bool _offTrailMuted = false;
+  Timer? _offTrailBuzzTimer;
+  double _offTrailDistance = 0;
+
+  _NavPhase _navPhase = _NavPhase.toPoi;
+  // Distance below which we consider the user has "reached the start"
+  // and we switch the off-trail reference to the trail polyline.
+  static const double _reachedStartMeters = 12;
 
   _MapVisualStyle _mapStyle = _MapVisualStyle.satellite;
 
@@ -85,7 +94,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   String? _currentInstruction;
   int _currentInstructionDistanceMeters = 0;
   List<_RouteStep> _routeSteps = [];
-  DateTime? _lastOffTrailVibration;
   DateTime? _lastSpokenInstructionTime;
   String? _lastSpokenInstructionId;
   final FlutterTts _tts = FlutterTts();
@@ -131,6 +139,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     _activeDestination = widget.destination;
     _activeDestinationLabel = widget.destinationLabel;
 
+    // Initial phase: if we have a trail bound, the user has to reach the
+    // start first; otherwise we're navigating directly to a POI/service.
+    _navPhase = widget.trail != null ? _NavPhase.goToStart : _NavPhase.toPoi;
+
     _tts.setSpeechRate(0.45);
     _tts.setPitch(1.0);
 
@@ -145,19 +157,20 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _loadMapData();
-      _detectUserPosition();
+      // Try a fast fix FIRST — then jump straight to max zoom on the user.
+      await _detectUserPosition();
       _startGpsTracking();
       _fitToTrailBounds();
-      // Entry animation: brief overview, then zoom to user with max detail
-      await Future.delayed(const Duration(milliseconds: 1400));
+      // Entry animation: brief overview, then zoom to user with max detail.
+      await Future.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
       _animateToUserMaxZoom();
     });
   }
 
   void _animateToUserMaxZoom() {
-    // Smooth Google-Maps-style entry: zoom into user position at max detail
-    _mapController.move(_currentPosition, 17.5);
+    // Smooth Google-Maps-style entry: zoom into user position at MAX detail.
+    _mapController.move(_currentPosition, 19);
   }
 
   @override
@@ -166,6 +179,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     _positionStream?.cancel();
     _compassStream?.cancel();
     _stopwatchTimer?.cancel();
+    _offTrailBuzzTimer?.cancel();
     _tts.stop();
     _tileResetStream.close();
     super.dispose();
@@ -284,6 +298,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       services: localServiceProvider.services,
     );
 
+    _maybeAdvancePhaseAfterMove();
     _updateCurrentInstruction();
     _computeOffTrailStatus();
 
@@ -318,15 +333,26 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     if (startPoint != null) {
       final metersToStart =
           _distance.as(LengthUnit.Meter, _currentPosition, startPoint);
-      if (metersToStart > 20) {
+      if (metersToStart > _reachedStartMeters) {
+        // User is NOT at the start → first phase: route them TO the start.
         await _showAwayFromStartAlert(metersToStart, startPoint);
         if (!mounted) return;
-        // Reroute: from current position → start → end (trail acts as second leg)
-        _activeDestination = startPoint;
-        _activeDestinationLabel =
-            '${trail?.name ?? 'Sentier'} (point de départ)';
+        setState(() {
+          _navPhase = _NavPhase.goToStart;
+          _activeDestination = startPoint;
+          _activeDestinationLabel =
+              '${trail?.name ?? 'Sentier'} (point de départ)';
+        });
         await _refreshRoute(force: true);
         if (!mounted) return;
+      } else {
+        // Already at the start → directly enter the on-trail phase.
+        setState(() {
+          _navPhase = _NavPhase.onTrail;
+          _activeDestination = _trailEndPoint ?? startPoint;
+          _activeDestinationLabel = trail?.name ?? _activeDestinationLabel;
+          _routePoints = [];
+        });
       }
     }
 
@@ -603,30 +629,26 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   }
 
   Future<void> _detectUserPosition() async {
-    final enabled = await Geolocator.isLocationServiceEnabled();
-    if (!enabled) return;
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+    final result = await LocationService.getBestFix();
+    if (!result.isSuccess) {
+      debugPrint('[GPS][nav] no fix: ${result.message}');
       return;
     }
-
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-      ),
-    );
+    final fix = result.fix!;
 
     if (!mounted) return;
     setState(() {
-      _currentPosition = LatLng(position.latitude, position.longitude);
+      _currentPosition = LatLng(fix.latitude, fix.longitude);
+      _currentAltitude = fix.altitude ?? 0;
     });
+    debugPrint(
+      '[GPS][nav] fix lat=${fix.latitude.toStringAsFixed(6)} '
+      'lng=${fix.longitude.toStringAsFixed(6)} '
+      'accuracy=${fix.accuracy.toStringAsFixed(1)}m',
+    );
 
-    _mapController.move(_activeDestination ?? _currentPosition, 14);
+    // Zoom MAX on user immediately for "entering a trail" feel.
+    _mapController.move(_currentPosition, 19);
 
     if (_activeDestination != null) {
       await _refreshRoute(force: true);
@@ -719,9 +741,13 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
           )
           .toList();
 
-      // Parse turn-by-turn steps from OSRM
+      // Parse turn-by-turn steps from OSRM. We collect raw data first so we
+      // can rewrite the "depart" step with the distance to the FIRST real
+      // turn — that way the user reads an actionable instruction like
+      // "Après 80 m, tournez à droite" instead of a generic "Démarrez".
       final steps = <_RouteStep>[];
       final legs = routes.first['legs'] as List?;
+      final rawManeuvers = <Map<String, dynamic>>[];
       if (legs != null && legs.isNotEmpty) {
         final legSteps = legs.first['steps'] as List?;
         if (legSteps != null) {
@@ -730,22 +756,50 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             if (maneuver == null) continue;
             final loc = maneuver['location'] as List?;
             if (loc == null || loc.length < 2) continue;
-            final type = (maneuver['type'] as String?) ?? '';
-            final modifier = (maneuver['modifier'] as String?) ?? '';
-            final distance = ((step['distance'] as num?) ?? 0).toDouble();
-            steps.add(
-              _RouteStep(
-                location: LatLng(
-                  (loc[1] as num).toDouble(),
-                  (loc[0] as num).toDouble(),
-                ),
-                instruction: _humanInstruction(type, modifier, distance),
-                icon: _instructionIcon(type, modifier),
-                distanceMeters: distance,
-              ),
-            );
+            rawManeuvers.add({
+              'type': (maneuver['type'] as String?) ?? '',
+              'modifier': (maneuver['modifier'] as String?) ?? '',
+              'distance': ((step['distance'] as num?) ?? 0).toDouble(),
+              'lat': (loc[1] as num).toDouble(),
+              'lng': (loc[0] as num).toDouble(),
+            });
           }
         }
+      }
+
+      // Find the first "real" instruction (turn / fork / continue) after the
+      // depart step — its modifier tells us where we're going first.
+      String firstDir = '';
+      double firstDirDistance = 0;
+      for (var i = 0; i < rawManeuvers.length; i++) {
+        final t = rawManeuvers[i]['type'] as String;
+        if (i == 0 && t == 'depart') {
+          firstDirDistance = rawManeuvers[i]['distance'] as double;
+          continue;
+        }
+        if (t == 'turn' || t == 'continue' || t == 'fork' || t == 'new name') {
+          firstDir = rawManeuvers[i]['modifier'] as String;
+          break;
+        }
+      }
+
+      for (var i = 0; i < rawManeuvers.length; i++) {
+        final m = rawManeuvers[i];
+        final type = m['type'] as String;
+        var modifier = m['modifier'] as String;
+        var distance = m['distance'] as double;
+        if (type == 'depart' && firstDir.isNotEmpty) {
+          modifier = firstDir;
+          distance = firstDirDistance;
+        }
+        steps.add(
+          _RouteStep(
+            location: LatLng(m['lat'] as double, m['lng'] as double),
+            instruction: _humanInstruction(type, modifier, distance),
+            icon: _instructionIcon(type, modifier),
+            distanceMeters: distance,
+          ),
+        );
       }
 
       if (!mounted) return;
@@ -779,8 +833,18 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       'uturn' => 'faites demi-tour',
       _ => '',
     };
+    // For "depart", inject the distance to the FIRST real turn so the user
+    // doesn't read a useless "Démarrez sur le sentier" but rather an action,
+    // like: "Après 80 m, tournez à droite".
+    if (type == 'depart') {
+      final firstMove = dir.isEmpty ? 'continuez tout droit' : dir;
+      final meters = distance.round();
+      if (meters > 0) {
+        return 'Après $meters m, $firstMove';
+      }
+      return firstMove.substring(0, 1).toUpperCase() + firstMove.substring(1);
+    }
     return switch (type) {
-      'depart' => 'Démarrez sur le sentier',
       'arrive' => 'Vous êtes arrivé',
       'turn' => dir.isEmpty ? 'Continuez' : dir,
       'continue' => dir.isEmpty ? 'Continuez tout droit' : dir,
@@ -789,6 +853,24 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       'fork' => 'Restez à $modifier',
       _ => dir.isEmpty ? 'Continuez' : dir,
     };
+  }
+
+  /// Compass direction (Nord/Nord-Est…) used as a fallback when we don't
+  /// know whether to say "à droite" / "à gauche".
+  String _compassDirection(double bearing) {
+    const labels = [
+      'au nord',
+      'au nord-est',
+      'à l\'est',
+      'au sud-est',
+      'au sud',
+      'au sud-ouest',
+      'à l\'ouest',
+      'au nord-ouest',
+      'au nord',
+    ];
+    final index = ((bearing % 360) / 45).round();
+    return labels[index];
   }
 
   IconData _instructionIcon(String type, String modifier) {
@@ -804,6 +886,52 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       'uturn' => Icons.u_turn_left,
       _ => Icons.straight,
     };
+  }
+
+  /// Perpendicular distance from [point] to the polyline [line] in meters.
+  /// Uses an equirectangular projection — accurate for hiking-scale distances.
+  /// Falls back to vertex distance for degenerate (1-point) lines.
+  double _distanceToPolyline(LatLng point, List<LatLng> line) {
+    if (line.isEmpty) return double.infinity;
+    if (line.length == 1) {
+      return _distance.as(LengthUnit.Meter, point, line.first);
+    }
+
+    const earthRadius = 6371000.0;
+    final lat0 = point.latitude * math.pi / 180.0;
+    final cosLat = math.cos(lat0);
+
+    double toX(LatLng p) =>
+        p.longitude * math.pi / 180.0 * cosLat * earthRadius;
+    double toY(LatLng p) => p.latitude * math.pi / 180.0 * earthRadius;
+
+    final px = toX(point);
+    final py = toY(point);
+
+    var minDistSq = double.infinity;
+    for (int i = 0; i < line.length - 1; i++) {
+      final ax = toX(line[i]);
+      final ay = toY(line[i]);
+      final bx = toX(line[i + 1]);
+      final by = toY(line[i + 1]);
+
+      final dx = bx - ax;
+      final dy = by - ay;
+      final lenSq = dx * dx + dy * dy;
+      double t;
+      if (lenSq < 1e-9) {
+        t = 0;
+      } else {
+        t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+        if (t < 0) t = 0;
+        if (t > 1) t = 1;
+      }
+      final cx = ax + t * dx;
+      final cy = ay + t * dy;
+      final distSq = (px - cx) * (px - cx) + (py - cy) * (py - cy);
+      if (distSq < minDistSq) minDistSq = distSq;
+    }
+    return math.sqrt(minDistSq);
   }
 
   // Returns the trail point closest to the user's current position.
@@ -842,16 +970,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     final pts = _trailPoints;
     if (pts.length < 3) return const [];
 
-    final steps = <_RouteStep>[];
-    steps.add(
-      _RouteStep(
-        location: pts.first,
-        instruction: 'Démarrez sur le sentier',
-        icon: Icons.play_arrow_rounded,
-        distanceMeters: 0,
-      ),
-    );
-
+    final turns = <_RouteStep>[];
     for (int i = 1; i < pts.length - 1; i++) {
       final b1 = _bearing(pts[i - 1], pts[i]);
       final b2 = _bearing(pts[i], pts[i + 1]);
@@ -869,16 +988,42 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
         < -25 => 'left',
         _ => 'straight',
       };
-      steps.add(
+      turns.add(
         _RouteStep(
           location: pts[i],
           instruction: _humanInstruction('turn', modifier, 0),
           icon: _instructionIcon('turn', modifier),
-          distanceMeters: 0,
+          distanceMeters: _distance.as(LengthUnit.Meter, pts.first, pts[i]),
         ),
       );
     }
 
+    // First "depart" instruction: distance and direction to the FIRST turn
+    // (or to the trail end if there is no turn).
+    final steps = <_RouteStep>[];
+    String firstInstruction;
+    IconData firstIcon;
+    if (turns.isNotEmpty) {
+      final firstTurn = turns.first;
+      final meters = firstTurn.distanceMeters.round();
+      firstInstruction = 'Après $meters m, ${firstTurn.instruction}';
+      firstIcon = firstTurn.icon;
+    } else {
+      final bearing = _bearing(pts.first, pts.last);
+      final compass = _compassDirection(bearing);
+      final meters = _distance.as(LengthUnit.Meter, pts.first, pts.last).round();
+      firstInstruction = 'Continuez $compass sur $meters m';
+      firstIcon = Icons.straight;
+    }
+    steps.add(
+      _RouteStep(
+        location: pts.first,
+        instruction: firstInstruction,
+        icon: firstIcon,
+        distanceMeters: 0,
+      ),
+    );
+    steps.addAll(turns);
     steps.add(
       _RouteStep(
         location: pts.last,
@@ -1023,48 +1168,135 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     });
   }
 
-  void _computeOffTrailStatus() {
-    final referencePoints =
-        _trailPoints.isNotEmpty ? _trailPoints : _routePoints;
+  // Strict tracking per user spec: alert when more than 3 m off the
+  // reference path, clear back at 2 m to avoid flapping with GPS jitter.
+  static const double _offTrailEnterMeters = 3;
+  static const double _offTrailExitMeters = 2;
 
-    if (referencePoints.length < 2) {
-      if (_offTrailAlert) setState(() => _offTrailAlert = false);
+  /// Returns the reference polyline used to decide if the user is off-trail.
+  /// - In [_NavPhase.onTrail]: the official trail GeoJSON polyline.
+  /// - In [_NavPhase.goToStart] or [_NavPhase.toPoi]: the OSRM route.
+  List<LatLng> _offTrailReferencePoints() {
+    switch (_navPhase) {
+      case _NavPhase.onTrail:
+        return _trailPoints;
+      case _NavPhase.goToStart:
+      case _NavPhase.toPoi:
+        return _routePoints;
+    }
+  }
+
+  void _computeOffTrailStatus() {
+    // Off-trail is only meaningful while the hike is actually in progress.
+    if (_hikeStatus != _HikeStatus.inProgress) {
+      if (_offTrailAlert) _clearOffTrailAlert();
       return;
     }
 
-    var minMeters = double.infinity;
-    for (final point in referencePoints) {
-      final d = _distance.as(LengthUnit.Meter, _currentPosition, point);
-      if (d < minMeters) minMeters = d;
+    final referencePoints = _offTrailReferencePoints();
+    if (referencePoints.length < 2) {
+      if (_offTrailAlert) _clearOffTrailAlert();
+      return;
     }
+
+    final distMeters = _distanceToPolyline(_currentPosition, referencePoints);
 
     if (!mounted) return;
-    // Tighter threshold during hike (10m); wider when not started (50m)
-    final threshold = _hikeStatus == _HikeStatus.inProgress ? 10.0 : 50.0;
-    final wasOffTrail = _offTrailAlert;
-    final isOffTrail = minMeters > threshold;
 
-    if (isOffTrail != wasOffTrail) {
-      setState(() => _offTrailAlert = isOffTrail);
+    final wasOffTrail = _offTrailAlert;
+    final isOffTrail = wasOffTrail
+        ? distMeters > _offTrailExitMeters
+        : distMeters > _offTrailEnterMeters;
+
+    if (isOffTrail != wasOffTrail || _offTrailDistance != distMeters) {
+      setState(() {
+        _offTrailAlert = isOffTrail;
+        _offTrailDistance = distMeters;
+      });
     }
 
-    // Trigger vibration + voice when newly off-trail (debounce 20s)
-    if (isOffTrail && _hikeStatus == _HikeStatus.inProgress) {
-      final now = DateTime.now();
-      if (_lastOffTrailVibration == null ||
-          now.difference(_lastOffTrailVibration!) >
-              const Duration(seconds: 20)) {
-        _lastOffTrailVibration = now;
-        HapticFeedback.heavyImpact();
-        Future.delayed(const Duration(milliseconds: 200),
-            () => HapticFeedback.heavyImpact());
-        Future.delayed(const Duration(milliseconds: 400),
-            () => HapticFeedback.heavyImpact());
-        _speak(
-          'Attention. Vous êtes hors du sentier. Appuyez sur réorienter pour recalculer.',
-          id: 'off_trail_alert',
-        );
+    if (isOffTrail && !wasOffTrail) {
+      _startOffTrailBuzz();
+      if (!_offTrailMuted) {
+        final spoken = _navPhase == _NavPhase.onTrail
+            ? 'Vous êtes hors du sentier. Appuyez sur Recalculer pour vous réorienter.'
+            : 'Vous avez quitté l\'itinéraire. Appuyez sur Recalculer.';
+        _speak(spoken, id: 'off_trail_alert');
       }
+    } else if (!isOffTrail && wasOffTrail) {
+      _stopOffTrailBuzz();
+    }
+  }
+
+  /// Advances `_navPhase` from goToStart → onTrail once the user is within
+  /// [_reachedStartMeters] of the trail start point.
+  void _maybeAdvancePhaseAfterMove() {
+    if (_navPhase != _NavPhase.goToStart) return;
+    final start = _trailStartPoint;
+    if (start == null) return;
+    final meters = _distance.as(LengthUnit.Meter, _currentPosition, start);
+    if (meters > _reachedStartMeters) return;
+
+    setState(() {
+      _navPhase = _NavPhase.onTrail;
+      _activeDestination = _trailEndPoint ?? start;
+      _activeDestinationLabel = widget.trail?.name ?? _activeDestinationLabel;
+      // Clear the OSRM "go-to-start" route — the trail polyline takes over.
+      _routePoints = [];
+    });
+    HapticFeedback.mediumImpact();
+    _speak(
+      'Vous êtes au départ du sentier. Suivez le tracé.',
+      id: 'phase_on_trail',
+    );
+  }
+
+  void _clearOffTrailAlert() {
+    setState(() {
+      _offTrailAlert = false;
+      _offTrailDistance = 0;
+      // Once back on the trail, the orange recovery route is no longer
+      // useful — drop it so the user sees the regular trail polyline.
+      if (_navPhase == _NavPhase.onTrail) {
+        _routePoints = [];
+      }
+    });
+    _stopOffTrailBuzz();
+  }
+
+  void _startOffTrailBuzz() {
+    _offTrailBuzzTimer?.cancel();
+    if (_offTrailMuted) return;
+    // Quick double-tap haptic every ~1.2 s while off-trail.
+    HapticFeedback.heavyImpact();
+    _offTrailBuzzTimer = Timer.periodic(
+      const Duration(milliseconds: 1200),
+      (_) {
+        if (!mounted || !_offTrailAlert || _offTrailMuted) return;
+        HapticFeedback.heavyImpact();
+        Future.delayed(
+          const Duration(milliseconds: 180),
+          () {
+            if (mounted && _offTrailAlert && !_offTrailMuted) {
+              HapticFeedback.heavyImpact();
+            }
+          },
+        );
+      },
+    );
+  }
+
+  void _stopOffTrailBuzz() {
+    _offTrailBuzzTimer?.cancel();
+    _offTrailBuzzTimer = null;
+  }
+
+  void _toggleOffTrailMute() {
+    setState(() => _offTrailMuted = !_offTrailMuted);
+    if (_offTrailMuted) {
+      _stopOffTrailBuzz();
+    } else if (_offTrailAlert) {
+      _startOffTrailBuzz();
     }
   }
 
@@ -1129,7 +1361,37 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   }
 
   Future<void> _handleReroute() async {
-    if (_activeDestination == null) {
+    HapticFeedback.lightImpact();
+
+    // Immediately dismiss the off-trail banner + stop the vibration loop.
+    // It will reappear automatically on the next GPS update if the user is
+    // still off the freshly-computed route.
+    if (_offTrailAlert) _clearOffTrailAlert();
+
+    // Pick the target depending on the current phase:
+    // - onTrail   → route back to the nearest point on the trail polyline
+    // - goToStart → re-route to the trail start
+    // - toPoi     → re-route to the active POI/service destination
+    LatLng? target;
+    String? targetLabel;
+    switch (_navPhase) {
+      case _NavPhase.onTrail:
+        if (_trailPoints.isNotEmpty) {
+          target = _nearestTrailPoint();
+          targetLabel = 'Retour au sentier';
+        }
+        break;
+      case _NavPhase.goToStart:
+        target = _trailStartPoint ?? _activeDestination;
+        targetLabel = _activeDestinationLabel;
+        break;
+      case _NavPhase.toPoi:
+        target = _activeDestination;
+        targetLabel = _activeDestinationLabel;
+        break;
+    }
+
+    if (target == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Aucune destination active.'),
@@ -1139,9 +1401,13 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       return;
     }
 
-    // Clear visual feedback so the user sees the recompute
-    setState(() => _routePoints = []);
-    HapticFeedback.lightImpact();
+    // Update destination so the OSRM route is recomputed toward it.
+    setState(() {
+      _activeDestination = target;
+      if (targetLabel != null) _activeDestinationLabel = targetLabel;
+      _routePoints = [];
+      _routeSteps = [];
+    });
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1157,7 +1423,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               ),
             ),
             SizedBox(width: 12),
-            Text('Recalcul de l\'itinéraire...'),
+            Text('Recalcul du tracé...'),
           ],
         ),
         duration: Duration(seconds: 2),
@@ -1169,19 +1435,15 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
 
     if (!mounted) return;
     if (_routePoints.isNotEmpty) {
-      _speak('Itinéraire mis à jour.', id: 'reroute_done');
+      _speak('Nouveau tracé prêt.', id: 'reroute_done');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Impossible de calculer l\'itinéraire. Réessayez.'),
+          content: Text('Impossible de calculer le tracé. Réessayez.'),
           backgroundColor: Color(0xFFC62828),
         ),
       );
     }
-  }
-
-  List<_NavPoint> get _nearbyWithin20m {
-    return _nearbyPoints.where((p) => p.distanceKm * 1000 <= 20).toList();
   }
 
   @override
@@ -1205,6 +1467,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             options: MapOptions(
               initialCenter: destination ?? _currentPosition,
               initialZoom: 14,
+              minZoom: 3,
+              maxZoom: 19,
             ),
             children: [
               TileLayer(
@@ -1217,29 +1481,25 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               ),
               PolylineLayer(
                 polylines: [
-                  // Connector: user → nearest trail point (dotted blue)
-                  // Always drawn so the path looks continuous, even when
-                  // no road exists between user and trail.
-                  if (_trailPoints.isNotEmpty)
-                    Polyline(
-                      points: [
-                        _currentPosition,
-                        _nearestTrailPoint(),
-                      ],
-                      strokeWidth: 4,
-                      color: const Color(0xFF1A73E8),
-                      pattern: const StrokePattern.dotted(),
-                    ),
-                  // Trail GeoJSON (fixed path) — thick purple
+                  // Trail GeoJSON (fixed path) — drawn underneath everything
+                  // so OSRM routes (go-to-start / recovery) can sit on top.
                   if (_trailPoints.isNotEmpty)
                     Polyline(
                       points: _trailPoints,
                       strokeWidth: 6,
-                      color: Colors.deepPurpleAccent,
+                      color: Colors.deepPurpleAccent.withValues(
+                        alpha: _navPhase == _NavPhase.onTrail ? 1.0 : 0.55,
+                      ),
                     ),
-                  // Live OSRM route from user → destination — recomputable
-                  // Only shown when destination is NOT on the trail (POI/service).
-                  if (hasDestination && _trailPoints.isEmpty)
+                  // OSRM route — drawn when:
+                  //   - phase = goToStart (route from user to trail start)
+                  //   - phase = toPoi    (route from user to POI/service)
+                  //   - phase = onTrail BUT user pressed Recalculer
+                  //     (recovery route from user back to the nearest trail
+                  //      point, shown in orange).
+                  if (hasDestination &&
+                      (_navPhase != _NavPhase.onTrail ||
+                          _routePoints.isNotEmpty))
                     Polyline(
                       points: _routePoints.isNotEmpty
                           ? [
@@ -1248,8 +1508,28 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                               destination,
                             ]
                           : [_currentPosition, destination],
-                      strokeWidth: 4,
-                      color: const Color(0xFF8E44AD),
+                      strokeWidth: 5,
+                      color: _navPhase == _NavPhase.onTrail
+                          ? const Color(0xFFFF8C42) // recovery
+                          : const Color(0xFF8E44AD), // normal OSRM route
+                    ),
+                  // Subtle dotted connector: user → nearest trail point.
+                  // Only useful when ON-trail with a small drift so the user
+                  // sees where the trail is. Hidden during goToStart to avoid
+                  // a confusing double-line.
+                  if (_trailPoints.isNotEmpty &&
+                      _navPhase == _NavPhase.onTrail &&
+                      _routePoints.isEmpty)
+                    Polyline(
+                      points: [
+                        _currentPosition,
+                        _nearestTrailPoint(),
+                      ],
+                      strokeWidth: 3,
+                      color: _offTrailAlert
+                          ? const Color(0xFFE65245)
+                          : const Color(0xFF1A73E8),
+                      pattern: const StrokePattern.dotted(),
                     ),
                 ],
               ),
@@ -1402,157 +1682,18 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
           if (hasDestination)
             Positioned(
               top: 8,
-              left: 12,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.16),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _routeSteps.isNotEmpty
-                          ? _findUpcomingStepIcon()
-                          : Icons.straight,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _currentInstruction != null &&
-                                    _currentInstructionDistanceMeters > 0
-                                ? '$_currentInstructionDistanceMeters m'
-                                : (destinationKm < 1
-                                    ? '${(destinationKm * 1000).round()}m'
-                                    : '${destinationKm.toStringAsFixed(1)} km'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                              height: 1.1,
-                            ),
-                          ),
-                          Text(
-                            _currentInstruction ??
-                                'Vers ${_activeDestinationLabel ?? 'destination'}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 11,
-                              height: 1.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: _toggleVoice,
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _voiceEnabled
-                              ? Icons.volume_up_rounded
-                              : Icons.volume_off_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              left: 10,
+              right: 10,
+              child: _buildInstructionBanner(destinationKm),
             ),
           if (_offTrailAlert)
             Positioned(
-              top: hasDestination ? 96 : 14,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF3D201E)
-                      : const Color(0xFFFDF3F3),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.red.withValues(alpha: 0.5)
-                        : const Color(0xFFE97C74),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Color(0xFFE65245),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Off-Trail Alert',
-                            style: TextStyle(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.redAccent
-                                  : const Color(0xFFD64A3A),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            'You are away from the path.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.redAccent.withValues(alpha: 0.8)
-                                  : const Color(0xFFD64A3A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    FilledButton(
-                      onPressed: _handleReroute,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: const Text('Re-route'),
-                    ),
-                  ],
-                ),
-              ),
+              // Sit below the instruction banner and leave room on the right
+              // for the vertical action column (zoom / layers / my-location).
+              top: hasDestination ? 195 : 16,
+              left: 12,
+              right: 64,
+              child: _buildOffTrailBanner(),
             ),
           Positioned(
             right: 12,
@@ -1580,14 +1721,14 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 const SizedBox(height: 6),
                 _navIconButton(
                   icon: Icons.my_location,
-                  onTap: () => _mapController.move(_currentPosition, 17),
+                  onTap: () => _detectUserPosition(),
                 ),
                 const SizedBox(height: 6),
                 _navIconButton(
                   icon: Icons.add,
                   onTap: () {
                     final z =
-                        (_mapController.camera.zoom + 1).clamp(3.0, 18.0);
+                        (_mapController.camera.zoom + 1).clamp(3.0, 19.0);
                     _mapController.move(_mapController.camera.center, z);
                   },
                 ),
@@ -1596,119 +1737,22 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                   icon: Icons.remove,
                   onTap: () {
                     final z =
-                        (_mapController.camera.zoom - 1).clamp(3.0, 18.0);
+                        (_mapController.camera.zoom - 1).clamp(3.0, 19.0);
                     _mapController.move(_mapController.camera.center, z);
                   },
                 ),
               ],
             ),
           ),
-          if (!_isFullScreen && _nearbyWithin20m.isNotEmpty)
+          // Floating SOS button — always reachable while the hike is active.
+          // (When the hike hasn't started yet, the SOS button is already
+          // visible inline next to "Commencer le Trail".)
+          if (!_isFullScreen && _hikeStatus != _HikeStatus.notStarted)
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: _hikeStatus == _HikeStatus.notStarted ? 110 : 220,
-              child: SizedBox(
-                height: 100,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _nearbyWithin20m.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (ctx, i) {
-                    final p = _nearbyWithin20m[i];
-                    return Container(
-                      width: 180,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.18),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor:
-                                p.color.withValues(alpha: 0.18),
-                            child: Icon(p.icon, color: p.color, size: 20),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  p.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${(p.distanceKm * 1000).round()} m',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
+              left: 14,
+              bottom: 240,
+              child: _buildFloatingSosButton(compact: true),
             ),
-
-          // Positioned(
-          //   right: 16,
-          //   bottom: 146,
-          //   child: GestureDetector(
-          //     onTap: () {
-          //       Navigator.push(
-          //         context,
-          //         MaterialPageRoute(
-          //           builder: (_) => const SosScreen(),
-          //           fullscreenDialog: true,
-          //         ),
-          //       );
-          //     },
-          //     child: Container(
-          //       width: 56,
-          //       height: 56,
-          //       decoration: const BoxDecoration(
-          //         color: Color(0xFFD84B3C),
-          //         shape: BoxShape.circle,
-          //       ),
-          //       alignment: Alignment.center,
-          //       child: const Text(
-          //         'SOS',
-          //         style: TextStyle(
-          //           color: Colors.white,
-          //           fontWeight: FontWeight.w900,
-          //           fontSize: 16,
-          //         ),
-          //       ),
-          //     ),
-          //   ),
-          // ),
           if (!_isFullScreen)
             Positioned(
               left: 0,
@@ -1728,28 +1772,440 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     );
   }
 
+  Widget _buildOffTrailBanner() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final meters = _offTrailDistance.round();
+    final distanceText = meters >= 1000
+        ? '${(meters / 1000).toStringAsFixed(1)} km'
+        : '$meters m';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xFF4A1F1B), Color(0xFF2E1310)]
+              : const [Color(0xFFFFE5DD), Color(0xFFFFD4C8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE65245).withValues(alpha: 0.6),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE65245).withValues(alpha: 0.22),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE65245).withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFE65245),
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Hors du sentier',
+                  style: TextStyle(
+                    color: isDark
+                        ? const Color(0xFFFF8A80)
+                        : const Color(0xFFB12F22),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    height: 1.1,
+                  ),
+                ),
+                Text(
+                  'À $distanceText du tracé',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    height: 1.2,
+                    color: isDark
+                        ? const Color(0xFFFFB4A8)
+                        : const Color(0xFFB12F22),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          _offTrailIconButton(
+            tooltip: _offTrailMuted
+                ? 'Réactiver la vibration'
+                : 'Couper la vibration',
+            icon: _offTrailMuted
+                ? Icons.vibration
+                : Icons.do_not_disturb_on_total_silence,
+            onTap: _toggleOffTrailMute,
+          ),
+          const SizedBox(width: 4),
+          _offTrailIconButton(
+            tooltip: 'Recalculer',
+            icon: Icons.refresh_rounded,
+            primary: true,
+            onTap: _handleReroute,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _offTrailIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+    bool primary = false,
+  }) {
+    final color = primary ? const Color(0xFFE65245) : Colors.white;
+    final iconColor = primary ? Colors.white : const Color(0xFFE65245);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: color,
+        shape: const CircleBorder(),
+        elevation: primary ? 2 : 1,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 32,
+            height: 32,
+            child: Icon(icon, color: iconColor, size: 16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstructionBanner(double destinationKm) {
+    final hasInstruction =
+        _currentInstruction != null && _currentInstruction!.isNotEmpty;
+    final meters = _currentInstructionDistanceMeters;
+    final manoeuvreIcon =
+        _routeSteps.isNotEmpty ? _findUpcomingStepIcon() : Icons.straight;
+    final isClose = meters > 0 && meters <= 20;
+
+    final destLabel = _activeDestinationLabel ?? 'destination';
+    final remainStr = destinationKm < 1
+        ? '${(destinationKm * 1000).round()} m'
+        : '${destinationKm.toStringAsFixed(1)} km';
+
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isClose
+                ? const [Color(0xFFFF8C42), Color(0xFFE9591F)]
+                : const [Color(0xFF1F8A2F), Color(0xFF0E7A23)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(manoeuvreIcon, color: Colors.white, size: 36),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasInstruction && meters > 0)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '$meters',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 30,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'm',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        const Text(
+                          'En route',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                      Text(
+                        hasInstruction
+                            ? _currentInstruction!
+                            : 'Vers $destLabel',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _toggleVoice,
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _voiceEnabled
+                          ? Icons.volume_up_rounded
+                          : Icons.volume_off_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(height: 1, color: Colors.white.withValues(alpha: 0.18)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _bannerStat(Icons.flag_outlined, 'Restant', remainStr),
+                _bannerDivider(),
+                _bannerStat(
+                  Icons.directions_walk,
+                  'Vers',
+                  destLabel.length > 14
+                      ? '${destLabel.substring(0, 12)}…'
+                      : destLabel,
+                ),
+                _bannerDivider(),
+                _bannerStat(
+                  Icons.timer_outlined,
+                  'ETA',
+                  _formatEta(destinationKm),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bannerStat(IconData icon, String label, String value) {
+    return Expanded(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white70, size: 13),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bannerDivider() {
+    return Container(
+      width: 1,
+      height: 26,
+      color: Colors.white.withValues(alpha: 0.2),
+    );
+  }
+
+  /// Estimates arrival time assuming ~4.5 km/h hiking pace.
+  String _formatEta(double remainingKm) {
+    if (remainingKm <= 0) return '—';
+    const paceKmh = 4.5;
+    final minutes = (remainingKm / paceKmh * 60).round();
+    if (minutes < 1) return '< 1 min';
+    if (minutes < 60) return '$minutes min';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return '${h}h${m.toString().padLeft(2, '0')}';
+  }
+
   Widget _buildBottomStatsPanel(double destinationKm) {
     if (_hikeStatus == _HikeStatus.notStarted) {
       return Container(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 22),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 18,
+              offset: const Offset(0, -4),
+            ),
+          ],
         ),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: FilledButton.icon(
-            onPressed: _startHike,
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
-            icon: const Icon(Icons.play_arrow, size: 28),
-            label: const Text(
-              'Commencer le Trail',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            if (widget.trail != null) ...[
+              Text(
+                widget.trail!.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _trailChip(Icons.straighten, widget.trail!.distanceText),
+                  const SizedBox(width: 8),
+                  _trailChip(Icons.timer_outlined, widget.trail!.durationText),
+                  const SizedBox(width: 8),
+                  _trailChip(Icons.terrain, widget.trail!.difficulty),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 58,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF22B53A), Color(0xFF0E7A23)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF22B53A)
+                              .withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: _startHike,
+                        child: const Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.play_circle_fill,
+                                  color: Colors.white, size: 28),
+                              SizedBox(width: 10),
+                              Text(
+                                'Commencer le Trail',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _buildFloatingSosButton(),
+              ],
             ),
-          ),
+          ],
         ),
       );
     }
@@ -1762,10 +2218,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     final pace = _distanceTraveled > 0 && _elapsedTime.inSeconds > 0
         ? (_distanceTraveled / (_elapsedTime.inSeconds / 3600)).toStringAsFixed(1)
         : '—';
-
-    final remainStr = destinationKm < 1
-        ? '${(destinationKm * 1000).round()} m'
-        : '${destinationKm.toStringAsFixed(1)} km';
 
     final altStr = '${_currentAltitude.round()} m';
 
@@ -1791,7 +2243,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          // Row 1 : temps | distance parcourue | vitesse
+          // Single row: temps · parcouru · vitesse · altitude.
+          // "Restant" is intentionally omitted here because it's already shown
+          // prominently in the top instruction banner.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -1802,14 +2256,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 Icons.straighten,
               ),
               _metricItem('$pace km/h', 'Vitesse', Icons.speed),
-            ],
-          ),
-          const SizedBox(height: 6),
-          // Row 2 : distance restante | altitude
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _metricItem(remainStr, 'Restant', Icons.flag_outlined),
               _metricItem(altStr, 'Altitude', Icons.terrain_outlined),
             ],
           ),
@@ -1874,6 +2320,116 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       ],
     );
   }
+
+  Widget _trailChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF22B53A).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF0E7A23)),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0E7A23),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingSosButton({bool compact = false}) {
+    final size = compact ? 54.0 : 58.0;
+    final radius = compact ? 27.0 : 16.0;
+    return GestureDetector(
+      onTap: _triggerSos,
+      onLongPress: _triggerSos,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFE63946), Color(0xFFC62828)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFE63946).withValues(alpha: 0.55),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+          border: Border.all(color: Colors.white, width: 2.5),
+        ),
+        child: const Center(
+          child: Text(
+            'SOS',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _triggerSos() async {
+    HapticFeedback.heavyImpact();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: const Icon(Icons.warning_amber_rounded,
+            color: Color(0xFFE63946), size: 44),
+        title: const Text('Envoyer un SOS ?',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w900)),
+        content: const Text(
+          'Votre position GPS sera envoyée aux secours et aux contacts d\'urgence.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFE63946),
+            ),
+            child: const Text('Envoyer SOS'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Color(0xFFE63946),
+        content: Text('Signal SOS envoyé avec votre position.'),
+      ),
+    );
+    _speak(
+      'Alerte SOS envoyée. Restez calme, l\'aide est en chemin.',
+      id: 'sos_sent',
+    );
+  }
 }
 
 class _NavPoint {
@@ -1923,3 +2479,11 @@ enum _MapVisualStyle {
 }
 
 enum _HikeStatus { notStarted, inProgress, paused, finished }
+
+/// Phase of the navigation, drives both the rendered route and the
+/// off-trail reference polyline.
+/// - [toPoi]      : navigating to a POI / service (no trail bound to widget)
+/// - [goToStart]  : trail bound but user is far from the start; we route
+///                  the user to the start using OSRM
+/// - [onTrail]    : user is on the official trail polyline; we follow it
+enum _NavPhase { toPoi, goToStart, onTrail }

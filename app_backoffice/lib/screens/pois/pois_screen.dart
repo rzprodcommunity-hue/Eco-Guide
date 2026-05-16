@@ -546,8 +546,9 @@ class _PoisScreenState extends State<PoisScreen> {
   }
 
   Widget _buildPoiDetailsForm() {
+    final isCompact = Responsive.isCompact(context);
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isCompact ? 16 : 24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -561,15 +562,18 @@ class _PoisScreenState extends State<PoisScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'POI Details',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                const Flexible(
+                  child: Text(
+                    'POI Details',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Active',
@@ -579,7 +583,7 @@ class _PoisScreenState extends State<PoisScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     SizedBox(
                       height: 24,
                       child: Switch(
@@ -593,108 +597,23 @@ class _PoisScreenState extends State<PoisScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
+            isCompact
+                ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'POI Name',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          hintText: 'e.g. Ancient Oak Grove',
-                          hintStyle: const TextStyle(
-                            color: AppColors.textHint,
-                            fontSize: 14,
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: AppColors.divider),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: AppColors.divider),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                        ),
-                        validator: (v) => v!.isEmpty ? 'Required' : null,
-                      ),
+                      _poiNameField(),
+                      const SizedBox(height: 16),
+                      _poiCategoryField(),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  flex: 1,
-                  child: Column(
+                  )
+                : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        ' ',
-                        style: TextStyle(fontSize: 13),
-                      ), // Spacer to align
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<PoiType>(
-                        value: _selectedType,
-                        decoration: InputDecoration(
-                          labelText: 'Category',
-                          labelStyle: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: AppColors.divider),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: AppColors.divider),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                        ),
-                        items: PoiType.values
-                            .map(
-                              (type) => DropdownMenuItem(
-                                value: type,
-                                child: Text(
-                                  _getTypeLabel(type),
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF1E293B),
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) setState(() => _selectedType = v);
-                        },
-                      ),
+                      Expanded(flex: 2, child: _poiNameField()),
+                      const SizedBox(width: 20),
+                      Expanded(flex: 1, child: _poiCategoryField()),
                     ],
                   ),
-                ),
-              ],
-            ),
             const SizedBox(height: 20),
             const Text(
               'Description',
@@ -874,6 +793,98 @@ class _PoisScreenState extends State<PoisScreen> {
     );
   }
 
+  Widget _poiNameField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'POI Name',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            hintText: 'e.g. Ancient Oak Grove',
+            hintStyle: const TextStyle(
+              color: AppColors.textHint,
+              fontSize: 14,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          validator: (v) => v!.isEmpty ? 'Required' : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _poiCategoryField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Category',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<PoiType>(
+          value: _selectedType,
+          isExpanded: true,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          items: PoiType.values
+              .map(
+                (type) => DropdownMenuItem(
+                  value: type,
+                  child: Text(
+                    _getTypeLabel(type),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (v) {
+            if (v != null) setState(() => _selectedType = v);
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildExistingMarkers(PoisProvider provider) {
     final activeCount = provider.pois.where((p) => p.isActive).length;
     final filtered = _searchController.text.isEmpty
@@ -891,13 +902,17 @@ class _PoisScreenState extends State<PoisScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with counters
+          // Header with counters (wraps gracefully on narrow widths)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
                       'Existing Markers',
@@ -907,9 +922,10 @@ class _PoisScreenState extends State<PoisScreen> {
                         color: Color(0xFF1E293B),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
@@ -925,13 +941,14 @@ class _PoisScreenState extends State<PoisScreen> {
                     ),
                   ],
                 ),
-                Row(
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
                     _buildStatChip(
                       label: '$activeCount active',
                       color: AppColors.success,
                     ),
-                    const SizedBox(width: 6),
                     _buildStatChip(
                       label: '${provider.pois.length - activeCount} draft',
                       color: AppColors.textSecondary,
@@ -1039,7 +1056,9 @@ class _PoisScreenState extends State<PoisScreen> {
                                         maxLines: 1,
                                       ),
                                       const SizedBox(height: 5),
-                                      Row(
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
                                         children: [
                                           // Type badge
                                           Container(
@@ -1069,7 +1088,6 @@ class _PoisScreenState extends State<PoisScreen> {
                                               ],
                                             ),
                                           ),
-                                          const SizedBox(width: 6),
                                           // Status badge
                                           Container(
                                             padding: const EdgeInsets.symmetric(
