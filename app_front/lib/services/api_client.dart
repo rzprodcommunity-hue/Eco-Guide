@@ -160,6 +160,15 @@ class ApiClient {
         return inserted;
       }
 
+      if (endpoint == '/trails') {
+        final inserted = await _supabase
+            .from('trails')
+            .insert(payload)
+            .select()
+            .single();
+        return inserted;
+      }
+
       if (endpoint == '/sos/alert') {
         final inserted = await _supabase.rpc(
           'create_sos_alert',

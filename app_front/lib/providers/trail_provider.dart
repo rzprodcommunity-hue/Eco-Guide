@@ -209,4 +209,21 @@ class TrailProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  Future<Trail?> createTrail(Map<String, dynamic> payload) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final trail = await _service.createTrail(payload);
+      _trails = [trail, ..._trails];
+      return trail;
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -34,13 +35,50 @@ class AuthService {
   }
 
   static Future<void> loginWithGoogle() async {
+    if (kIsWeb) {
+      await _loginWithGoogleWeb();
+      return;
+    }
+
     await _supabase.auth.signInWithOAuth(
       supabase.OAuthProvider.google,
       redirectTo: _oauthRedirectTo(),
       scopes: 'email profile',
-      authScreenLaunchMode: kIsWeb
-          ? LaunchMode.platformDefault
-          : LaunchMode.externalApplication,
+      authScreenLaunchMode: LaunchMode.externalApplication,
+    );
+  }
+
+  static Future<void> _loginWithGoogleWeb() async {
+    final clientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+    if (clientId == null || clientId.isEmpty) {
+      throw ApiException(
+        'GOOGLE_WEB_CLIENT_ID manquant dans .env',
+        500,
+      );
+    }
+
+    final googleSignIn = GoogleSignIn(
+      clientId: clientId,
+      scopes: const ['email', 'profile', 'openid'],
+    );
+
+    final account = await googleSignIn.signIn();
+    if (account == null) {
+      throw ApiException('Connexion Google annulee', 401);
+    }
+
+    final auth = await account.authentication;
+    final idToken = auth.idToken;
+    final accessToken = auth.accessToken;
+
+    if (idToken == null) {
+      throw ApiException('Google n\'a pas retourne d\'ID token', 401);
+    }
+
+    await _supabase.auth.signInWithIdToken(
+      provider: supabase.OAuthProvider.google,
+      idToken: idToken,
+      accessToken: accessToken,
     );
   }
 

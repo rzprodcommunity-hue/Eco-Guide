@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers/users_provider.dart';
 import '../../core/models/user_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/responsive.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -143,128 +144,169 @@ class _UsersScreenState extends State<UsersScreen> {
         .where((u) => DateTime.now().difference(u.createdAt).inDays <= 7)
         .length;
 
+    final isMobile = Responsive.isMobile(context);
+    final isCompact = Responsive.isCompact(context);
+
+    final searchField = SizedBox(
+      width: isMobile ? double.infinity : 250,
+      height: 40,
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search by name or email...',
+          hintStyle: const TextStyle(
+            color: AppColors.textHint,
+            fontSize: 13,
+          ),
+          prefixIcon: const Icon(
+            Icons.search,
+            color: AppColors.textHint,
+            size: 18,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppColors.divider),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppColors.divider),
+          ),
+        ),
+      ),
+    );
+
+    final exportButton = OutlinedButton.icon(
+      onPressed: () {},
+      icon: const Icon(
+        Icons.download,
+        size: 16,
+        color: AppColors.textPrimary,
+      ),
+      label: const Text(
+        'Export CSV',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.white,
+        side: BorderSide(color: AppColors.divider),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+      ),
+    );
+
+    final headerTitle = const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'User Management',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Manage hiker accounts, roles, and access permissions',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: Responsive.pagePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'User Management',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Manage hiker accounts, roles, and access permissions',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 250,
-                    height: 40,
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by name or email...',
-                        hintStyle: const TextStyle(
-                          color: AppColors.textHint,
-                          fontSize: 13,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: AppColors.textHint,
-                          size: 18,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: AppColors.divider),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: AppColors.divider),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.download,
-                      size: 16,
-                      color: AppColors.textPrimary,
-                    ),
-                    label: const Text(
-                      'Export CSV',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      side: BorderSide(color: AppColors.divider),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
+          if (isCompact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headerTitle,
+                const SizedBox(height: 16),
+                searchField,
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerLeft, child: exportButton),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headerTitle,
+                Row(
+                  children: [
+                    searchField,
+                    const SizedBox(width: 16),
+                    exportButton,
+                  ],
+                ),
+              ],
+            ),
+          SizedBox(height: isMobile ? 20 : 32),
 
           // ── Stats Cards ──
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard('Total Users', '${provider.total}', null),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _buildStatCard(
+          if (isMobile)
+            Column(
+              children: [
+                _buildStatCard('Total Users', '${provider.total}', null),
+                const SizedBox(height: 12),
+                _buildStatCard(
                   'Active Now',
                   '${provider.total > 0 ? provider.total - 2 : 0}',
                   '+12%',
                 ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _buildStatCard(
+                const SizedBox(height: 12),
+                _buildStatCard(
                   'New This Week',
                   '${newerUsersCount > 0 ? newerUsersCount : 42}',
                   null,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child:
+                      _buildStatCard('Total Users', '${provider.total}', null),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: _buildStatCard(
+                    'Active Now',
+                    '${provider.total > 0 ? provider.total - 2 : 0}',
+                    '+12%',
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: _buildStatCard(
+                    'New This Week',
+                    '${newerUsersCount > 0 ? newerUsersCount : 42}',
+                    null,
+                  ),
+                ),
+              ],
+            ),
+          SizedBox(height: isMobile ? 20 : 32),
 
           // ── User Data Table ──
           Container(

@@ -10,6 +10,7 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../models/trail.dart';
 import 'trail_detail_screen.dart';
+import 'record_trail_screen.dart';
 import '../profile/profile_screen.dart';
 
 class TrailsListScreen extends StatefulWidget {
@@ -151,6 +152,21 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final created = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const RecordTrailScreen()),
+          );
+          if (!mounted) return;
+          if (created == true) {
+            await context.read<TrailProvider>().loadTrails(refresh: true);
+          }
+        },
+        icon: const Icon(Icons.fiber_manual_record),
+        label: const Text('Enregistrer'),
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -3,10 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../core/providers/auth_provider.dart';
 import '../core/constants/app_colors.dart';
-
-// Breakpoints
-const double _kDesktop = 1100;
-const double _kMobile = 700;
+import '../core/constants/responsive.dart';
 
 class MainLayout extends StatefulWidget {
   final Widget child;
@@ -26,8 +23,7 @@ class _MainLayoutState extends State<MainLayout> {
     super.didChangeDependencies();
     if (!_autoSet) {
       _autoSet = true;
-      final w = MediaQuery.of(context).size.width;
-      _isExpanded = w >= _kDesktop;
+      _isExpanded = Responsive.isDesktop(context);
     }
   }
 
@@ -35,25 +31,30 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final currentPath = GoRouterState.of(context).matchedLocation;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < _kMobile;
+    final isCompact = Responsive.isCompact(context);
+    final useDrawer = Responsive.isMobile(context) ||
+        (Responsive.isTablet(context) &&
+            MediaQuery.of(context).orientation == Orientation.portrait);
 
-    if (isMobile) {
+    if (useDrawer) {
       return _buildMobileScaffold(currentPath, authProvider);
     }
+
+    // On tablet landscape, force collapsed sidebar; on desktop respect toggle.
+    final expanded = Responsive.isTablet(context) ? false : _isExpanded;
 
     return Scaffold(
       body: Row(
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: _isExpanded ? 280 : 80,
-            child: _buildSidebar(currentPath, authProvider, _isExpanded),
+            width: expanded ? 280 : 80,
+            child: _buildSidebar(currentPath, authProvider, expanded),
           ),
           Expanded(
             child: Column(
               children: [
-                _buildTopBar(authProvider, currentPath, isMobile: false),
+                _buildTopBar(authProvider, currentPath, isMobile: isCompact),
                 Expanded(
                   child: Container(
                     color: AppColors.background,
@@ -238,8 +239,9 @@ class _MainLayoutState extends State<MainLayout> {
         child: InkWell(
           onTap: () {
             context.go(path);
-            // Close drawer if on mobile
-            if (MediaQuery.of(context).size.width < _kMobile) {
+            // Close drawer if open (mobile / tablet portrait)
+            if (Scaffold.maybeOf(context)?.hasDrawer == true &&
+                Scaffold.of(context).isDrawerOpen) {
               Navigator.of(context).pop();
             }
           },

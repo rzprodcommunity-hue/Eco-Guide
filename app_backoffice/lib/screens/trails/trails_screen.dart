@@ -1,13 +1,18 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 import '../../core/providers/trails_provider.dart';
 import '../../core/models/trail_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/responsive.dart';
 import 'package:http/http.dart' as http;
 import '../../core/services/supabase_storage_service.dart';
 
@@ -46,6 +51,10 @@ class _TrailsScreenState extends State<TrailsScreen> {
   List<String> _imageUrls = [];
   bool _isUploadingImage = false;
 
+  // GPS recording state
+  bool _isRecording = false;
+  StreamSubscription<Position>? _positionStream;
+
   @override
   void initState() {
     super.initState();
@@ -65,8 +74,229 @@ class _TrailsScreenState extends State<TrailsScreen> {
     _mapSearchController.dispose();
     _scrollController.dispose();
     _mapController.dispose();
+    _positionStream?.cancel();
     super.dispose();
   }
+
+  // ── GPS recording ──────────────────────────────────────────────────────
+
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      await _stopRecording();
+    } else {
+      await _startRecording();
+    }
+  }
+
+  Future<void> _startRecording() async {
+    final ok = await _ensureLocationPermission();
+    if (!ok) return;
+
+    setState(() {
+      _isRecording = true;
+      _drawnPoints = [];
+      _geojson = null;
+    });
+
+    try {
+      final initial = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+        ),
+      );
+      if (mounted) {
+        final p = LatLng(initial.latitude, initial.longitude);
+        setState(() => _drawnPoints.add(p));
+        _mapController.move(p, 17);
+      }
+    } catch (_) {}
+
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 2,
+      ),
+    ).listen((pos) {
+      if (!mounted) return;
+      final p = LatLng(pos.latitude, pos.longitude);
+      if (_drawnPoints.isNotEmpty) {
+        const d = Distance();
+        final m = d.as(LengthUnit.Meter, _drawnPoints.last, p);
+        if (m < 1.5) return;
+      }
+      setState(() => _drawnPoints.add(p));
+    });
+  }
+
+  Future<void> _stopRecording() async {
+    await _positionStream?.cancel();
+    _positionStream = null;
+    if (!mounted) return;
+    setState(() => _isRecording = false);
+    if (_drawnPoints.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Enregistrement termine : ${_drawnPoints.length} points',
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  Future<bool> _ensureLocationPermission() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Service de localisation desactive'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return false;
+    }
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+    }
+    if (perm == LocationPermission.denied ||
+        perm == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Permission de localisation refusee'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
+  // ── GPX import ─────────────────────────────────────────────────────────
+
+  Future<void> _importGpx() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['gpx', 'xml'],
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return;
+
+    try {
+      final content = utf8.decode(result.files.single.bytes!);
+      final points = _parseGpxTrackPoints(content);
+      if (points.isEmpty) throw Exception('Aucun point trouve dans le GPX');
+      setState(() {
+        _drawnPoints = points;
+        _geojson = null;
+      });
+      if (points.isNotEmpty) {
+        _mapController.move(points.first, 14);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('GPX importe : ${points.length} points'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur GPX : $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  List<LatLng> _parseGpxTrackPoints(String xml) {
+    final points = <LatLng>[];
+    final regex = RegExp(
+      r'<(?:trkpt|rtept|wpt)\s+[^>]*?lat\s*=\s*"([-\d.]+)"\s+lon\s*=\s*"([-\d.]+)"',
+      caseSensitive: false,
+    );
+    for (final match in regex.allMatches(xml)) {
+      final lat = double.tryParse(match.group(1) ?? '');
+      final lon = double.tryParse(match.group(2) ?? '');
+      if (lat != null && lon != null) {
+        points.add(LatLng(lat, lon));
+      }
+    }
+    return points;
+  }
+
+  // ── GPX export ─────────────────────────────────────────────────────────
+
+  Future<void> _exportGpx() async {
+    if (_drawnPoints.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun trace a exporter'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+    final name =
+        _nameController.text.trim().isEmpty ? 'trail' : _nameController.text.trim();
+    final xml = _buildGpxXml(_drawnPoints, name);
+
+    if (kIsWeb) {
+      final blob = web.Blob(
+        [xml.toJS].toJS,
+        web.BlobPropertyBag(type: 'application/gpx+xml'),
+      );
+      final url = web.URL.createObjectURL(blob);
+      final anchor = web.HTMLAnchorElement()
+        ..href = url
+        ..download =
+            '${name.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}.gpx';
+      anchor.click();
+      web.URL.revokeObjectURL(url);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('GPX exporte (${_drawnPoints.length} points)'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  String _buildGpxXml(List<LatLng> points, String trackName) {
+    final buf = StringBuffer();
+    buf.writeln('<?xml version="1.0" encoding="UTF-8"?>');
+    buf.writeln('<gpx version="1.1" creator="EcoGuide" '
+        'xmlns="http://www.topografix.com/GPX/1/1">');
+    buf.writeln('  <trk>');
+    buf.writeln('    <name>${_xmlEscape(trackName)}</name>');
+    buf.writeln('    <trkseg>');
+    for (final p in points) {
+      buf.writeln('      <trkpt lat="${p.latitude.toStringAsFixed(6)}" '
+          'lon="${p.longitude.toStringAsFixed(6)}"/>');
+    }
+    buf.writeln('    </trkseg>');
+    buf.writeln('  </trk>');
+    buf.writeln('</gpx>');
+    return buf.toString();
+  }
+
+  String _xmlEscape(String s) => s
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
 
   void _editTrail(TrailModel trail) {
     setState(() {
@@ -369,52 +599,65 @@ class _TrailsScreenState extends State<TrailsScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<TrailsProvider>();
 
+    final isCompact = Responsive.isCompact(context);
+
+    final headerTitle = const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Trail Management',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          'Create, monitor, and update hiking routes across the ecosystem.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      ],
+    );
+
+    final createButton = ElevatedButton.icon(
+      onPressed: _resetForm,
+      icon: const Icon(Icons.add),
+      label: const Text('Create New Trail'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.success,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 24,
+          vertical: 12,
+        ),
+      ),
+    );
+
     return SingleChildScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.all(32),
+      padding: Responsive.pagePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Trail Management',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Create, monitor, and update hiking routes across the ecosystem.',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: _resetForm,
-                icon: const Icon(Icons.add),
-                label: const Text('Create New Trail'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          if (isCompact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headerTitle,
+                const SizedBox(height: 16),
+                Align(alignment: Alignment.centerLeft, child: createButton),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [headerTitle, createButton],
+            ),
           const SizedBox(height: 24),
 
           // Stats Cards
@@ -422,26 +665,37 @@ class _TrailsScreenState extends State<TrailsScreen> {
           const SizedBox(height: 24),
 
           // Form + Sidebar
-          Row(
-            key: _formSectionKey,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left: Trail Details Form
-              Expanded(flex: 3, child: _buildTrailDetailsForm()),
-              const SizedBox(width: 24),
-              // Right: Pro Tip + Publishing Status
-              Expanded(
-                flex: 1,
-                child: Column(
-                  children: [
-                    _buildProTipCard(),
-                    const SizedBox(height: 24),
-                    _buildPublishingCard(),
-                  ],
+          if (isCompact)
+            Column(
+              key: _formSectionKey,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildTrailDetailsForm(),
+                const SizedBox(height: 24),
+                _buildProTipCard(),
+                const SizedBox(height: 24),
+                _buildPublishingCard(),
+              ],
+            )
+          else
+            Row(
+              key: _formSectionKey,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 3, child: _buildTrailDetailsForm()),
+                const SizedBox(width: 24),
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    children: [
+                      _buildProTipCard(),
+                      const SizedBox(height: 24),
+                      _buildPublishingCard(),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: 32),
 
           // Existing Trails Table
@@ -465,39 +719,45 @@ class _TrailsScreenState extends State<TrailsScreen> {
     if (easyCount >= modCount && easyCount >= diffCount) avgDiff = 'Easy';
     if (diffCount >= modCount && diffCount >= easyCount) avgDiff = 'Hard';
 
-    return Row(
-      children: [
-        Expanded(
-          child: _statCard(
-            'Total Trails',
-            provider.total.toString(),
-            Icons.terrain,
-            AppColors.primary,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _statCard('Active Hikers', '1,284', Icons.people, Colors.blue),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _statCard(
-            'Total Distance',
-            '${totalDistance.toStringAsFixed(0)} km',
-            Icons.straighten,
-            Colors.teal,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _statCard(
-            'Avg. Difficulty',
-            avgDiff,
-            Icons.signal_cellular_alt,
-            Colors.orange,
-          ),
-        ),
-      ],
+    final cards = [
+      _statCard(
+        'Total Trails',
+        provider.total.toString(),
+        Icons.terrain,
+        AppColors.primary,
+      ),
+      _statCard('Active Hikers', '1,284', Icons.people, Colors.blue),
+      _statCard(
+        'Total Distance',
+        '${totalDistance.toStringAsFixed(0)} km',
+        Icons.straighten,
+        Colors.teal,
+      ),
+      _statCard(
+        'Avg. Difficulty',
+        avgDiff,
+        Icons.signal_cellular_alt,
+        Colors.orange,
+      ),
+    ];
+
+    final crossAxisCount =
+        Responsive.value(context, mobile: 2, tablet: 2, desktop: 4);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 16.0;
+        final itemWidth = (constraints.maxWidth -
+                spacing * (crossAxisCount - 1)) /
+            crossAxisCount;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards
+              .map((c) => SizedBox(width: itemWidth, child: c))
+              .toList(),
+        );
+      },
     );
   }
 
@@ -667,43 +927,101 @@ class _TrailsScreenState extends State<TrailsScreen> {
             const SizedBox(height: 24),
 
             // Route Path
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            const Text(
+              'Route Path',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Text(
-                  'Route Path',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ElevatedButton.icon(
+                  onPressed: _toggleRecording,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        _isRecording ? AppColors.error : AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
+                  ),
+                  icon: Icon(_isRecording
+                      ? Icons.stop_circle_outlined
+                      : Icons.fiber_manual_record),
+                  label: Text(_isRecording
+                      ? 'Arreter l\'enregistrement'
+                      : 'Demarrer enregistrement GPS'),
                 ),
-                if (_drawnPoints.isNotEmpty)
-                  Row(
-                    children: [
-                      TextButton.icon(
-                        onPressed: () =>
-                            setState(() => _drawnPoints.removeLast()),
-                        icon: const Icon(
-                          Icons.undo,
-                          size: 18,
-                          color: Colors.orange,
-                        ),
-                        label: const Text(
-                          'Undo',
-                          style: TextStyle(color: Colors.orange),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: () => setState(() => _drawnPoints.clear()),
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          size: 18,
+                OutlinedButton.icon(
+                  onPressed: _isRecording ? null : _importGpx,
+                  icon: const Icon(Icons.file_upload_outlined),
+                  label: const Text('Importer GPX'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _drawnPoints.length >= 2 && !_isRecording
+                      ? _exportGpx
+                      : null,
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('Exporter GPX'),
+                ),
+                if (_drawnPoints.isNotEmpty && !_isRecording) ...[
+                  TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _drawnPoints.removeLast()),
+                    icon: const Icon(
+                      Icons.undo,
+                      size: 18,
+                      color: Colors.orange,
+                    ),
+                    label: const Text(
+                      'Undo',
+                      style: TextStyle(color: Colors.orange),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => setState(() => _drawnPoints.clear()),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      size: 18,
+                      color: AppColors.error,
+                    ),
+                    label: const Text(
+                      'Clear Path',
+                      style: TextStyle(color: AppColors.error),
+                    ),
+                  ),
+                ],
+                if (_isRecording)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.gps_fixed,
+                          size: 16,
                           color: AppColors.error,
                         ),
-                        label: const Text(
-                          'Clear Path',
-                          style: TextStyle(color: AppColors.error),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Enregistrement... ${_drawnPoints.length} pts',
+                          style: const TextStyle(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
               ],
             ),

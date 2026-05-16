@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/providers/sos_alerts_provider.dart';
 import '../../core/models/sos_alert_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/responsive.dart';
 
 class SosAlertsScreen extends StatefulWidget {
   const SosAlertsScreen({super.key});
@@ -30,99 +32,107 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<SosAlertsProvider>();
 
+    final infoChildren = <Widget>[
+      if (provider.isAlarmPlaying)
+        ElevatedButton.icon(
+          icon: const Icon(Icons.volume_off, color: Colors.white),
+          label: const Text(
+            'COUPER L\'ALARME',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
+            ),
+          ),
+          onPressed: () => provider.stopAlarm(),
+        ),
+      if (provider.activeAlerts.isNotEmpty)
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.error.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.error),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.warning,
+                color: AppColors.error,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${provider.activeAlerts.length} alerte(s) active(s)',
+                style: const TextStyle(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      Text(
+        '${provider.alerts.length} alertes au total',
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 16,
+        ),
+      ),
+    ];
+
+    final controls = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Actives uniquement'),
+        const SizedBox(width: 8),
+        Switch(
+          value: _showActiveOnly,
+          onChanged: (value) {
+            setState(() => _showActiveOnly = value);
+            provider.loadAlerts(activeOnly: value);
+          },
+          activeColor: AppColors.primary,
+        ),
+        const SizedBox(width: 16),
+        IconButton(
+          onPressed: () =>
+              provider.loadAlerts(activeOnly: _showActiveOnly),
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Rafraichir',
+        ),
+      ],
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: Responsive.pagePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  if (provider.isAlarmPlaying)
-                    Container(
-                      margin: const EdgeInsets.only(right: 16),
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.volume_off, color: Colors.white),
-                        label: const Text(
-                          'COUPER L\'ALARME',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                        ),
-                        onPressed: () => provider.stopAlarm(),
-                      ),
-                    ),
-                  if (provider.activeAlerts.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      margin: const EdgeInsets.only(right: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.error),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.warning,
-                            color: AppColors.error,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${provider.activeAlerts.length} alerte(s) active(s)',
-                            style: const TextStyle(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  Text(
-                    '${provider.alerts.length} alertes au total',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
+              Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: infoChildren,
               ),
-              Row(
-                children: [
-                  const Text('Actives uniquement'),
-                  const SizedBox(width: 8),
-                  Switch(
-                    value: _showActiveOnly,
-                    onChanged: (value) {
-                      setState(() => _showActiveOnly = value);
-                      provider.loadAlerts(activeOnly: value);
-                    },
-                    activeColor: AppColors.primary,
-                  ),
-                  const SizedBox(width: 16),
-                  IconButton(
-                    onPressed: () =>
-                        provider.loadAlerts(activeOnly: _showActiveOnly),
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Rafraichir',
-                  ),
-                ],
-              ),
+              controls,
             ],
           ),
           const SizedBox(height: 16),
@@ -256,12 +266,14 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildUserHeader(alert),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: _buildInfoItem(
-                        icon: Icons.person,
-                        label: 'Utilisateur',
+                        icon: Icons.badge_outlined,
+                        label: 'ID Utilisateur',
                         value: alert.userId,
                       ),
                     ),
@@ -320,6 +332,224 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUserHeader(SosAlertModel alert) {
+    final profile = alert.profile;
+    final hasProfile = profile != null;
+    final name = hasProfile ? profile.fullName : 'Utilisateur inconnu';
+    final email = profile?.email;
+    final phone = profile?.phone;
+    final emergency = alert.emergencyContact;
+    final initials = hasProfile ? profile.initials : '?';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _buildAvatar(profile?.avatarUrl, initials),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (email != null && email.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.email_outlined,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          email,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (phone != null && phone.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.phone_outlined,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          phone,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (!hasProfile) ...[
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Aucun profil associe',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Call button (uses phone profile or emergencyContact fallback)
+          if ((phone != null && phone.isNotEmpty) ||
+              (emergency != null && emergency.isNotEmpty))
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: ElevatedButton.icon(
+                onPressed: () => _callPhone(
+                  (phone != null && phone.isNotEmpty) ? phone : emergency!,
+                ),
+                icon: const Icon(Icons.call, size: 18),
+                label: const Text('Appeler'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          if (email != null && email.isNotEmpty)
+            IconButton(
+              onPressed: () => _copyText(email, 'Email copie'),
+              icon: const Icon(
+                Icons.copy,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
+              tooltip: 'Copier email',
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(String? avatarUrl, String initials) {
+    const double size = 52;
+    final placeholder = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.15),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
+    );
+
+    if (avatarUrl == null || avatarUrl.isEmpty) return placeholder;
+
+    return ClipOval(
+      child: Image.network(
+        avatarUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => placeholder,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _callPhone(String rawNumber) async {
+    final number = rawNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (number.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Numero invalide')),
+        );
+      }
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: number);
+    try {
+      final launched = await launchUrl(uri);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de lancer l\'appel')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur appel: $e')),
+        );
+      }
+    }
+  }
+
+  void _copyText(String text, String successMessage) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(successMessage)),
     );
   }
 

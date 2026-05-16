@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -5,6 +6,8 @@ import 'package:latlong2/latlong.dart';
 import '../../core/providers/local_services_provider.dart';
 import '../../core/models/local_service_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/responsive.dart';
+import '../../core/services/supabase_storage_service.dart';
 
 class LocalServicesScreen extends StatefulWidget {
   const LocalServicesScreen({super.key});
@@ -25,6 +28,8 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   final _longitudeController = TextEditingController();
   ServiceCategory _category = ServiceCategory.accommodation;
   String? _editingId;
+  String? _imageUrl;
+  bool _isUploadingImage = false;
   LatLng _selectedLocation = const LatLng(
     31.6295,
     -7.9811,
@@ -61,6 +66,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       _latitudeController.text = service.latitude?.toString() ?? '';
       _longitudeController.text = service.longitude?.toString() ?? '';
       _category = service.category;
+      _imageUrl = service.imageUrl;
 
       if (service.latitude != null && service.longitude != null) {
         _selectedLocation = LatLng(service.latitude!, service.longitude!);
@@ -81,8 +87,153 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       _latitudeController.clear();
       _longitudeController.clear();
       _category = ServiceCategory.accommodation;
+      _imageUrl = null;
       _selectedLocation = const LatLng(31.6295, -7.9811);
     });
+  }
+
+  Widget _buildPhotoSection() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (_imageUrl != null)
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  _imageUrl!,
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 120,
+                    height: 120,
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.broken_image_outlined,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: -8,
+                right: -8,
+                child: GestureDetector(
+                  onTap: () => setState(() => _imageUrl = null),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        InkWell(
+          onTap: _isUploadingImage ? null : _pickAndUploadImage,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.success,
+                style: BorderStyle.solid,
+              ),
+            ),
+            child: _isUploadingImage
+                ? const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        color: AppColors.success,
+                        size: 32,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Upload',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return;
+
+    final file = result.files.single;
+    setState(() => _isUploadingImage = true);
+
+    try {
+      final ext = file.name.split('.').last.toLowerCase();
+      final contentType = switch (ext) {
+        'png' => 'image/png',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+        _ => 'image/jpeg',
+      };
+      final url = await SupabaseStorageService.uploadBytes(
+        bucket: 'images',
+        fileName: file.name,
+        bytes: file.bytes!,
+        contentType: contentType,
+      );
+      setState(() {
+        _imageUrl = url;
+        _isUploadingImage = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image uploadee avec succes'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isUploadingImage = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur upload: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _saveService() async {
@@ -108,6 +259,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       'longitude': _longitudeController.text.isNotEmpty
           ? double.parse(_longitudeController.text)
           : null,
+      'imageUrl': _imageUrl,
       'isActive': true,
       'isVerified': true,
     };
@@ -168,63 +320,84 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<LocalServicesProvider>();
 
+    final isCompact = Responsive.isCompact(context);
+
+    final headerTitle = const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Local Economy Directory',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          'Manage local guides, artisans, and eco-lodges supporting the trail network.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      ],
+    );
+
+    final addButton = ElevatedButton.icon(
+      onPressed: _resetForm,
+      icon: const Icon(Icons.add),
+      label: const Text('Add New Business'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.success,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 24,
+          vertical: 12,
+        ),
+      ),
+    );
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: Responsive.pagePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Local Economy Directory',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Manage local guides, artisans, and eco-lodges supporting the trail network.',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: _resetForm,
-                icon: const Icon(Icons.add),
-                label: const Text('Add New Business'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
+          if (isCompact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headerTitle,
+                const SizedBox(height: 16),
+                Align(alignment: Alignment.centerLeft, child: addButton),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [headerTitle, addButton],
+            ),
+          SizedBox(height: isCompact ? 20 : 32),
           _buildStatsCards(provider),
           const SizedBox(height: 24),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left: Form
-              Expanded(flex: 2, child: _buildFormCard(provider.isLoading)),
-              const SizedBox(width: 24),
-              // Right: Table
-              Expanded(flex: 3, child: _buildTableCard(provider)),
-            ],
-          ),
+          if (isCompact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildFormCard(provider.isLoading),
+                const SizedBox(height: 24),
+                _buildTableCard(provider),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 2, child: _buildFormCard(provider.isLoading)),
+                const SizedBox(width: 24),
+                Expanded(flex: 3, child: _buildTableCard(provider)),
+              ],
+            ),
         ],
       ),
     );
@@ -242,39 +415,29 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       if (svc.category == ServiceCategory.artisan) artisans++;
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Total Partners',
-            total.toString(),
-            '+12%',
-            true,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            'Active Guides',
-            guides.toString(),
-            '+4%',
-            true,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            'Eco-Lodges',
-            lodges.toString(),
-            'Stable',
-            false,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard('Artisans', artisans.toString(), '+2', true),
-        ),
-      ],
+    final cards = [
+      _buildStatCard('Total Partners', total.toString(), '+12%', true),
+      _buildStatCard('Active Guides', guides.toString(), '+4%', true),
+      _buildStatCard('Eco-Lodges', lodges.toString(), 'Stable', false),
+      _buildStatCard('Artisans', artisans.toString(), '+2', true),
+    ];
+    final crossAxisCount =
+        Responsive.value(context, mobile: 2, tablet: 2, desktop: 4);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 16.0;
+        final itemWidth =
+            (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
+                crossAxisCount;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards
+              .map((c) => SizedBox(width: itemWidth, child: c))
+              .toList(),
+        );
+      },
     );
   }
 
@@ -430,6 +593,18 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               ),
               maxLines: 3,
             ),
+            const SizedBox(height: 24),
+            const Text(
+              'Business Photo',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Upload a cover photo (shown in the list)',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            _buildPhotoSection(),
             const SizedBox(height: 24),
             const Text(
               'Location',
@@ -627,6 +802,34 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                                 width: 48,
                                 height: 48,
                                 fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                  width: 48,
+                                  height: 48,
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Container(
+                                    width: 48,
+                                    height: 48,
+                                    color: Colors.grey[100],
+                                    child: const Center(
+                                      child: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               )
                             : Container(
                                 width: 48,

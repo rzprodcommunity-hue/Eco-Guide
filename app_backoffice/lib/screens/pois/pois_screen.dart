@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../core/providers/pois_provider.dart';
 import '../../core/models/poi_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/responsive.dart';
 import '../../core/services/supabase_storage_service.dart';
 
 class PoisScreen extends StatefulWidget {
@@ -251,85 +252,108 @@ class _PoisScreenState extends State<PoisScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<PoisProvider>();
 
+    final isCompact = Responsive.isCompact(context);
+
+    final headerTitle = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Text(
+          'Points of Interest Management',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Manage markers, educational content, and geographic assets',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+
+    final addButton = ElevatedButton.icon(
+      onPressed: _resetForm,
+      icon: const Icon(Icons.add, size: 18),
+      label: const Text('Add New POI'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 14,
+        ),
+        elevation: 0,
+        textStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+      ),
+    );
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: Responsive.pagePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Points of Interest Management',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Manage markers, educational content, and geographic assets',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: _resetForm,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add New POI'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
-                  ),
-                  elevation: 0,
-                  textStyle: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
+          if (isCompact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headerTitle,
+                const SizedBox(height: 16),
+                Align(alignment: Alignment.centerLeft, child: addButton),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [headerTitle, addButton],
+            ),
+          const SizedBox(height: 24),
 
           // ── Search & Category Filters ──
           _buildSearchAndFilters(provider),
           const SizedBox(height: 24),
 
           // ── Main Content Area ──
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left Column (Map & Form)
-              Expanded(
-                flex: 13,
-                child: Column(
-                  children: [
-                    _buildMapCard(),
-                    const SizedBox(height: 24),
-                    _buildPoiDetailsForm(),
-                  ],
+          if (isCompact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildMapCard(),
+                const SizedBox(height: 24),
+                _buildPoiDetailsForm(),
+                const SizedBox(height: 24),
+                _buildExistingMarkers(provider),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 13,
+                  child: Column(
+                    children: [
+                      _buildMapCard(),
+                      const SizedBox(height: 24),
+                      _buildPoiDetailsForm(),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 24),
-              // Right Column (List)
-              Expanded(flex: 8, child: _buildExistingMarkers(provider)),
-            ],
-          ),
+                const SizedBox(width: 24),
+                Expanded(flex: 8, child: _buildExistingMarkers(provider)),
+              ],
+            ),
         ],
       ),
     );
@@ -809,6 +833,15 @@ class _PoisScreenState extends State<PoisScreen> {
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 80,
+                            height: 80,
+                            color: Colors.grey[200],
+                            child: const Icon(
+                              Icons.broken_image_outlined,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
                       ),
                       Positioned(

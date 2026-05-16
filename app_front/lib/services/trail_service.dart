@@ -63,6 +63,14 @@ class TrailService {
     final response = await _client.get('${ApiConstants.trails}/$id');
     return Trail.fromJson(response);
   }
+
+  Future<Trail> createTrail(Map<String, dynamic> payload) async {
+    final response = await _client.post(
+      ApiConstants.trails,
+      body: payload,
+    );
+    return Trail.fromJson(response);
+  }
 }
 
 class PaginatedResponse<T> {

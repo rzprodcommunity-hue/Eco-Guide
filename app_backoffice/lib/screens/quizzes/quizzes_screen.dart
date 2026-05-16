@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../core/providers/quizzes_provider.dart';
 import '../../core/models/quiz_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/responsive.dart';
 import '../../core/services/supabase_storage_service.dart';
 
 class QuestionDraft {
@@ -308,74 +309,100 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<QuizzesProvider>();
 
+    final isCompact = Responsive.isCompact(context);
+
+    final headerTitle = const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quiz Management',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Create and manage educational challenges for hikers.',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+
+    final createButton = ElevatedButton.icon(
+      onPressed: _clearForm,
+      icon: const Icon(Icons.add, size: 18),
+      label: const Text('Create New Quiz'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.success,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 14,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        elevation: 0,
+      ),
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(32),
+      padding: Responsive.pagePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Quiz Management',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Create and manage educational challenges for hikers.',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: _clearForm,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Create New Quiz'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          Expanded(
-            child: Row(
+          if (isCompact)
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(flex: 13, child: _buildQuizForm()),
-                const SizedBox(width: 32),
-                Expanded(
-                  flex: 10,
-                  child: Column(
+                headerTitle,
+                const SizedBox(height: 16),
+                Align(alignment: Alignment.centerLeft, child: createButton),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [headerTitle, createButton],
+            ),
+          SizedBox(height: isCompact ? 20 : 32),
+          Expanded(
+            child: isCompact
+                ? SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildQuizForm(),
+                        const SizedBox(height: 24),
+                        _buildInsightsCard(provider),
+                        const SizedBox(height: 24),
+                        _buildRecentQuizzes(provider),
+                      ],
+                    ),
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInsightsCard(provider),
-                      const SizedBox(height: 24),
-                      Expanded(child: _buildRecentQuizzes(provider)),
+                      Expanded(flex: 13, child: _buildQuizForm()),
+                      const SizedBox(width: 32),
+                      Expanded(
+                        flex: 10,
+                        child: Column(
+                          children: [
+                            _buildInsightsCard(provider),
+                            const SizedBox(height: 24),
+                            Expanded(child: _buildRecentQuizzes(provider)),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

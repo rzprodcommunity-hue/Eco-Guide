@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/responsive.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -45,57 +46,71 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
 
+    final isCompact = Responsive.isCompact(context);
+
+    final headerTitle = const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Admin Configuration',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          'Global system settings and platform customization for the Eco-Guide ecosystem.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      ],
+    );
+
+    final headerActions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        OutlinedButton(
+          onPressed: () {},
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.textSecondary,
+            side: const BorderSide(color: AppColors.divider),
+          ),
+          child: const Text('Discard'),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton.icon(
+          onPressed: _saveChanges,
+          icon: const Icon(Icons.check),
+          label: const Text('Save All Changes'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    );
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: Responsive.pagePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Admin Configuration',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Global system settings and platform customization for the Eco-Guide ecosystem.',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      side: const BorderSide(color: AppColors.divider),
-                    ),
-                    child: const Text('Discard'),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: _saveChanges,
-                    icon: const Icon(Icons.check),
-                    label: const Text('Save All Changes'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
+          if (isCompact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headerTitle,
+                const SizedBox(height: 16),
+                headerActions,
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [headerTitle, headerActions],
+            ),
+          SizedBox(height: isCompact ? 20 : 32),
           _buildCard(
             title: 'Administrator Profile',
             subtitle:
@@ -398,6 +413,15 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         fit: BoxFit.cover,
                         height: 250,
                         width: double.infinity,
+                        errorBuilder: (_, __, ___) => Container(
+                          height: 250,
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.map_outlined,
+                            size: 64,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
                     ),
                   ),

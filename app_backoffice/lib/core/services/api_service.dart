@@ -90,17 +90,21 @@ class ApiService {
     }
 
     if (path == '/sos/alerts/active') {
-      return _supabase
-          .from('sos_alerts')
-          .select()
-          .eq('status', 'active')
-          .order('createdAt', ascending: false);
+      return _enrichSosWithProfile(
+        await _supabase
+            .from('sos_alerts')
+            .select()
+            .eq('status', 'active')
+            .order('createdAt', ascending: false),
+      );
     }
     if (path == '/sos/alerts') {
-      return _supabase
-          .from('sos_alerts')
-          .select()
-          .order('createdAt', ascending: false);
+      return _enrichSosWithProfile(
+        await _supabase
+            .from('sos_alerts')
+            .select()
+            .order('createdAt', ascending: false),
+      );
     }
 
     throw ApiException('Endpoint Supabase non supporte: $path', 404);
@@ -146,6 +150,44 @@ class ApiService {
     final id = segments.last;
     await _supabase.from(table).delete().eq('id', id);
     return null;
+  }
+
+  static Future<List<Map<String, dynamic>>> _enrichSosWithProfile(
+    dynamic rows,
+  ) async {
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) return list;
+
+    final userIds = list
+        .map((a) => a['userId'])
+        .where((id) => id != null && id.toString().isNotEmpty)
+        .map((id) => id.toString())
+        .toSet()
+        .toList();
+    if (userIds.isEmpty) return list;
+
+    Map<String, Map<String, dynamic>> profilesById = {};
+    try {
+      final profiles = await _supabase
+          .from('profiles')
+          .select()
+          .inFilter('id', userIds);
+      for (final p in (profiles as List).cast<Map<String, dynamic>>()) {
+        final id = p['id']?.toString();
+        if (id != null) profilesById[id] = p;
+      }
+    } catch (_) {
+      // profiles table not available — return alerts as-is
+      return list;
+    }
+
+    return list.map((alert) {
+      final uid = alert['userId']?.toString();
+      if (uid != null && profilesById.containsKey(uid)) {
+        return {...alert, 'profile': profilesById[uid]};
+      }
+      return alert;
+    }).toList();
   }
 
   static Future<Map<String, dynamic>> _list(

@@ -39,15 +39,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleGoogleLogin() async {
-    final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.loginWithGoogle();
-
-    if (success && mounted && authProvider.isAuthenticated) {
-      context.go('/dashboard');
-    }
-  }
-
   void _handleBypass() {
     context.read<AuthProvider>().bypassAuth();
     context.go('/dashboard');
@@ -395,73 +386,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                         Icon(Icons.arrow_forward, size: 20),
                                       ],
                                     ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Divider(color: AppColors.divider),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                child: Text(
-                                  "OR",
-                                  style: TextStyle(
-                                    color: AppColors.textHint,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(color: AppColors.divider),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 32),
-                          SizedBox(
-                            height: 48,
-                            child: OutlinedButton(
-                              onPressed: authProvider.isLoading
-                                  ? null
-                                  : _handleGoogleLogin,
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppColors.divider),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Image.network(
-                                    'https://www.google.com/favicon.ico',
-                                    width: 20,
-                                    height: 20,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            const Icon(
-                                              Icons.g_mobiledata,
-                                              color: AppColors.primary,
-                                              size: 24,
-                                            ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    "Sign in with Google",
-                                    style: TextStyle(
-                                      color: const Color(
-                                        0xFF1E293B,
-                                      ).withValues(alpha: 0.8),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                           ),
                           const SizedBox(height: 16),
