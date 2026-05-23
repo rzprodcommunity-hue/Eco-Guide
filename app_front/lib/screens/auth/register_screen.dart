@@ -109,6 +109,19 @@ class _RegisterScreenState extends State<RegisterScreen>
     }
   }
 
+  Future<void> _continueWithApple() async {
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.loginWithApple();
+    if (mounted && !success && authProvider.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error!),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -163,12 +176,32 @@ class _RegisterScreenState extends State<RegisterScreen>
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(7),
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: const Icon(Icons.terrain, color: Colors.white, size: 22),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                width: 32,
+                                height: 32,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) => const Icon(
+                                  Icons.terrain,
+                                  color: AppTheme.primaryColor,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 10),
                           const Text(
@@ -413,7 +446,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             )),
                             const SizedBox(width: 14),
                             Expanded(child: _socialButton(
-                              onTap: () {},
+                              onTap: authProvider.isLoading ? null : _continueWithApple,
                               icon: Icon(
                                 Icons.apple,
                                 size: 22,

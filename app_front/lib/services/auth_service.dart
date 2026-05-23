@@ -68,6 +68,17 @@ class AuthService {
     );
   }
 
+  Future<void> loginWithApple() async {
+    await _supabase.auth.signInWithOAuth(
+      supabase.OAuthProvider.apple,
+      redirectTo: _oauthRedirectTo(),
+      scopes: 'email name',
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.externalApplication,
+    );
+  }
+
   Future<AuthResponse?> currentAuthResponse() async {
     final session = _supabase.auth.currentSession;
     final authUser = session?.user ?? _supabase.auth.currentUser;

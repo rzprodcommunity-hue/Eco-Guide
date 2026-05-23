@@ -1,4 +1,5 @@
-import 'dart:ui';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -204,39 +205,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return false;
           },
           child: SingleChildScrollView(
-          controller: _scrollController,
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header is inside the map hero — scrolls away with it
-              _buildHeroMap(
-                user,
-                bgColor,
-                trails: trailProvider.trails,
-                pois: poiProvider.pois,
-                services: localServiceProvider.services,
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Divider(
-                  height: 32,
-                  thickness: 1,
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.10)
-                      : Colors.black.withValues(alpha: 0.08),
+            controller: _scrollController,
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header is inside the map hero — scrolls away with it
+                _buildHeroMap(
+                  user,
+                  bgColor,
+                  trails: trailProvider.trails,
+                  pois: poiProvider.pois,
+                  services: localServiceProvider.services,
                 ),
-              ),
-              _buildQuickActions(),
-              const SizedBox(height: 24),
-              _buildNearbyTrails(trailProvider),
-              const SizedBox(height: 24),
-              _buildCurrentConditions(weatherProvider),
-              const SizedBox(height: 24),
-              _buildDiscoverNature(poiProvider),
-              const SizedBox(height: 24),
-            ],
-          ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Divider(
+                    height: 32,
+                    thickness: 1,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.10)
+                        : Colors.black.withValues(alpha: 0.08),
+                  ),
+                ),
+                _buildQuickActions(),
+                const SizedBox(height: 24),
+                _buildNearbyTrails(trailProvider),
+                const SizedBox(height: 24),
+                _buildCurrentConditions(weatherProvider),
+                const SizedBox(height: 24),
+                _buildDiscoverNature(poiProvider),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
@@ -267,7 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
@@ -283,90 +286,96 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Logo
-          Image.asset(
-            'assets/images/logo.png',
-            width: 34,
-            height: 34,
-            fit: BoxFit.contain,
-            errorBuilder: (_, e, s) => Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: const Color(0xFF22B53A).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.spa, color: Color(0xFF22B53A), size: 22),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // App name
-          Expanded(
-            child: Text(
-              'EcoGuide',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-                color: isDark ? Colors.white : const Color(0xFF1A2E1A),
-                letterSpacing: 0.4,
-              ),
-            ),
-          ),
-          // Avatar + label
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
+                // Logo
+                Image.asset(
+                  'assets/images/logo.png',
                   width: 34,
                   height: 34,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFD6C9A8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(2),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDark ? const Color(0xFF142D16) : Colors.white,
-                      ),
-                      child: ClipOval(
-                        child: user?.avatarUrl != null &&
-                                (user!.avatarUrl as String).isNotEmpty
-                            ? Image.network(
-                                user.avatarUrl as String,
-                                fit: BoxFit.cover,
-                                errorBuilder: (ctx, err, st) =>
-                                    _avatarInitials(initials, isDark),
-                              )
-                            : _avatarInitials(initials, isDark),
-                      ),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, e, s) => Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22B53A).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.spa,
+                      color: Color(0xFF22B53A),
+                      size: 22,
                     ),
                   ),
                 ),
-
+                const SizedBox(width: 8),
+                // App name
+                Expanded(
+                  child: Text(
+                    'EcoGuide',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF1A2E1A),
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+                // Avatar + label
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFD6C9A8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDark
+                                  ? const Color(0xFF142D16)
+                                  : Colors.white,
+                            ),
+                            child: ClipOval(
+                              child:
+                                  user?.avatarUrl != null &&
+                                      (user!.avatarUrl as String).isNotEmpty
+                                  ? Image.network(
+                                      user.avatarUrl as String,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (ctx, err, st) =>
+                                          _avatarInitials(initials, isDark),
+                                    )
+                                  : _avatarInitials(initials, isDark),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
-            ),
-          ),
-        ],
-            ),    // Row
-          ),      // inner Container
-        ),        // BackdropFilter
-      ),          // ClipRRect
-    );            // outer Container
+            ), // Row
+          ), // inner Container
+        ), // BackdropFilter
+      ), // ClipRRect
+    ); // outer Container
   }
 
   Widget _avatarInitials(String initials, bool isDark) {
@@ -525,18 +534,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildChatbotFab() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 80),
-      child: FloatingActionButton.extended(
-        heroTag: 'ecoChatbotFab',
-        onPressed: _openChatbot,
-        backgroundColor: const Color(0xFF0E7A23),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.smart_toy_outlined),
-        label: const Text(
-          'EcoBot',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
+      padding: const EdgeInsets.only(bottom: 90),
+      child: _PremiumChatbotFab(heroTag: 'ecoChatbotFab', onTap: _openChatbot),
     );
   }
 
@@ -553,25 +552,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return trails
         .where((t) => t.startLatitude != null && t.startLongitude != null)
         .map((trail) {
-      final point = LatLng(trail.startLatitude!, trail.startLongitude!);
-      return Marker(
-        point: point,
-        width: 32,
-        height: 32,
-        child: GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TrailDetailScreen(trail: trail),
+          final point = LatLng(trail.startLatitude!, trail.startLongitude!);
+          return Marker(
+            point: point,
+            width: 32,
+            height: 32,
+            child: GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TrailDetailScreen(trail: trail),
+                ),
+              ),
+              child: const CircleAvatar(
+                backgroundColor: Color(0xFF2E7D32),
+                child: Icon(Icons.terrain, size: 16, color: Colors.white),
+              ),
             ),
-          ),
-          child: const CircleAvatar(
-            backgroundColor: Color(0xFF2E7D32),
-            child: Icon(Icons.terrain, size: 16, color: Colors.white),
-          ),
-        ),
-      );
-    }).toList();
+          );
+        })
+        .toList();
   }
 
   List<Marker> _buildPoiMarkers(List<Poi> pois) {
@@ -584,9 +584,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => PoiDetailScreen(poi: poi),
-            ),
+            MaterialPageRoute(builder: (_) => PoiDetailScreen(poi: poi)),
           ),
           child: const CircleAvatar(
             backgroundColor: Color(0xFF212121),
@@ -598,31 +596,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   List<Marker> _buildServiceMarkers(List<LocalService> services) {
-    return services
-        .where((s) => s.latitude != null && s.longitude != null)
-        .map((service) {
-      final point = LatLng(service.latitude!, service.longitude!);
-      return Marker(
-        point: point,
-        width: 28,
-        height: 28,
-        child: GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => LocalServiceDetailScreen(
-                serviceId: service.id,
-                fallbackService: service,
+    return services.where((s) => s.latitude != null && s.longitude != null).map(
+      (service) {
+        final point = LatLng(service.latitude!, service.longitude!);
+        return Marker(
+          point: point,
+          width: 28,
+          height: 28,
+          child: GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LocalServiceDetailScreen(
+                  serviceId: service.id,
+                  fallbackService: service,
+                ),
               ),
             ),
+            child: const CircleAvatar(
+              backgroundColor: Color(0xFF1E9A35),
+              child: Icon(Icons.storefront, size: 14, color: Colors.white),
+            ),
           ),
-          child: const CircleAvatar(
-            backgroundColor: Color(0xFF1E9A35),
-            child: Icon(Icons.storefront, size: 14, color: Colors.white),
-          ),
-        ),
-      );
-    }).toList();
+        );
+      },
+    ).toList();
   }
 
   void _cycleMapStyle() {
@@ -699,9 +697,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: 'Annuaire',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const LocalServicesScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const LocalServicesScreen()),
             ),
           ),
           _buildQuickActionItem(
@@ -719,9 +715,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: 'Aide',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const HelpCenterScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const HelpCenterScreen()),
             ),
           ),
         ],
@@ -1632,4 +1626,219 @@ enum _DashboardMapStyle {
   final String urlTemplate;
 
   const _DashboardMapStyle(this.label, this.icon, this.urlTemplate);
+}
+
+class _PremiumChatbotFab extends StatefulWidget {
+  final String heroTag;
+  final VoidCallback onTap;
+
+  const _PremiumChatbotFab({required this.heroTag, required this.onTap});
+
+  @override
+  State<_PremiumChatbotFab> createState() => _PremiumChatbotFabState();
+}
+
+class _PremiumChatbotFabState extends State<_PremiumChatbotFab>
+    with TickerProviderStateMixin {
+  late final AnimationController _sparkleCtrl;
+  late final AnimationController _shimmerCtrl;
+  bool _pressed = false;
+
+  static const Color _green = Color(0xFF0E7A23);
+  static const Color _greenLight = Color(0xFF22B53A);
+
+  @override
+  void initState() {
+    super.initState();
+    _sparkleCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
+    _shimmerCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _sparkleCtrl.dispose();
+    _shimmerCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Hero(
+      tag: widget.heroTag,
+      child: Material(
+        color: Colors.transparent,
+        child: GestureDetector(
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapCancel: () => setState(() => _pressed = false),
+          onTapUp: (_) => setState(() => _pressed = false),
+          onTap: widget.onTap,
+          child: AnimatedScale(
+            scale: _pressed ? 0.96 : 1.0,
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOut,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_sparkleCtrl, _shimmerCtrl]),
+              builder: (_, _) {
+                final sparkleT =
+                    (math.sin(_sparkleCtrl.value * 2 * math.pi) + 1) / 2;
+                return Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 11),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        _green.withValues(alpha: 0.96),
+                        _greenLight.withValues(alpha: 0.96),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.30),
+                      width: 0.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _green.withValues(alpha: 0.30),
+                        blurRadius: 16,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Subtle shimmer band
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: Transform.translate(
+                              offset: Offset(-90 + _shimmerCtrl.value * 200, 0),
+                              child: Transform.rotate(
+                                angle: -0.4,
+                                child: Container(
+                                  width: 18,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0.0),
+                                        Colors.white.withValues(alpha: 0.22),
+                                        Colors.white.withValues(alpha: 0.0),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Gemini-style 4-point sparkle
+                            CustomPaint(
+                              size: const Size(14, 14),
+                              painter: _SparkleStarPainter(
+                                color: Colors.white,
+                                glowColor: Colors.white.withValues(
+                                  alpha: 0.4 + sparkleT * 0.5,
+                                ),
+                                glowRadius: 3 + sparkleT * 3,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Assistance IA',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11.5,
+                                letterSpacing: 0.3,
+                                shadows: [
+                                  Shadow(
+                                    color: Color(0x33000000),
+                                    blurRadius: 3,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SparkleStarPainter extends CustomPainter {
+  final Color color;
+  final Color glowColor;
+  final double glowRadius;
+
+  _SparkleStarPainter({
+    required this.color,
+    required this.glowColor,
+    required this.glowRadius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final outerR = size.width / 2;
+    final innerR = outerR * 0.18;
+
+    // 4-point star path (Gemini-style)
+    final path = ui.Path();
+    for (int i = 0; i < 8; i++) {
+      final angle = -math.pi / 2 + i * math.pi / 4;
+      final r = i.isEven ? outerR : innerR;
+      final x = center.dx + math.cos(angle) * r;
+      final y = center.dy + math.sin(angle) * r;
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+
+    // Glow underlay
+    final glowPaint = Paint()
+      ..color = glowColor
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowRadius);
+    canvas.drawPath(path, glowPaint);
+
+    // Solid star
+    final paint = Paint()..color = color;
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SparkleStarPainter old) =>
+      old.glowRadius != glowRadius || old.glowColor != glowColor;
 }

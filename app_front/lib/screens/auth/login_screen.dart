@@ -85,6 +85,19 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  Future<void> _continueWithApple() async {
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.loginWithApple();
+    if (!success && authProvider.error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error!),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
   // ignore: unused_element
   Future<void> _continueWithoutSignIn() async {
     await context.read<AuthProvider>().continueAsGuest();
@@ -146,12 +159,32 @@ class _LoginScreenState extends State<LoginScreen>
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(7),
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: const Icon(Icons.terrain, color: Colors.white, size: 22),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                width: 32,
+                                height: 32,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) => const Icon(
+                                  Icons.terrain,
+                                  color: AppTheme.primaryColor,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 10),
                           const Text(
@@ -353,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen>
                             )),
                             const SizedBox(width: 14),
                             Expanded(child: _socialButton(
-                              onTap: () {},
+                              onTap: authProvider.isLoading ? null : _continueWithApple,
                               icon: Icon(
                                 Icons.apple,
                                 size: 22,
