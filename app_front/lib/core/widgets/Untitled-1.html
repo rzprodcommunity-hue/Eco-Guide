@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eco Trails Mobile Navbar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --nav-bg: #f5f2e9;    /* Beige exact de votre image */
+            --active-green: #388e3c;
+            --inactive-gray: #5f6368;
+            --sos-red: #c63927;
+            --white: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0; /* Fond gris pour contraste */
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* --- Conteneur Mobile de la Navbar --- */
+        .mobile-nav-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 75px;
+            background-color: var(--nav-bg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            /* Coins arrondis supérieurs comme sur l'image */
+            border-radius: 25px 25px 0 0;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.08);
+            z-index: 999;
+            padding-bottom: env(safe-area-inset-bottom); /* Support iPhone (encoche) */
+        }
+
+        /* --- Éléments de navigation --- */
+        .nav-link {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            gap: 4px;
+            transition: transform 0.2s;
+        }
+
+        .nav-link:active {
+            transform: scale(0.9);
+        }
+
+        .nav-link i {
+            font-size: 24px;
+            color: var(--inactive-gray);
+        }
+
+        .nav-link span {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--inactive-gray);
+        }
+
+        /* Style de l'onglet actif (Home) */
+        .nav-link.active i, 
+        .nav-link.active span {
+            color: var(--active-green);
+        }
+
+        /* --- Le Bouton SOS Mobile --- */
+        .sos-wrapper {
+            position: relative;
+            width: 85px; /* Largeur de la zone centrale */
+            display: flex;
+            justify-content: center;
+        }
+
+        .sos-btn {
+            position: absolute;
+            bottom: 10px; /* Ajuste la hauteur pour que le bouton dépasse */
+            width: 75px;
+            height: 75px;
+            background-color: var(--sos-red);
+            border-radius: 50%;
+            /* La bordure blanche épaisse qui fait la différence */
+            border: 5px solid var(--white); 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(198, 57, 39, 0.3);
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .sos-btn .text-main {
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .sos-btn .text-sub {
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        /* Espaceur pour que les icônes ne soient pas sous le SOS */
+        .spacer {
+            width: 85px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div style="height: 200vh; padding: 20px;">
+        <p>Contenu de votre application...</p>
+    </div>
+
+    <nav class="mobile-nav-container">
+        
+        <a href="#" class="nav-link active">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+
+        <a href="#" class="nav-link">
+            <i class="fas fa-compass"></i>
+            <span>Explore</span>
+        </a>
+
+        <div class="sos-wrapper">
+            <div class="sos-btn">
+                <span class="text-main">SOS</span>
+                <span class="text-sub">Emergency</span>
+            </div>
+        </div>
+
+        <a href="#" class="nav-link">
+            <i class="fas fa-question-circle"></i>
+            <span>Quiz</span>
+        </a>
+
+        <a href="#" class="nav-link">
+            <i class="fas fa-store"></i>
+            <span>Services</span>
+        </a>
+
+    </nav>
+
+</body>
+</html>
