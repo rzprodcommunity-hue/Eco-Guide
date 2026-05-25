@@ -72,6 +72,8 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   bool _showTrails = true;
   bool _showPois = true;
   bool _showServices = true;
+  // When true, the map uses ONLY the saved (SQLite/disk) tiles — no network.
+  bool _forceOffline = false;
 
   @override
   void initState() {
@@ -296,16 +298,24 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               initialCenter: destination ?? _currentPosition,
               initialZoom: 13,
               minZoom: 3,
-              maxZoom: _mapStyle.maxZoom,
+              // Allow overzoom past the tiles' native max (upscaled tiles).
+              maxZoom: _mapStyle.maxZoom + 3,
             ),
             children: [
               TileLayer(
-                urlTemplate: _mapStyle.urlTemplate,
+                // Rebuild (refetch) when the offline mode toggles.
+                key: ValueKey('${_mapStyle.label}_$_forceOffline'),
+                // Forced offline uses the standard (Google "m") layer — the
+                // only one cached on disk.
+                urlTemplate: _forceOffline
+                    ? MapOfflineService.standardTileUrlTemplate
+                    : _mapStyle.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
-                maxZoom: _mapStyle.maxZoom,
+                maxZoom: _mapStyle.maxZoom + 3,
                 maxNativeZoom: _mapStyle.maxZoom.toInt(),
                 tileProvider: LocalFirstTileProvider(
                   service: _mapOfflineService,
+                  forceOffline: () => _forceOffline,
                 ),
               ),
               if (hasDestination)
@@ -557,6 +567,12 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        _buildRoundButton(
+          icon: _forceOffline ? Icons.cloud_off : Icons.cloud_queue,
+          onPressed: _toggleForceOffline,
+          active: _forceOffline,
+        ),
+        const SizedBox(height: 8),
         _buildRoundButton(icon: Icons.layers, onPressed: _cycleMapStyle),
         const SizedBox(height: 8),
         _buildRoundButton(
@@ -573,7 +589,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
           icon: Icons.add,
           onPressed: () {
             final next = (_mapController.camera.zoom + 1)
-                .clamp(3.0, _mapStyle.maxZoom);
+                .clamp(3.0, _mapStyle.maxZoom + 3);
             _mapController.move(_mapController.camera.center, next);
           },
         ),
@@ -582,7 +598,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
           icon: Icons.remove,
           onPressed: () {
             final next = (_mapController.camera.zoom - 1)
-                .clamp(3.0, _mapStyle.maxZoom);
+                .clamp(3.0, _mapStyle.maxZoom + 3);
             _mapController.move(_mapController.camera.center, next);
           },
         ),
@@ -593,12 +609,13 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   Widget _buildRoundButton({
     required IconData icon,
     required VoidCallback onPressed,
+    bool active = false,
   }) {
     return Container(
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: active ? const Color(0xFF0E7A23) : Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -609,8 +626,41 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
         ],
       ),
       child: IconButton(
-        icon: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
+        icon: Icon(
+          icon,
+          color: active ? Colors.white : Theme.of(context).colorScheme.onSurface,
+        ),
         onPressed: onPressed,
+      ),
+    );
+  }
+
+  void _toggleForceOffline() {
+    setState(() => _forceOffline = !_forceOffline);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Theme.of(context).colorScheme.onSurface,
+        content: Row(
+          children: [
+            Icon(
+              _forceOffline ? Icons.cloud_off : Icons.cloud_queue,
+              color: Theme.of(context).cardColor,
+              size: 18,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _forceOffline
+                    ? 'Carte hors ligne forcée : tuiles enregistrées uniquement.'
+                    : 'Carte en ligne réactivée.',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

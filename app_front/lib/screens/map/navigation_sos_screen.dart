@@ -71,9 +71,14 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   double _offTrailDistance = 0;
 
   _NavPhase _navPhase = _NavPhase.toPoi;
-  // Distance below which we consider the user has "reached the start"
-  // and we switch the off-trail reference to the trail polyline.
-  static const double _reachedStartMeters = 12;
+  // Distance (m) at which we announce "Vous êtes là" — the user has reached the
+  // PRECISE start point (trailhead) or the destination point — and we switch
+  // the off-trail reference to the trail polyline.
+  static const double _reachedStartMeters = 5;
+  // Distance (m) at which we fire the "you are approaching" alert.
+  static const double _approachMeters = 7;
+  bool _approachAnnounced = false;
+  bool _arrivedAnnounced = false;
 
   _MapVisualStyle _mapStyle = _MapVisualStyle.satellite;
 
@@ -336,6 +341,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       services: localServiceProvider.services,
     );
 
+    _checkTargetProximity();
     _maybeAdvancePhaseAfterMove();
     _updateCurrentInstruction();
     _computeOffTrailStatus();
@@ -732,6 +738,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
 
       await _refreshRoute();
       _computeOffTrailStatus();
+      _checkTargetProximity();
+      _maybeAdvancePhaseAfterMove();
     } catch (_) {
       // Ignore temporary GPS failures.
     }
@@ -987,6 +995,26 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       }
     }
     return best;
+  }
+
+  /// Splits the trail into the part already walked and the part still ahead,
+  /// using the trail vertex nearest to the user. The two lists share that
+  /// vertex so the green (covered) and violet (remaining) lines join cleanly.
+  (List<LatLng>, List<LatLng>) _splitTrailByProgress() {
+    final pts = _trailPoints;
+    if (pts.length < 2) return (const <LatLng>[], pts);
+    int nearestIdx = 0;
+    double minM = double.infinity;
+    for (int i = 0; i < pts.length; i++) {
+      final m = _distance.as(LengthUnit.Meter, _currentPosition, pts[i]);
+      if (m < minM) {
+        minM = m;
+        nearestIdx = i;
+      }
+    }
+    final traveled = pts.sublist(0, nearestIdx + 1);
+    final remaining = pts.sublist(nearestIdx);
+    return (traveled, remaining);
   }
 
   // Bearing in degrees [0, 360) from point a to point b
@@ -1266,8 +1294,55 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     }
   }
 
+  /// Proximity alerts toward the PRECISE point the user must reach:
+  ///  - a trail's START point (the trailhead) — never the end point, or
+  ///  - the POI / service / annuaire destination point.
+  ///
+  /// Fires a one-shot "approaching" alert at [_approachMeters] (7 m) and a
+  /// "Vous êtes là" arrival announcement at [_reachedStartMeters] (5 m).
+  void _checkTargetProximity() {
+    final bool isTrail = widget.trail != null;
+    if (isTrail) {
+      // Only while actively walking toward the start of the trail.
+      if (_hikeStatus != _HikeStatus.inProgress) return;
+      if (_navPhase != _NavPhase.goToStart) return;
+    } else if (_activeDestination == null) {
+      return;
+    }
+
+    final LatLng? target = isTrail ? _trailStartPoint : _activeDestination;
+    if (target == null) return;
+
+    final meters = _distance.as(LengthUnit.Meter, _currentPosition, target);
+
+    // Approaching alert at 7 m.
+    if (meters <= _approachMeters && !_approachAnnounced) {
+      _approachAnnounced = true;
+      HapticFeedback.lightImpact();
+      _speak(
+        isTrail
+            ? 'Vous approchez du point de départ. Plus que ${meters.round()} mètres.'
+            : 'Vous approchez de votre destination. Plus que ${meters.round()} mètres.',
+        id: 'approach_target',
+      );
+    }
+
+    // Arrival "Vous êtes là" at 5 m.
+    if (meters <= _reachedStartMeters && !_arrivedAnnounced) {
+      _arrivedAnnounced = true;
+      HapticFeedback.mediumImpact();
+      _speak(
+        isTrail
+            ? 'Vous êtes là ! Vous êtes au point de départ du sentier. Suivez le tracé.'
+            : 'Vous êtes là ! Vous êtes arrivé à ${_activeDestinationLabel ?? 'destination'}.',
+        id: 'arrived_target',
+      );
+    }
+  }
+
   /// Advances `_navPhase` from goToStart → onTrail once the user is within
-  /// [_reachedStartMeters] of the trail start point.
+  /// [_reachedStartMeters] of the trail start point. The "Vous êtes là"
+  /// announcement is handled by [_checkTargetProximity].
   void _maybeAdvancePhaseAfterMove() {
     if (_navPhase != _NavPhase.goToStart) return;
     final start = _trailStartPoint;
@@ -1282,11 +1357,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       // Clear the OSRM "go-to-start" route — the trail polyline takes over.
       _routePoints = [];
     });
-    HapticFeedback.mediumImpact();
-    _speak(
-      'Vous êtes au départ du sentier. Suivez le tracé.',
-      id: 'phase_on_trail',
-    );
   }
 
   void _clearOffTrailAlert() {
@@ -1496,6 +1566,15 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     final trailStart = _trailStartPoint;
     final trailEnd = _trailEndPoint;
 
+    // While walking the trail, split it into the part already covered (green)
+    // and the part still ahead (violet), based on the user's position.
+    final bool showTrailProgress =
+        _navPhase == _NavPhase.onTrail && _trailPoints.length >= 2;
+    final (List<LatLng> traveledTrail, List<LatLng> remainingTrail) =
+        showTrailProgress
+            ? _splitTrailByProgress()
+            : (const <LatLng>[], _trailPoints);
+
     return Scaffold(
       appBar: _isFullScreen ? null : const EcoPageHeader(title: 'Navigation & SOS'),
       body: Stack(
@@ -1506,7 +1585,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
               initialCenter: destination ?? _currentPosition,
               initialZoom: 14,
               minZoom: 3,
-              maxZoom: 19,
+              // Allow deeper zoom than the tiles provide (overzoom): the last
+              // available tiles are upscaled past the native max.
+              maxZoom: 22,
             ),
             children: [
               TileLayer(
@@ -1518,6 +1599,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                         : _mapStyle)
                     .urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
+                // Real tiles up to 19; levels 20-22 are upscaled so the user
+                // can keep zooming even where no higher-res data exists.
+                maxNativeZoom: 19,
+                maxZoom: 22,
                 tileProvider: LocalFirstTileProvider(
                   service: _mapOfflineService,
                 ),
@@ -1527,13 +1612,26 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 polylines: [
                   // Trail GeoJSON (fixed path) — drawn underneath everything
                   // so OSRM routes (go-to-start / recovery) can sit on top.
-                  if (_trailPoints.isNotEmpty)
+                  // Before starting the trail: the whole path, dimmed violet.
+                  if (_trailPoints.isNotEmpty && !showTrailProgress)
                     Polyline(
                       points: _trailPoints,
                       strokeWidth: 6,
-                      color: Colors.deepPurpleAccent.withValues(
-                        alpha: _navPhase == _NavPhase.onTrail ? 1.0 : 0.55,
-                      ),
+                      color: Colors.deepPurpleAccent.withValues(alpha: 0.55),
+                    ),
+                  // While walking: part still ahead in violet…
+                  if (showTrailProgress && remainingTrail.length >= 2)
+                    Polyline(
+                      points: remainingTrail,
+                      strokeWidth: 6,
+                      color: Colors.deepPurpleAccent,
+                    ),
+                  // …and the part already covered in green, drawn on top.
+                  if (showTrailProgress && traveledTrail.length >= 2)
+                    Polyline(
+                      points: traveledTrail,
+                      strokeWidth: 6,
+                      color: const Color(0xFF22B53A),
                     ),
                   // OSRM route — drawn when:
                   //   - phase = goToStart (route from user to trail start)
@@ -1795,7 +1893,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
           if (_isFullScreen || _hikeStatus != _HikeStatus.notStarted)
             Positioned(
               left: 14,
-              bottom: _isFullScreen ? 24 : 240,
+              bottom: _isFullScreen
+                  ? 24 + MediaQuery.of(context).padding.bottom
+                  : 240,
               child: _buildFloatingSosButton(compact: true),
             ),
           if (!_isFullScreen)
@@ -2153,7 +2253,12 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   Widget _buildBottomStatsPanel(double destinationKm) {
     if (_hikeStatus == _HikeStatus.notStarted) {
       return Container(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 22),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          14,
+          16,
+          22 + MediaQuery.of(context).padding.bottom,
+        ),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
@@ -2267,7 +2372,12 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     final altStr = '${_currentAltitude.round()} m';
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        10,
+        16,
+        12 + MediaQuery.of(context).padding.bottom,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
             ? Theme.of(

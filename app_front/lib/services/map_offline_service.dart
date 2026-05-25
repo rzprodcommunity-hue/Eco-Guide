@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
@@ -361,8 +362,20 @@ class MapOfflineService {
 class LocalFirstTileProvider extends TileProvider {
   final MapOfflineService _mapOfflineService;
 
-  LocalFirstTileProvider({MapOfflineService? service})
+  /// When this returns true, tiles are served ONLY from the local SQLite/disk
+  /// cache — the network is never touched and missing tiles are blank.
+  final bool Function()? forceOffline;
+
+  LocalFirstTileProvider({MapOfflineService? service, this.forceOffline})
     : _mapOfflineService = service ?? MapOfflineService();
+
+  // 1×1 transparent PNG used for missing tiles while offline is forced.
+  static final MemoryImage _blankTile = MemoryImage(
+    base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
+      '+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    ),
+  );
 
   @override
   ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
@@ -370,11 +383,20 @@ class LocalFirstTileProvider extends TileProvider {
     final x = coordinates.x.round();
     final y = coordinates.y.round();
 
-    if (options.urlTemplate == MapOfflineService.standardTileUrlTemplate) {
+    final offline = forceOffline?.call() ?? false;
+
+    // Cached tiles only exist for the standard Google "m" layer.
+    if (offline ||
+        options.urlTemplate == MapOfflineService.standardTileUrlTemplate) {
       final cachedFile = _mapOfflineService.tileFileSync(z: z, x: x, y: y);
       if (cachedFile != null) {
         return FileImage(cachedFile);
       }
+    }
+
+    // Forced offline → never hit the network; show a blank tile if missing.
+    if (offline) {
+      return _blankTile;
     }
 
     return NetworkImage(getTileUrl(coordinates, options));
