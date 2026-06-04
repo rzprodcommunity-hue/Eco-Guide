@@ -14,9 +14,11 @@ import '../../providers/locale_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../services/map_offline_service.dart';
 import '../../services/review_service.dart';
+import '../../services/trail_unlock_service.dart';
 import '../map/navigation_sos_screen.dart';
 import '../offline/offline_trails_screen.dart';
 import '../poi/poi_detail_screen.dart';
+import '../settings/qr_unlock_screen.dart';
 
 class TrailDetailScreen extends StatefulWidget {
   final Trail trail;
@@ -36,11 +38,14 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
   bool _heroCollapsed = false;
   List<TrailReview> _reviews = [];
   bool _reviewsLoading = true;
+  bool _trailUnlocked = false;
+  Duration? _unlockRemaining;
 
   @override
   void initState() {
     super.initState();
     _mapOfflineService.initialize();
+    _checkUnlock();
     _scrollController.addListener(() {
       final collapsed = _scrollController.offset > 300;
       if (collapsed != _heroCollapsed) setState(() => _heroCollapsed = collapsed);
@@ -68,6 +73,109 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     } finally {
       if (mounted) setState(() => _reviewsLoading = false);
     }
+  }
+
+  Future<void> _checkUnlock() async {
+    final unlocked = await TrailUnlockService.instance.isUnlocked(
+      trailId: widget.trail.id,
+      trailName: widget.trail.name,
+    );
+    final remaining = unlocked
+        ? await TrailUnlockService.instance.remaining(
+            trailId: widget.trail.id,
+            trailName: widget.trail.name,
+          )
+        : null;
+    if (mounted) {
+      setState(() {
+        _trailUnlocked = unlocked;
+        _unlockRemaining = remaining;
+      });
+    }
+  }
+
+  /// Shown when the user taps "Démarrer" on a trail that has not been unlocked
+  /// by scanning the guide's QR code.
+  Future<void> _showLockedDialog() async {
+    final goScan = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.lock, color: Color(0xFFD54A3A), size: 40),
+        title: const Text('Sentier verrouillé'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ce sentier doit être ouvert par un guide. Scannez le QR code '
+              'fourni, ou contactez l\'administrateur pour l\'ouvrir.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD54A3A).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Code d\'erreur : ${TrailUnlockService.lockedErrorCode}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFD54A3A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Fermer'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            icon: const Icon(Icons.qr_code_scanner, size: 18),
+            label: const Text('Scanner le QR'),
+          ),
+        ],
+      ),
+    );
+
+    if (goScan == true && mounted) {
+      final unlocked = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const QrUnlockScreen()),
+      );
+      if (unlocked == true) {
+        await _checkUnlock();
+        if (mounted) _startNavigation();
+      }
+    }
+  }
+
+  String _formatRemaining(Duration d) {
+    if (d.inHours >= 1) return '${d.inHours} h restantes';
+    if (d.inMinutes >= 1) return '${d.inMinutes} min restantes';
+    return 'expire bientôt';
+  }
+
+  void _startNavigation() {
+    if (widget.trail.startLatitude == null ||
+        widget.trail.startLongitude == null) {
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NavigationSosScreen(
+          destination: LatLng(
+            widget.trail.startLatitude!,
+            widget.trail.startLongitude!,
+          ),
+          destinationLabel: widget.trail.name,
+          trail: widget.trail,
+        ),
+      ),
+    );
   }
 
   String _getDifficultyText(String difficulty) {
@@ -1289,22 +1397,16 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                     widget.trail.startLongitude == null
                 ? null
                 : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => NavigationSosScreen(
-                          destination: LatLng(
-                            widget.trail.startLatitude!,
-                            widget.trail.startLongitude!,
-                          ),
-                          destinationLabel: widget.trail.name,
-                          trail: widget.trail,
-                        ),
-                      ),
-                    );
+                    if (_trailUnlocked) {
+                      _startNavigation();
+                    } else {
+                      _showLockedDialog();
+                    }
                   },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
+              backgroundColor: _trailUnlocked
+                  ? Theme.of(context).primaryColor
+                  : const Color(0xFF8A8A8A),
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1314,10 +1416,18 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.navigation, color: Colors.white, size: 18),
+                Icon(
+                  _trailUnlocked ? Icons.navigation : Icons.lock,
+                  color: Colors.white,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Text(
-                  context.watch<LocaleProvider>().t('trail.start'),
+                  _trailUnlocked
+                      ? (_unlockRemaining != null
+                          ? '${context.watch<LocaleProvider>().t('trail.start')} · ${_formatRemaining(_unlockRemaining!)}'
+                          : context.watch<LocaleProvider>().t('trail.start'))
+                      : 'Verrouillé — scanner le QR',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,

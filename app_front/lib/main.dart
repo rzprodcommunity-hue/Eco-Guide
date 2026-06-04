@@ -8,6 +8,7 @@ import 'core/services/network_service.dart';
 import 'core/theme/app_theme.dart';
 import 'services/api_client.dart';
 import 'services/map_offline_service.dart';
+import 'services/offline_seed_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/trail_provider.dart';
 import 'providers/poi_provider.dart';
@@ -32,6 +33,9 @@ Future<void> main() async {
     url: dotenv.env['SUPABASE_URL'] ?? '',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
+  // One-time: unpack the bundled offline pack (tiles + data) into the local
+  // cache so a fresh install works without any connection.
+  await OfflineSeedService.seedIfNeeded();
   runApp(const EcoGuideApp());
 }
 

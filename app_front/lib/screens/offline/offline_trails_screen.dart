@@ -194,23 +194,39 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
     });
 
     try {
-      final result = await _mapOfflineService.downloadTiles(
-        bounds: TileBounds.tabarka,
-        zooms: _tileMode.zooms,
-        onProgress: (progress, downloaded, total) {
-          if (!mounted) return;
-          setState(() {
-            _mapDownloadProgress = progress;
-            _mapDownloadStatus = 'Tuiles: $downloaded / $total';
-          });
-        },
-      );
+      // Download both covered regions together: Tabarka + Jbel Chitana (Nefza).
+      const regions = <(String, TileBounds)>[
+        ('Tabarka', TileBounds.tabarka),
+        ('Jbel Chitana', TileBounds.jbelChitana),
+      ];
+      var totalDownloaded = 0;
+      var totalCached = 0;
+      var totalFailed = 0;
+
+      for (var i = 0; i < regions.length; i++) {
+        final region = regions[i];
+        final result = await _mapOfflineService.downloadTiles(
+          bounds: region.$2,
+          zooms: _tileMode.zooms,
+          onProgress: (progress, downloaded, total) {
+            if (!mounted) return;
+            setState(() {
+              // Spread each region's progress across the full bar.
+              _mapDownloadProgress = (i + progress) / regions.length;
+              _mapDownloadStatus = '${region.$1}: $downloaded / $total';
+            });
+          },
+        );
+        totalDownloaded += result.downloaded;
+        totalCached += result.alreadyCached;
+        totalFailed += result.failed;
+      }
 
       _isMapInstalled = true;
       await _persistMapInstalled();
       await _refreshCachedSizes();
       _showMessage(
-        'Carte téléchargée (${result.downloaded + result.alreadyCached} tuiles, ${result.failed} échouées).',
+        'Cartes téléchargées (${totalDownloaded + totalCached} tuiles, $totalFailed échouées).',
       );
     } catch (e) {
       debugPrint('Map tile download error: $e');
@@ -475,6 +491,61 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
     }
   }
 
+  /// Downloads OR updates EVERYTHING in one pass: every trail, every POI and
+  /// every service. Re-downloading an already-installed item refreshes its
+  /// cached data, so this doubles as a "mettre à jour" action.
+  Future<void> _bulkDownloadAll() async {
+    if (_isBulkDownloading) return;
+    final trails = context.read<TrailProvider>().trails;
+    final pois = context.read<PoiProvider>().pois;
+    final services = context.read<LocalServiceProvider>().services;
+    if (!await _requireOnline()) return;
+
+    final total = trails.length + pois.length + services.length;
+    if (total == 0) {
+      _showMessage('Aucune donnée à télécharger.');
+      return;
+    }
+
+    setState(() {
+      _isBulkDownloading = true;
+      _bulkStatus = 'Préparation... 0 / $total';
+    });
+
+    var done = 0;
+    void tick(String label) {
+      if (!mounted) return;
+      setState(() => _bulkStatus = '$label ${done + 1} / $total');
+    }
+
+    for (final trail in trails) {
+      if (!mounted) break;
+      tick('Sentiers');
+      await _downloadTrail(trail, silent: true);
+      done++;
+    }
+    for (final poi in pois) {
+      if (!mounted) break;
+      tick('POIs');
+      await _downloadPoi(poi, silent: true);
+      done++;
+    }
+    for (final service in services) {
+      if (!mounted) break;
+      tick('Services');
+      await _downloadService(service, silent: true);
+      done++;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isBulkDownloading = false;
+        _bulkStatus = '';
+      });
+      _showMessage('$total élément(s) téléchargé(s) / mis à jour.');
+    }
+  }
+
   Future<void> _bulkDownloadServices() async {
     if (_isBulkDownloading) return;
     final services = context.read<LocalServiceProvider>().services;
@@ -511,10 +582,15 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Estimate covers both downloaded regions: Tabarka + Jbel Chitana (Nefza).
     final estimatedMapMb = _mapOfflineService.estimateSizeMb(
-      zooms: _tileMode.zooms,
-      bounds: TileBounds.tabarka,
-    );
+          zooms: _tileMode.zooms,
+          bounds: TileBounds.tabarka,
+        ) +
+        _mapOfflineService.estimateSizeMb(
+          zooms: _tileMode.zooms,
+          bounds: TileBounds.jbelChitana,
+        );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -536,6 +612,8 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                   _buildHeroCard(estimatedMapMb),
                   const SizedBox(height: 16),
                   _buildMapDownloadCard(estimatedMapMb),
+                  const SizedBox(height: 16),
+                  _buildDownloadAllCard(),
                   const SizedBox(height: 16),
                   _buildTabsCard(),
                   const SizedBox(height: 16),
@@ -651,6 +729,171 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
           Text(
             label,
             style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDownloadAllCard() {
+    final trails = context.watch<TrailProvider>().trails;
+    final pois = context.watch<PoiProvider>().pois;
+    final services = context.watch<LocalServiceProvider>().services;
+
+    final total = trails.length + pois.length + services.length;
+    final installed = trails.where((t) => _installedTrailIds.contains(t.id)).length +
+        pois.where((p) => _installedPoiIds.contains(p.id)).length +
+        services.where((s) => _installedServiceIds.contains(s.id)).length;
+    final allInstalled = total > 0 && installed >= total;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.cloud_sync, color: _green),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tout le contenu',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Sentiers · POIs · services',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$installed / $total',
+                  style: const TextStyle(
+                    color: _greenDark,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _miniCount(Icons.terrain, '${trails.length} sentiers'),
+              _miniCount(Icons.place, '${pois.length} POIs'),
+              _miniCount(Icons.storefront, '${services.length} services'),
+            ],
+          ),
+          if (_isBulkDownloading) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(_green),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _bulkStatus,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _greenDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed:
+                  _isBulkDownloading || total == 0 ? null : _bulkDownloadAll,
+              style: FilledButton.styleFrom(
+                backgroundColor: _green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: Icon(
+                allInstalled ? Icons.refresh : Icons.download_for_offline,
+              ),
+              label: Text(
+                total == 0
+                    ? 'Aucune donnée'
+                    : allInstalled
+                        ? 'Mettre à jour tout ($total)'
+                        : 'Tout télécharger ($total)',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniCount(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _green.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: _greenDark),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: _greenDark,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

@@ -60,6 +60,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _hasCenteredOnUser = false;
   bool _styleAutoSet = false;
   bool _buttonDragging = false;
+
+  // Hero map "grow then open" animation.
+  static const double _heroBaseHeight = 340;
+  double _heroMapHeight = _heroBaseHeight;
+  Duration _heroAnimDuration = Duration.zero;
+  bool _expandingMap = false;
   LatLng _currentPosition = LatLng(
     AppConstants.defaultLatitude,
     AppConstants.defaultLongitude,
@@ -131,6 +137,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _loadData();
   }
 
+  /// Called continuously while the user pulls the map handle: the hero map
+  /// follows the finger and grows bigger and bigger. On release (dy == 0) it
+  /// eases back to its base size.
+  void _onMapPull(double dy) {
+    if (_expandingMap) return;
+    setState(() {
+      // Follow the finger 1:1 while pulling; ease back smoothly on release.
+      _heroAnimDuration =
+          dy > 0 ? Duration.zero : const Duration(milliseconds: 260);
+      _heroMapHeight = _heroBaseHeight + (dy > 0 ? dy : 0);
+    });
+  }
+
+  /// Expand the hero map to fill the screen, then open the full interactive
+  /// map — giving a smooth "grow → open" transition.
+  Future<void> _expandAndOpenMap() async {
+    if (_expandingMap) return;
+    _expandingMap = true;
+    final fullHeight = MediaQuery.of(context).size.height;
+    setState(() {
+      _heroAnimDuration = const Duration(milliseconds: 340);
+      _heroMapHeight = fullHeight;
+    });
+    // Let the grow animation play before switching to the map tab.
+    await Future.delayed(const Duration(milliseconds: 360));
+    if (!mounted) {
+      _expandingMap = false;
+      return;
+    }
+    widget.onNavigateToMap?.call();
+    // Reset for when the user comes back to the dashboard tab.
+    await Future.delayed(const Duration(milliseconds: 60));
+    if (mounted) {
+      setState(() {
+        _heroAnimDuration = Duration.zero;
+        _heroMapHeight = _heroBaseHeight;
+      });
+    }
+    _expandingMap = false;
+  }
+
   Future<void> _detectUserPosition() async {
     final result = await LocationService.getBestFix();
     if (!result.isSuccess) return;
@@ -175,7 +222,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = authProvider.user;
 
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -203,23 +249,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 pois: poiProvider.pois,
                 services: localServiceProvider.services,
               ),
+              // Flat content panel under the map (the map carries the curve,
+              // rounding into the page at its bottom).
+              // Grab handle only — no text. Drag it down to grow & open the map.
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Divider(
-                  height: 32,
-                  thickness: 1,
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.10)
-                      : Colors.black.withValues(alpha: 0.08),
-                ),
-              ),
-              // 3D button — tap, or pull down and release to open the map.
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                padding: const EdgeInsets.only(top: 6, bottom: 2),
                 child: MapPullButton(
-                  onActivate: () => widget.onNavigateToMap?.call(),
+                  onActivate: _expandAndOpenMap,
+                  onPull: _onMapPull,
                   onDragStateChanged: (dragging) {
-                    if (mounted) setState(() => _buttonDragging = dragging);
+                    if (mounted) {
+                      setState(() => _buttonDragging = dragging);
+                    }
                   },
                 ),
               ),
@@ -385,12 +426,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     List<Poi> pois = const [],
     List<LocalService> services = const [],
   }) {
-    return SizedBox(
-      height: 340,
+    return AnimatedContainer(
+      duration: _heroAnimDuration,
+      curve: Curves.easeOutCubic,
+      height: _heroMapHeight,
       width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      // Curve inverted vertically: the MAP rounds at the BOTTOM (curving into
+      // the page) instead of the sheet rounding at the top.
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
       child: Stack(
         children: [
-          FlutterMap(
+          Positioned.fill(
+            child: FlutterMap(
             mapController: _mapController,
             options: MapOptions(
               initialCenter: _currentPosition,
@@ -435,6 +485,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ],
+            ),
           ),
           // Map style toggle + locate buttons (bottom-right)
           Positioned(
@@ -519,8 +570,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildChatbotFab() {
+    // Sit just above the floating bottom nav pill (pill height + its bottom
+    // margin) with a small gap, so it never overlaps the page content.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final navBarHeight = 64 + (bottomInset > 0 ? bottomInset : 10);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 84),
+      padding: EdgeInsets.only(bottom: navBarHeight + 12, right: 2),
       child: EcoChatbotFab(onPressed: _openChatbot),
     );
   }

@@ -67,6 +67,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   bool _isRouting = false;
   bool _offTrailAlert = false;
   bool _offTrailMuted = false;
+  // When true the user has dismissed the off-trail alert entirely: no banner,
+  // no vibration, no voice. Re-enabled from the map action column at any time.
+  bool _offTrailDisabled = false;
   Timer? _offTrailBuzzTimer;
   double _offTrailDistance = 0;
 
@@ -94,6 +97,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
 
   _HikeStatus _hikeStatus = _HikeStatus.notStarted;
   bool _isFullScreen = false;
+  // Hides the lines linking the current position to the start/target.
+  bool _hideStartLink = false;
   DateTime? _startTime;
   Duration _elapsedTime = Duration.zero;
   double _distanceTraveled = 0.0;
@@ -745,14 +750,23 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     }
   }
 
+  /// Hybrid routing for the orange guide line:
+  ///   • Offline → no API. A direct line to the target is drawn (see [build],
+  ///     when [_routePoints] is empty) and guidance is derived locally from the
+  ///     trail geometry via [_stepsFromTrailPoints].
+  ///   • Online  → OSRM is queried for the real route geometry + turn-by-turn
+  ///     steps. Any failure falls back to the offline behaviour.
   Future<void> _refreshRoute({bool force = false}) async {
     if (_activeDestination == null || !mounted) return;
-
     if (!force && _isRouting) return;
 
+    // No connection → internal computation only (no API call).
+    if (_isOffline) {
+      _applyOfflineRoute();
+      return;
+    }
+
     final destination = _activeDestination!;
-    // Note: project-osrm.org public API only supports /driving/ profile.
-    // /foot/ would return 400 Bad Request and leave the route empty.
     final url = Uri.parse(
       'https://router.project-osrm.org/route/v1/driving/'
       '${_currentPosition.longitude},${_currentPosition.latitude};'
@@ -766,15 +780,24 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             const Duration(seconds: 10),
             onTimeout: () => http.Response('', 408),
           );
-      if (response.statusCode != 200) return;
+      if (response.statusCode != 200) {
+        _applyOfflineRoute();
+        return;
+      }
 
       final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
       final routes = jsonBody['routes'] as List?;
-      if (routes == null || routes.isEmpty) return;
+      if (routes == null || routes.isEmpty) {
+        _applyOfflineRoute();
+        return;
+      }
 
       final geometry = routes.first['geometry'] as Map<String, dynamic>?;
       final coordinates = geometry?['coordinates'] as List?;
-      if (coordinates == null || coordinates.isEmpty) return;
+      if (coordinates == null || coordinates.isEmpty) {
+        _applyOfflineRoute();
+        return;
+      }
 
       final points = coordinates
           .whereType<List>()
@@ -787,10 +810,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
           )
           .toList();
 
-      // Parse turn-by-turn steps from OSRM. We collect raw data first so we
-      // can rewrite the "depart" step with the distance to the FIRST real
-      // turn — that way the user reads an actionable instruction like
-      // "Après 80 m, tournez à droite" instead of a generic "Démarrez".
+      // Turn-by-turn steps; rewrite the "depart" step with the distance to the
+      // first real turn for an actionable instruction.
       final steps = <_RouteStep>[];
       final legs = routes.first['legs'] as List?;
       final rawManeuvers = <Map<String, dynamic>>[];
@@ -813,8 +834,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
         }
       }
 
-      // Find the first "real" instruction (turn / fork / continue) after the
-      // depart step — its modifier tells us where we're going first.
       String firstDir = '';
       double firstDirDistance = 0;
       for (var i = 0; i < rawManeuvers.length; i++) {
@@ -849,8 +868,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       }
 
       if (!mounted) return;
-      // If OSRM didn't return useful steps (which often happens on hiking
-      // trails), generate them from the trail GeoJSON using bearing math.
+      // OSRM rarely returns useful steps on hiking trails → fall back to steps
+      // generated from the trail GeoJSON.
       final finalSteps = steps.length > 1 ? steps : _stepsFromTrailPoints();
 
       setState(() {
@@ -859,12 +878,23 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       });
       _updateCurrentInstruction();
     } catch (_) {
-      // Fallback is handled by direct line when route data is missing.
+      _applyOfflineRoute();
     } finally {
       if (mounted) {
         setState(() => _isRouting = false);
       }
     }
+  }
+
+  /// Internal (offline / fallback) route: a direct line + local trail guidance.
+  void _applyOfflineRoute() {
+    if (!mounted) return;
+    setState(() {
+      _routePoints = const [];
+      _routeSteps = _stepsFromTrailPoints();
+      _isRouting = false;
+    });
+    _updateCurrentInstruction();
   }
 
   String _humanInstruction(String type, String modifier, double distance) {
@@ -1234,10 +1264,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     });
   }
 
-  // Strict tracking per user spec: alert when more than 3 m off the
-  // reference path, clear back at 2 m to avoid flapping with GPS jitter.
-  static const double _offTrailEnterMeters = 3;
-  static const double _offTrailExitMeters = 2;
+  // Alert when more than 5 m off the reference path; clear back at 3 m to
+  // avoid flapping with GPS jitter (hysteresis).
+  static const double _offTrailEnterMeters = 5;
+  static const double _offTrailExitMeters = 3;
 
   /// Returns the reference polyline used to decide if the user is off-trail.
   /// - In [_NavPhase.onTrail]: the official trail GeoJSON polyline.
@@ -1253,6 +1283,11 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   }
 
   void _computeOffTrailStatus() {
+    // The user can switch the off-trail alert off completely.
+    if (_offTrailDisabled) {
+      if (_offTrailAlert) _clearOffTrailAlert();
+      return;
+    }
     // Off-trail is only meaningful while the hike is actually in progress.
     if (_hikeStatus != _HikeStatus.inProgress) {
       if (_offTrailAlert) _clearOffTrailAlert();
@@ -1408,6 +1443,42 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     }
   }
 
+  /// Turns the off-trail alert fully off (banner + vibration + voice) until the
+  /// user re-enables it from the action column. Shows a quick hint on how to
+  /// bring it back.
+  void _disableOffTrailAlert() {
+    setState(() => _offTrailDisabled = true);
+    _clearOffTrailAlert();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF2E7D32),
+          content: const Text('Alerte hors-sentier désactivée'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Réactiver',
+            textColor: Colors.white,
+            onPressed: _toggleOffTrailDetection,
+          ),
+        ),
+      );
+  }
+
+  /// Toggles off-trail detection on/off. Re-enabling re-evaluates immediately so
+  /// a current deviation re-appears right away.
+  void _toggleOffTrailDetection() {
+    final willDisable = !_offTrailDisabled;
+    setState(() => _offTrailDisabled = willDisable);
+    if (willDisable) {
+      _clearOffTrailAlert();
+    } else {
+      _computeOffTrailStatus();
+    }
+  }
+
   void _selectDestination(_NavPoint point) {
     setState(() {
       _activeDestination = point.point;
@@ -1429,9 +1500,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   Widget _navIconButton({
     required IconData icon,
     required VoidCallback onTap,
+    bool active = false,
   }) {
     return Material(
-      color: const Color(0xFF2E7D32),
+      color: active ? const Color(0xFFFF8C42) : const Color(0xFF2E7D32),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 3,
       child: InkWell(
@@ -1509,7 +1581,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       return;
     }
 
-    // Update destination so the OSRM route is recomputed toward it.
+    // Update destination so the offline direct line + local guidance are
+    // recomputed toward it.
     setState(() {
       _activeDestination = target;
       if (targetLabel != null) _activeDestinationLabel = targetLabel;
@@ -1542,16 +1615,11 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     await _refreshRoute(force: true);
 
     if (!mounted) return;
-    if (_routePoints.isNotEmpty) {
-      _speak('Nouveau tracé prêt.', id: 'reroute_done');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible de calculer le tracé. Réessayez.'),
-          backgroundColor: Color(0xFFC62828),
-        ),
-      );
-    }
+    // Offline reorientation always succeeds (direct line + local guidance).
+    _speak(
+      'Réorientation effectuée. Suivez la direction indiquée.',
+      id: 'reroute_done',
+    );
   }
 
   @override
@@ -1633,33 +1701,27 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                       strokeWidth: 6,
                       color: const Color(0xFF22B53A),
                     ),
-                  // OSRM route — drawn when:
-                  //   - phase = goToStart (route from user to trail start)
-                  //   - phase = toPoi    (route from user to POI/service)
-                  //   - phase = onTrail BUT user pressed Recalculer
-                  //     (recovery route from user back to the nearest trail
-                  //      point, shown in orange).
+                  // Orange guide line: the real OSRM route when online, or a
+                  // direct line when offline (fallback). Hidden via the
+                  // "hide link" button. Also shown during on-trail recovery
+                  // when a route was fetched.
                   if (hasDestination &&
+                      !_hideStartLink &&
                       (_navPhase != _NavPhase.onTrail ||
                           _routePoints.isNotEmpty))
                     Polyline(
                       points: _routePoints.isNotEmpty
-                          ? [
-                              _currentPosition,
-                              ..._routePoints,
-                              destination,
-                            ]
+                          ? [_currentPosition, ..._routePoints, destination]
                           : [_currentPosition, destination],
                       strokeWidth: 5,
-                      color: _navPhase == _NavPhase.onTrail
-                          ? const Color(0xFFFF8C42) // recovery
-                          : const Color(0xFF8E44AD), // normal OSRM route
+                      color: const Color(0xFFFF8C42),
                     ),
                   // Subtle dotted connector: user → nearest trail point.
                   // Only useful when ON-trail with a small drift so the user
                   // sees where the trail is. Hidden during goToStart to avoid
-                  // a confusing double-line.
+                  // a confusing double-line, and via the "hide link" button.
                   if (_trailPoints.isNotEmpty &&
+                      !_hideStartLink &&
                       _navPhase == _NavPhase.onTrail &&
                       _routePoints.isEmpty)
                     Polyline(
@@ -1856,6 +1918,27 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                   onTap: _cycleMapStyle,
                 ),
                 const SizedBox(height: 6),
+                // Hide / show the link between current position and the
+                // start/target (the orange guide line + dotted connector).
+                _navIconButton(
+                  icon: _hideStartLink
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  active: _hideStartLink,
+                  onTap: () =>
+                      setState(() => _hideStartLink = !_hideStartLink),
+                ),
+                const SizedBox(height: 6),
+                // Off-trail alert on/off — when disabled the button turns orange
+                // so the user can spot (and re-enable) it at a glance.
+                _navIconButton(
+                  icon: _offTrailDisabled
+                      ? Icons.notifications_off_rounded
+                      : Icons.notifications_active_rounded,
+                  active: _offTrailDisabled,
+                  onTap: _toggleOffTrailDetection,
+                ),
+                const SizedBox(height: 6),
                 _navIconButton(
                   icon: Icons.explore,
                   onTap: () => _mapController.rotate(0),
@@ -2009,6 +2092,12 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             icon: Icons.refresh_rounded,
             primary: true,
             onTap: _handleReroute,
+          ),
+          const SizedBox(width: 4),
+          _offTrailIconButton(
+            tooltip: 'Désactiver l\'alerte',
+            icon: Icons.close_rounded,
+            onTap: _disableOffTrailAlert,
           ),
         ],
       ),

@@ -41,6 +41,8 @@
 	<string>Votre position est utilisee pour les fonctionnalites de navigation et d'urgence SOS.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Votre position est utilisee pour vous localiser sur la carte et trouver les points proches.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>La camera est utilisee pour scanner le QR code d'ouverture d'un sentier.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

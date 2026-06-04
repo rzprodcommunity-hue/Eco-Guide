@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/poi.dart';
 import '../services/api_client.dart';
+import '../services/image_prefetch_service.dart';
 import '../services/offline_cache_service.dart';
 import '../services/poi_service.dart';
 
@@ -84,6 +87,8 @@ class PoiProvider extends ChangeNotifier {
       _lastLoadUsedOffline = false;
       if (_pois.isNotEmpty) {
         await OfflineCacheService.instance.savePois(_pois, trailId: trailId);
+        // Persistently cache photos so they show in offline mode.
+        unawaited(ImagePrefetchService.prefetchPois(_pois));
       }
     } catch (e) {
       final cached = await OfflineCacheService.instance.getOfflinePois(
@@ -128,6 +133,8 @@ class PoiProvider extends ChangeNotifier {
       _lastLoadUsedOffline = false;
       if (_pois.isNotEmpty) {
         await OfflineCacheService.instance.savePois(_pois, trailId: trailId);
+        // Persistently cache photos so they show in offline mode.
+        unawaited(ImagePrefetchService.prefetchPois(_pois));
       }
     } catch (e) {
       final cached = await OfflineCacheService.instance.getOfflinePois(

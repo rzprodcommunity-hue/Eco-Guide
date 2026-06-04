@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
-/// Animated gradient "EcoBot" floating action button.
+/// Compact, circular "EcoBot" floating action button.
 ///
-/// Replaces the plain [FloatingActionButton.extended] with a branded pill that
-/// has a soft pulsing glow, a robot icon and an "online" status dot.
+/// A small branded round button (icon only) with a soft pulsing glow and an
+/// "online" status dot — sits above the bottom navigation bar without
+/// overlapping the page content.
 class EcoChatbotFab extends StatefulWidget {
   final VoidCallback onPressed;
 
-  const EcoChatbotFab({super.key, required this.onPressed});
+  /// Diameter of the round button.
+  final double size;
+
+  const EcoChatbotFab({super.key, required this.onPressed, this.size = 54});
 
   @override
   State<EcoChatbotFab> createState() => _EcoChatbotFabState();
@@ -34,112 +38,93 @@ class _EcoChatbotFabState extends State<EcoChatbotFab>
 
   @override
   Widget build(BuildContext context) {
+    final size = widget.size;
     return AnimatedBuilder(
       animation: _pulse,
       builder: (context, child) {
         final t = Curves.easeInOut.transform(_pulse.value);
         return Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
+            shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF22B53A).withValues(alpha: 0.32 + t * 0.18),
-                blurRadius: 16 + t * 12,
-                spreadRadius: t * 2,
-                offset: const Offset(0, 6),
+                color:
+                    const Color(0xFF22B53A).withValues(alpha: 0.26 + t * 0.14),
+                blurRadius: 12 + t * 8,
+                spreadRadius: t * 1.4,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: child,
         );
       },
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(30),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(30),
-          onTap: widget.onPressed,
-          child: Ink(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF22B53A), Color(0xFF0E7A23)],
-              ),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 18, 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Icon + online dot
-                  SizedBox(
-                    width: 30,
-                    height: 30,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.22),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.smart_toy_outlined,
-                            color: Colors.white,
-                            size: 18,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Material(
+          color: Colors.white,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: widget.onPressed,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                // Mascot centered on the white circle (whole character shown,
+                // small inset). Falls back to an icon if the asset is missing.
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.all(size * 0.12),
+                    child: Image.asset(
+                      'assets/images/bot.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF22B53A), Color(0xFF0E7A23)],
                           ),
                         ),
-                        Positioned(
-                          right: -1,
-                          top: -1,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF7CFF8E),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFF0E7A23),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
+                        child: const Icon(
+                          Icons.smart_toy_outlined,
+                          color: Colors.white,
+                          size: 26,
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'EcoBot',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                          height: 1.0,
-                        ),
+                ),
+                // Crisp green ring around the edge.
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFF1B8A2C),
+                        width: 3,
                       ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Assistant',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 10,
-                          height: 1.0,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+                // "online" status dot.
+                Positioned(
+                  right: size * 0.06,
+                  top: size * 0.11,
+                  child: Container(
+                    width: 11,
+                    height: 11,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF34D058),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

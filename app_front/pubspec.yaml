@@ -50,6 +50,10 @@ dependencies:
   flutter_tts: ^4.2.0
   flutter_compass: ^0.8.1
 
+  # QR scanning (unlock trails) + payload signature verification
+  mobile_scanner: ^5.2.3
+  crypto: ^3.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -79,6 +83,7 @@ flutter:
   assets:
     - .env
     - assets/images/logo.png
+    - assets/images/bot.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

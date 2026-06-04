@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/trail.dart';
 import '../services/api_client.dart';
+import '../services/image_prefetch_service.dart';
 import '../services/offline_cache_service.dart';
 import '../services/trail_service.dart';
 
@@ -113,6 +116,8 @@ class TrailProvider extends ChangeNotifier {
       _totalPages = response.totalPages;
       _lastLoadUsedOffline = false;
       await OfflineCacheService.instance.saveTrails(response.data);
+      // Persistently cache photos so they show in offline mode.
+      unawaited(ImagePrefetchService.prefetchTrails(response.data));
     } catch (e) {
       debugPrint('🔴 loadTrails error: $e');
       final cached = await OfflineCacheService.instance.getOfflineTrails();

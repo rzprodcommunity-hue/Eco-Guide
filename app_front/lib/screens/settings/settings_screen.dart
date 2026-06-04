@@ -14,6 +14,7 @@ import '../../services/map_offline_service.dart';
 import '../profile/profile_screen.dart';
 import '../offline/offline_trails_screen.dart';
 import '../help/help_center_screen.dart';
+import 'qr_unlock_screen.dart';
 import 'terms_screen.dart';
 import 'version_screen.dart';
 
@@ -525,6 +526,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _updateSetting('settings_power_saving', value);
                           context.read<ThemeProvider>().toggleTheme(value);
                         },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _SettingTile(
+                      icon: Icons.qr_code_scanner,
+                      iconColor: AppTheme.primaryColor,
+                      title: 'Déverrouiller un sentier (QR)',
+                      subtitle: 'Scannez le QR du guide pour activer « Démarrer »',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const QrUnlockScreen(),
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: _mutedColor(context),
                       ),
                     ),
                   ],

@@ -168,6 +168,10 @@ class MapOfflineService {
     return Directory(p.join(docs.path, 'offline_tiles', 'tabarka'));
   }
 
+  /// Public access to the on-disk tile cache directory (used by the first-launch
+  /// seeder that unpacks the bundled tile pack).
+  Future<Directory> baseTileDirectory() => _baseTileDirectory();
+
   Future<File> tileFile({
     required int z,
     required int x,

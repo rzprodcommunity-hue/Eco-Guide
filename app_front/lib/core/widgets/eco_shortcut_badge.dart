@@ -18,18 +18,19 @@ class EcoShortcutBadge extends StatelessWidget {
     required this.onTabSelected,
   });
 
-  // Layout constants
-  static const _barH = 55.0;
-  static const _sosSize = 60.0;
-  static const _overhang = 22.0;
-  static const _bumpH = 24.0;
-  static const _notchR = _sosSize / 2 + 5.0;
-
-  static const _clipper = _NavbarClipper(
-    notchRadius: _notchR,
-    bumpHeight: _bumpH,
-    topInset: _overhang - _bumpH,
-  );
+  // Layout constants — fully-rounded pill, SOS inline with the tabs.
+  static const _barH = 64.0;
+  static const _sosSize = 55.0;
+  // Outer margin from the screen edges.
+  static const _hMargin = 14.0;
+  // Inner padding INSIDE the pill — tweak to push the icons / SOS away from
+  // (or closer to) the rounded ends.
+  static const _innerHPadding = 18.0;
+  // Vertical nudge for the SOS button relative to the bar centre. Negative
+  // values lift it up, positive values push it down.
+  static const _sosVerticalOffset = -2.0;
+  // Fully rounded ends — a real pill shape.
+  static const _barRadius = _barH / 2;
 
   @override
   Widget build(BuildContext context) {
@@ -44,129 +45,78 @@ class EcoShortcutBadge extends StatelessWidget {
       (EcoShortcutTab.settings, Icons.settings_rounded, lp.t('tab.params')),
     ];
 
-    // Floating, narrower bar: side margins + bottom inset, with a drop shadow
-    // that follows the notched shape (via PhysicalShape).
     return Padding(
       padding: EdgeInsets.fromLTRB(
+        _hMargin,
         0,
-        0,
-        0,
+        _hMargin,
         bottomInset > 0 ? bottomInset : 10,
       ),
       child: SizedBox(
-        height: _barH + _overhang,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
-          children: [
-            // ── Glass background + shimmer + top border + drop shadow ──
-            Positioned.fill(
-              child: PhysicalShape(
-                clipper: _clipper,
-                clipBehavior: Clip.antiAlias,
-                color: isDark
-                    ? const Color(0xFF18221C)
-                    : const Color(0xFFF4F7F5),
-                elevation: 12,
-                shadowColor: Colors.black.withValues(alpha: 0.30),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: isDark
-                                ? const [
-                                    Color(0xFF223028),
-                                    Color(0xFF18221C),
-                                  ]
-                                : const [
-                                    Colors.white,
-                                    Color(0xFFF4F7F5),
-                                  ],
+        height: _barH,
+        child: DecoratedBox(
+          // Light luminous halo around the pill — soft and far-reaching, with a
+          // small dark drop for grounding.
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_barRadius),
+            boxShadow: [
+              // Subtle grounding drop shadow only — no foggy white halo.
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(_barRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: isDark
+                        ? const [Color(0xFF1F2A24), Color(0xFF161E1A)]
+                        : const [Colors.white, Color(0xFFF4F7F5)],
+                  ),
+                  borderRadius: BorderRadius.circular(_barRadius),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.black.withValues(alpha: 0.05),
+                    width: 0.8,
+                  ),
+                ),
+                // Extra inset on the rounded ends so icons clear the curves.
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: _innerHPadding),
+                  child: Row(
+                    children: [
+                      Expanded(child: _item(tabs[0], isDark)),
+                      Expanded(child: _item(tabs[1], isDark)),
+                      // SOS now sits inline with the other tabs. The vertical
+                      // offset lets it sit above / below the row centre.
+                      SizedBox(
+                        width: _sosSize + 6,
+                        child: Center(
+                          child: Transform.translate(
+                            offset: const Offset(0, _sosVerticalOffset),
+                            child: _SosButton(size: _sosSize),
                           ),
                         ),
                       ),
-                    ),
-                    // Arch shimmer
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: _overhang + 6,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withValues(alpha: isDark ? 0.07 : 0.55),
-                                Colors.white.withValues(alpha: 0.0),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Hairline top border
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.09)
-                                : Colors.black.withValues(alpha: 0.05),
-                            width: 0.8,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                      Expanded(child: _item(tabs[2], isDark)),
+                      Expanded(child: _item(tabs[3], isDark)),
+                    ],
+                  ),
                 ),
               ),
             ),
-
-            // ── Tab row ────────────────────────────────────────────────
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: _barH,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: [
-                    _pair(tabs[0], tabs[1], isDark),
-                    const SizedBox(width: _sosSize + 16),
-                    _pair(tabs[2], tabs[3], isDark),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── SOS button ─────────────────────────────────────────────
-            const Positioned(top: 0, child: _SosButton(size: _sosSize)),
-          ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _pair(
-    (EcoShortcutTab, IconData, String) a,
-    (EcoShortcutTab, IconData, String) b,
-    bool isDark,
-  ) {
-    return Expanded(
-      child: Row(
-        children: [
-          Expanded(child: _item(a, isDark)),
-          _Divider(isDark: isDark),
-          Expanded(child: _item(b, isDark)),
-        ],
       ),
     );
   }
@@ -178,86 +128,6 @@ class EcoShortcutBadge extends StatelessWidget {
         onTap: () => onTabSelected(t.$1),
         isDark: isDark,
       );
-}
-
-// ── Navbar clipper ───────────────────────────────────────────────────────────
-
-class _NavbarClipper extends CustomClipper<Path> {
-  final double notchRadius;
-  final double bumpHeight;
-  final double topInset;
-
-  const _NavbarClipper({
-    required this.notchRadius,
-    required this.bumpHeight,
-    this.topInset = 0,
-  });
-
-  @override
-  Path getClip(Size size) {
-    const topR = 24.0;
-    const botR = 22.0;
-    final cx = size.width / 2;
-    final bumpHW = notchRadius + 86;
-    final apexY = topInset;
-    final flatY = topInset + bumpHeight;
-
-    return Path()
-      ..moveTo(0, flatY + topR)
-      ..quadraticBezierTo(0, flatY, topR, flatY)
-      ..lineTo(cx - bumpHW, flatY)
-      ..cubicTo(
-        cx - bumpHW + bumpHW * 0.48, flatY,
-        cx - notchRadius * 0.72, apexY,
-        cx, apexY,
-      )
-      ..cubicTo(
-        cx + notchRadius * 0.72, apexY,
-        cx + bumpHW - bumpHW * 0.48, flatY,
-        cx + bumpHW, flatY,
-      )
-      ..lineTo(size.width - topR, flatY)
-      ..quadraticBezierTo(size.width, flatY, size.width, flatY + topR)
-      ..lineTo(size.width, size.height - botR)
-      ..quadraticBezierTo(size.width, size.height, size.width - botR, size.height)
-      ..lineTo(botR, size.height)
-      ..quadraticBezierTo(0, size.height, 0, size.height - botR)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant _NavbarClipper old) =>
-      old.notchRadius != notchRadius ||
-      old.bumpHeight != bumpHeight ||
-      old.topInset != topInset;
-}
-
-// ── Divider ──────────────────────────────────────────────────────────────────
-
-class _Divider extends StatelessWidget {
-  final bool isDark;
-  const _Divider({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 28,
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            (isDark ? Colors.white : Colors.black)
-                .withValues(alpha: isDark ? 0.12 : 0.10),
-            Colors.transparent,
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ── Tab item ─────────────────────────────────────────────────────────────────
@@ -291,21 +161,12 @@ class _TabItem extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.max,
         children: [
+          // Only the icon colour changes on selection — no background tint.
           AnimatedScale(
-            scale: selected ? 1.15 : 1.0,
-            duration: const Duration(milliseconds: 260),
+            scale: selected ? 1.12 : 1.0,
+            duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutBack,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: selected
-                    ? _green.withValues(alpha: isDark ? 0.22 : 0.12)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 26, color: color),
-            ),
+            child: Icon(icon, size: 24, color: color),
           ),
           const SizedBox(height: 3),
           AnimatedDefaultTextStyle(
@@ -341,15 +202,7 @@ class _SosButton extends StatelessWidget {
           fullscreenDialog: true,
         ),
       ),
-      child: SizedBox(
-        width: s + 16,
-        height: s + 16,
-        child: Center(child: _button(s)),
-      ),
-    );
-  }
-
-  Widget _button(double s) => Container(
+      child: Container(
         width: s,
         height: s,
         decoration: BoxDecoration(
@@ -360,13 +213,12 @@ class _SosButton extends StatelessWidget {
             colors: [Color(0xFFFF6B60), Color(0xFFE53935), Color(0xFFC62828)],
             stops: [0.0, 0.55, 1.0],
           ),
-          border: Border.all(color: Colors.white, width: 3),
+          border: Border.all(color: Colors.white, width: 2.4),
           boxShadow: [
-            // Neutral drop shadow only — no red glow.
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: const Color(0xFFE53935).withValues(alpha: 0.30),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -389,5 +241,7 @@ class _SosButton extends StatelessWidget {
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
