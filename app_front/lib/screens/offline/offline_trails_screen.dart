@@ -9,6 +9,7 @@ import '../../models/local_service.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/local_service_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
 import '../../services/api_client.dart';
@@ -175,9 +176,10 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Future<bool> _requireOnline() async {
+    final lp = context.read<LocaleProvider>();
     final isOnline = await NetworkService.hasInternetConnection();
     if (!isOnline) {
-      _showMessage('Connexion Internet requise pour le téléchargement.');
+      _showMessage(lp.t('offline.internetRequired'));
     }
     return isOnline;
   }
@@ -185,12 +187,13 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   // ───── MAP TILES ──────────────────────────────────────────────────────────
 
   Future<void> _downloadMapTiles() async {
+    final lp = context.read<LocaleProvider>();
     if (!await _requireOnline()) return;
 
     setState(() {
       _isDownloadingMap = true;
       _mapDownloadProgress = 0;
-      _mapDownloadStatus = 'Préparation...';
+      _mapDownloadStatus = lp.t('offline.preparing');
     });
 
     try {
@@ -226,11 +229,13 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
       await _persistMapInstalled();
       await _refreshCachedSizes();
       _showMessage(
-        'Cartes téléchargées (${totalDownloaded + totalCached} tuiles, $totalFailed échouées).',
+        '${lp.t('offline.mapDownloaded')} '
+        '(${totalDownloaded + totalCached} ${lp.t('offline.tiles')}, '
+        '$totalFailed ${lp.t('offline.failed')}).',
       );
     } catch (e) {
       debugPrint('Map tile download error: $e');
-      _showMessage('Erreur de téléchargement de la carte.');
+      _showMessage(lp.t('offline.mapDownloadError'));
     } finally {
       if (mounted) {
         setState(() {
@@ -243,13 +248,14 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Future<void> _clearMapTiles() async {
+    final lp = context.read<LocaleProvider>();
     setState(() => _isLoading = true);
     try {
       await _mapOfflineService.clearTabarkaTiles();
       _isMapInstalled = false;
       await _persistMapInstalled();
       await _refreshCachedSizes();
-      _showMessage('Cartes hors ligne supprimées.');
+      _showMessage(lp.t('offline.mapTilesRemoved'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -259,6 +265,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
 
   Future<void> _downloadTrail(Trail trail, {bool silent = false}) async {
     final poiProvider = context.read<PoiProvider>();
+    final lp = context.read<LocaleProvider>();
     if (!await _requireOnline()) return;
     setState(() => _itemProgress['trail:${trail.id}'] = 0.05);
 
@@ -312,10 +319,14 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         );
       } catch (_) {}
 
-      if (!silent) _showMessage('Sentier "${trail.name}" enregistré.');
+      if (!silent) {
+        _showMessage(
+          '${lp.t('offline.trailLabel')} "${trail.name}" ${lp.t('offline.saved')}',
+        );
+      }
     } catch (e) {
       debugPrint('Trail download error: $e');
-      if (!silent) _showMessage('Échec téléchargement du sentier.');
+      if (!silent) _showMessage(lp.t('offline.trailDownloadFailed'));
     } finally {
       if (mounted) {
         setState(() => _itemProgress.remove('trail:${trail.id}'));
@@ -324,14 +335,16 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Future<void> _removeTrail(Trail trail) async {
+    final lp = context.read<LocaleProvider>();
     await OfflineCacheService.instance.removeTrailPackage(trail.id);
     _installedTrailIds.remove(trail.id);
     await _persistTrails();
     if (mounted) setState(() {});
-    _showMessage('Sentier retiré.');
+    _showMessage(lp.t('offline.trailRemoved'));
   }
 
   Future<void> _downloadPoi(Poi poi, {bool silent = false}) async {
+    final lp = context.read<LocaleProvider>();
     if (!await _requireOnline()) return;
     setState(() => _itemProgress['poi:${poi.id}'] = 0.1);
 
@@ -361,24 +374,28 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         );
       } catch (_) {}
 
-      if (!silent) _showMessage('POI "${poi.name}" enregistré.');
+      if (!silent) {
+        _showMessage('POI "${poi.name}" ${lp.t('offline.saved')}');
+      }
     } catch (e) {
       debugPrint('POI download error: $e');
-      if (!silent) _showMessage('Échec téléchargement du POI.');
+      if (!silent) _showMessage(lp.t('offline.poiDownloadFailed'));
     } finally {
       if (mounted) setState(() => _itemProgress.remove('poi:${poi.id}'));
     }
   }
 
   Future<void> _removePoi(Poi poi) async {
+    final lp = context.read<LocaleProvider>();
     await OfflineCacheService.instance.removePoi(poi.id);
     _installedPoiIds.remove(poi.id);
     await _persistPois();
     if (mounted) setState(() {});
-    _showMessage('POI retiré.');
+    _showMessage(lp.t('offline.poiRemoved'));
   }
 
   Future<void> _downloadService(LocalService service, {bool silent = false}) async {
+    final lp = context.read<LocaleProvider>();
     if (!await _requireOnline()) return;
     setState(() => _itemProgress['service:${service.id}'] = 0.1);
 
@@ -408,10 +425,14 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         );
       } catch (_) {}
 
-      if (!silent) _showMessage('Service "${service.name}" enregistré.');
+      if (!silent) {
+        _showMessage(
+          '${lp.t('offline.serviceLabel')} "${service.name}" ${lp.t('offline.saved')}',
+        );
+      }
     } catch (e) {
       debugPrint('Service download error: $e');
-      if (!silent) _showMessage('Échec téléchargement du service.');
+      if (!silent) _showMessage(lp.t('offline.serviceDownloadFailed'));
     } finally {
       if (mounted) {
         setState(() => _itemProgress.remove('service:${service.id}'));
@@ -420,34 +441,37 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Future<void> _removeService(LocalService service) async {
+    final lp = context.read<LocaleProvider>();
     await OfflineCacheService.instance.removeLocalService(service.id);
     _installedServiceIds.remove(service.id);
     await _persistServices();
     if (mounted) setState(() {});
-    _showMessage('Service retiré.');
+    _showMessage(lp.t('offline.serviceRemoved'));
   }
 
   // ───── BULK DOWNLOADS ────────────────────────────────────────────────────
 
   Future<void> _bulkDownloadTrails() async {
     if (_isBulkDownloading) return;
+    final lp = context.read<LocaleProvider>();
     final trails = context.read<TrailProvider>().trails;
     if (!await _requireOnline()) return;
 
     final pending = trails.where((t) => !_installedTrailIds.contains(t.id)).toList();
     if (pending.isEmpty) {
-      _showMessage('Tous les sentiers sont déjà téléchargés.');
+      _showMessage(lp.t('offline.allTrailsDownloaded'));
       return;
     }
 
     setState(() {
       _isBulkDownloading = true;
-      _bulkStatus = 'Sentiers 0 / ${pending.length}';
+      _bulkStatus = '${lp.t('offline.trailsTab')} 0 / ${pending.length}';
     });
 
     for (var i = 0; i < pending.length; i++) {
       if (!mounted) break;
-      setState(() => _bulkStatus = 'Sentiers ${i + 1} / ${pending.length}');
+      setState(() =>
+          _bulkStatus = '${lp.t('offline.trailsTab')} ${i + 1} / ${pending.length}');
       await _downloadTrail(pending[i], silent: true);
     }
 
@@ -456,18 +480,21 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         _isBulkDownloading = false;
         _bulkStatus = '';
       });
-      _showMessage('${pending.length} sentier(s) téléchargé(s).');
+      _showMessage(
+        '${pending.length} ${lp.t('offline.trailsDownloadedCount')}',
+      );
     }
   }
 
   Future<void> _bulkDownloadPois() async {
     if (_isBulkDownloading) return;
+    final lp = context.read<LocaleProvider>();
     final pois = context.read<PoiProvider>().pois;
     if (!await _requireOnline()) return;
 
     final pending = pois.where((p) => !_installedPoiIds.contains(p.id)).toList();
     if (pending.isEmpty) {
-      _showMessage('Tous les POIs sont déjà téléchargés.');
+      _showMessage(lp.t('offline.allPoisDownloaded'));
       return;
     }
 
@@ -487,7 +514,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         _isBulkDownloading = false;
         _bulkStatus = '';
       });
-      _showMessage('${pending.length} POI(s) téléchargé(s).');
+      _showMessage(
+        '${pending.length} ${lp.t('offline.poisDownloadedCount')}',
+      );
     }
   }
 
@@ -496,6 +525,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   /// cached data, so this doubles as a "mettre à jour" action.
   Future<void> _bulkDownloadAll() async {
     if (_isBulkDownloading) return;
+    final lp = context.read<LocaleProvider>();
     final trails = context.read<TrailProvider>().trails;
     final pois = context.read<PoiProvider>().pois;
     final services = context.read<LocalServiceProvider>().services;
@@ -503,13 +533,13 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
 
     final total = trails.length + pois.length + services.length;
     if (total == 0) {
-      _showMessage('Aucune donnée à télécharger.');
+      _showMessage(lp.t('offline.noDataToDownload'));
       return;
     }
 
     setState(() {
       _isBulkDownloading = true;
-      _bulkStatus = 'Préparation... 0 / $total';
+      _bulkStatus = '${lp.t('offline.preparing')} 0 / $total';
     });
 
     var done = 0;
@@ -520,7 +550,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
 
     for (final trail in trails) {
       if (!mounted) break;
-      tick('Sentiers');
+      tick(lp.t('offline.trailsTab'));
       await _downloadTrail(trail, silent: true);
       done++;
     }
@@ -532,7 +562,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
     }
     for (final service in services) {
       if (!mounted) break;
-      tick('Services');
+      tick(lp.t('offline.servicesTab'));
       await _downloadService(service, silent: true);
       done++;
     }
@@ -542,30 +572,34 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         _isBulkDownloading = false;
         _bulkStatus = '';
       });
-      _showMessage('$total élément(s) téléchargé(s) / mis à jour.');
+      _showMessage(
+        '$total ${lp.t('offline.itemsDownloadedUpdated')}',
+      );
     }
   }
 
   Future<void> _bulkDownloadServices() async {
     if (_isBulkDownloading) return;
+    final lp = context.read<LocaleProvider>();
     final services = context.read<LocalServiceProvider>().services;
     if (!await _requireOnline()) return;
 
     final pending =
         services.where((s) => !_installedServiceIds.contains(s.id)).toList();
     if (pending.isEmpty) {
-      _showMessage('Tous les services sont déjà téléchargés.');
+      _showMessage(lp.t('offline.allServicesDownloaded'));
       return;
     }
 
     setState(() {
       _isBulkDownloading = true;
-      _bulkStatus = 'Services 0 / ${pending.length}';
+      _bulkStatus = '${lp.t('offline.servicesTab')} 0 / ${pending.length}';
     });
 
     for (var i = 0; i < pending.length; i++) {
       if (!mounted) break;
-      setState(() => _bulkStatus = 'Services ${i + 1} / ${pending.length}');
+      setState(() => _bulkStatus =
+          '${lp.t('offline.servicesTab')} ${i + 1} / ${pending.length}');
       await _downloadService(pending[i], silent: true);
     }
 
@@ -574,7 +608,9 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         _isBulkDownloading = false;
         _bulkStatus = '';
       });
-      _showMessage('${pending.length} service(s) téléchargé(s).');
+      _showMessage(
+        '${pending.length} ${lp.t('offline.servicesDownloadedCount')}',
+      );
     }
   }
 
@@ -582,6 +618,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     // Estimate covers both downloaded regions: Tabarka + Jbel Chitana (Nefza).
     final estimatedMapMb = _mapOfflineService.estimateSizeMb(
           zooms: _tileMode.zooms,
@@ -594,7 +631,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: EcoPageHeader(title: 'Mode Hors Ligne'),
+      appBar: EcoPageHeader(title: lp.t('offline.title')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -620,7 +657,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                   _buildAutoSyncCard(),
                   const SizedBox(height: 14),
                   Text(
-                    'Données: OpenStreetMap + Eco-Guide',
+                    '${lp.t('offline.dataSources')}: OpenStreetMap + Eco-Guide',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
@@ -631,6 +668,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Widget _buildHeroCard(int estimatedMapMb) {
+    final lp = context.watch<LocaleProvider>();
     final totalItems = _installedTrailIds.length +
         _installedPoiIds.length +
         _installedServiceIds.length;
@@ -659,10 +697,10 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
             children: [
               const Icon(Icons.cloud_done, color: Colors.white, size: 26),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Préparez votre randonnée',
-                  style: TextStyle(
+                  lp.t('offline.heroTitle'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: 18,
@@ -690,21 +728,26 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Téléchargez la cartographie, les sentiers, points d\'intérêt et services pour les consulter sans connexion.',
-            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+          Text(
+            lp.t('offline.heroSubtitle'),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 14),
           Row(
             children: [
               _heroStat(
-                value: '${_cachedMapMb.toStringAsFixed(0)} Mo',
-                label: 'Carte',
+                value: '${_cachedMapMb.toStringAsFixed(0)} ${lp.t('offline.mb')}',
+                label: lp.t('offline.statMap'),
               ),
-              _heroStat(value: '$totalItems', label: 'Éléments'),
+              _heroStat(value: '$totalItems', label: lp.t('offline.statItems')),
               _heroStat(
-                value: '${(estimatedMapMb / 1).toStringAsFixed(0)} Mo',
-                label: 'À prévoir',
+                value:
+                    '${(estimatedMapMb / 1).toStringAsFixed(0)} ${lp.t('offline.mb')}',
+                label: lp.t('offline.statToPlan'),
               ),
             ],
           ),
@@ -736,6 +779,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Widget _buildDownloadAllCard() {
+    final lp = context.watch<LocaleProvider>();
     final trails = context.watch<TrailProvider>().trails;
     final pois = context.watch<PoiProvider>().pois;
     final services = context.watch<LocalServiceProvider>().services;
@@ -775,7 +819,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Tout le contenu',
+                      lp.t('offline.allContent'),
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
@@ -784,7 +828,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Sentiers · POIs · services',
+                      lp.t('offline.allContentSubtitle'),
                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                   ],
@@ -812,9 +856,11 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
             spacing: 8,
             runSpacing: 8,
             children: [
-              _miniCount(Icons.terrain, '${trails.length} sentiers'),
+              _miniCount(
+                  Icons.terrain, '${trails.length} ${lp.t('offline.trailsTab')}'),
               _miniCount(Icons.place, '${pois.length} POIs'),
-              _miniCount(Icons.storefront, '${services.length} services'),
+              _miniCount(Icons.storefront,
+                  '${services.length} ${lp.t('offline.servicesTab')}'),
             ],
           ),
           if (_isBulkDownloading) ...[
@@ -862,10 +908,10 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
               ),
               label: Text(
                 total == 0
-                    ? 'Aucune donnée'
+                    ? lp.t('offline.noData')
                     : allInstalled
-                        ? 'Mettre à jour tout ($total)'
-                        : 'Tout télécharger ($total)',
+                        ? '${lp.t('offline.updateAll')} ($total)'
+                        : '${lp.t('offline.downloadAll')} ($total)',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -901,6 +947,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Widget _buildMapDownloadCard(int estimatedMapMb) {
+    final lp = context.watch<LocaleProvider>();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -930,7 +977,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Carte ${TabarkaMapBounds.label}',
+                      '${lp.t('offline.mapCardTitle')} ${TabarkaMapBounds.label}',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
@@ -940,8 +987,8 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                     const SizedBox(height: 2),
                     Text(
                       _isMapInstalled
-                          ? 'Cache: ${_cachedMapMb.toStringAsFixed(1)} Mo · zone Tabarka'
-                          : 'Côte de Tabarka – hors ligne',
+                          ? '${lp.t('offline.cache')}: ${_cachedMapMb.toStringAsFixed(1)} ${lp.t('offline.mb')} · ${lp.t('offline.tabarkaZone')}'
+                          : lp.t('offline.tabarkaCoastOffline'),
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,
@@ -952,7 +999,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
               ),
               if (_isMapInstalled)
                 IconButton(
-                  tooltip: 'Supprimer le cache carte',
+                  tooltip: lp.t('offline.deleteMapCache'),
                   onPressed: _isDownloadingMap ? null : _clearMapTiles,
                   icon: const Icon(Icons.delete_outline),
                   color: Colors.red[400],
@@ -961,7 +1008,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
           ),
           const SizedBox(height: 14),
           Text(
-            'Niveau de détail',
+            lp.t('offline.detailLevel'),
             style: TextStyle(
               fontWeight: FontWeight.w700,
               color: Theme.of(context).colorScheme.onSurface,
@@ -1005,7 +1052,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Zoom max: ${_tileMode.maxZoom}  ·  ~$estimatedMapMb Mo à télécharger',
+                    '${lp.t('offline.maxZoom')}: ${_tileMode.maxZoom}  ·  ~$estimatedMapMb ${lp.t('offline.mb')} ${lp.t('offline.toDownload')}',
                     style: const TextStyle(fontSize: 11, color: _greenDark),
                   ),
                 ),
@@ -1060,8 +1107,8 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
               ),
               label: Text(
                 _isMapInstalled
-                    ? 'Mettre à jour la carte ($estimatedMapMb Mo)'
-                    : 'Télécharger la carte ($estimatedMapMb Mo)',
+                    ? '${lp.t('offline.updateMap')} ($estimatedMapMb ${lp.t('offline.mb')})'
+                    : '${lp.t('offline.downloadMap')} ($estimatedMapMb ${lp.t('offline.mb')})',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -1072,6 +1119,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Widget _buildTabsCard() {
+    final lp = context.watch<LocaleProvider>();
     final trails = context.watch<TrailProvider>().trails;
     final pois = context.watch<PoiProvider>().pois;
     final services = context.watch<LocalServiceProvider>().services;
@@ -1109,7 +1157,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Téléchargement: $_bulkStatus',
+                      '${lp.t('offline.downloading')}: $_bulkStatus',
                       style: const TextStyle(
                         fontSize: 12,
                         color: _greenDark,
@@ -1131,7 +1179,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
             tabs: [
               Tab(
                 icon: const Icon(Icons.terrain, size: 18),
-                text: 'Sentiers (${trails.length})',
+                text: '${lp.t('offline.trailsTab')} (${trails.length})',
               ),
               Tab(
                 icon: const Icon(Icons.place, size: 18),
@@ -1139,7 +1187,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
               ),
               Tab(
                 icon: const Icon(Icons.storefront, size: 18),
-                text: 'Services (${services.length})',
+                text: '${lp.t('offline.servicesTab')} (${services.length})',
               ),
             ],
           ),
@@ -1186,6 +1234,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
     required int pending,
     required VoidCallback onPressed,
   }) {
+    final lp = context.watch<LocaleProvider>();
     return Row(
       children: [
         Expanded(
@@ -1202,8 +1251,8 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
             icon: const Icon(Icons.download_for_offline, size: 18),
             label: Text(
               pending == 0
-                  ? 'Tout est téléchargé'
-                  : 'Tout télécharger ($pending)',
+                  ? lp.t('offline.allDownloaded')
+                  : '${lp.t('offline.downloadAll')} ($pending)',
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
             ),
           ),
@@ -1213,6 +1262,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Widget _buildTrailsList(List<Trail> trails) {
+    final lp = context.watch<LocaleProvider>();
     final filtered = trails.where((t) {
       if (_trailQuery.isEmpty) return true;
       return t.name.toLowerCase().contains(_trailQuery.toLowerCase());
@@ -1225,7 +1275,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
       child: Column(
         children: [
           _buildSearchBar(
-            hint: 'Rechercher un sentier...',
+            hint: lp.t('offline.searchTrail'),
             value: _trailQuery,
             onChanged: (v) => setState(() => _trailQuery = v),
           ),
@@ -1238,7 +1288,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
           const SizedBox(height: 6),
           Expanded(
             child: filtered.isEmpty
-                ? _emptyState('Aucun sentier disponible')
+                ? _emptyState(lp.t('offline.noTrails'))
                 : ListView.separated(
                     itemCount: filtered.length,
                     separatorBuilder: (_, i) => const SizedBox(height: 8),
@@ -1324,6 +1374,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Widget _buildPoisList(List<Poi> pois) {
+    final lp = context.watch<LocaleProvider>();
     final filtered = pois.where((p) {
       if (_poiQuery.isEmpty) return true;
       return p.name.toLowerCase().contains(_poiQuery.toLowerCase());
@@ -1335,7 +1386,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
       child: Column(
         children: [
           _buildSearchBar(
-            hint: 'Rechercher un POI...',
+            hint: lp.t('offline.searchPoi'),
             value: _poiQuery,
             onChanged: (v) => setState(() => _poiQuery = v),
           ),
@@ -1348,7 +1399,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
           const SizedBox(height: 6),
           Expanded(
             child: filtered.isEmpty
-                ? _emptyState('Aucun POI disponible')
+                ? _emptyState(lp.t('offline.noPois'))
                 : ListView.separated(
                     itemCount: filtered.length,
                     separatorBuilder: (_, i) => const SizedBox(height: 8),
@@ -1434,6 +1485,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Widget _buildServicesList(List<LocalService> services) {
+    final lp = context.watch<LocaleProvider>();
     final filtered = services.where((s) {
       if (_serviceQuery.isEmpty) return true;
       return s.name.toLowerCase().contains(_serviceQuery.toLowerCase());
@@ -1446,7 +1498,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
       child: Column(
         children: [
           _buildSearchBar(
-            hint: 'Rechercher un service...',
+            hint: lp.t('offline.searchService'),
             value: _serviceQuery,
             onChanged: (v) => setState(() => _serviceQuery = v),
           ),
@@ -1459,7 +1511,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
           const SizedBox(height: 6),
           Expanded(
             child: filtered.isEmpty
-                ? _emptyState('Aucun service disponible')
+                ? _emptyState(lp.t('offline.noServices'))
                 : ListView.separated(
                     itemCount: filtered.length,
                     separatorBuilder: (_, i) => const SizedBox(height: 8),
@@ -1550,6 +1602,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
     required VoidCallback onDownload,
     required VoidCallback onRemove,
   }) {
+    final lp = context.watch<LocaleProvider>();
     if (downloading) {
       return const SizedBox(
         width: 32,
@@ -1569,7 +1622,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
             icon: const Icon(Icons.delete_outline, size: 20),
             color: Colors.red[400],
             onPressed: onRemove,
-            tooltip: 'Retirer',
+            tooltip: lp.t('offline.remove'),
           ),
         ],
       );
@@ -1577,7 +1630,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
     return IconButton(
       onPressed: onDownload,
       icon: const Icon(Icons.download_rounded, color: _green, size: 28),
-      tooltip: 'Télécharger',
+      tooltip: lp.t('offline.download'),
     );
   }
 
@@ -1601,6 +1654,7 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   }
 
   Widget _buildAutoSyncCard() {
+    final lp = context.watch<LocaleProvider>();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
@@ -1614,17 +1668,17 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         children: [
           const Icon(Icons.sync, color: _greenDark),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Synchronisation automatique',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  lp.t('offline.autoSync'),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  'Mettre à jour via Wi-Fi.',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                  lp.t('offline.autoSyncSubtitle'),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
               ],
             ),

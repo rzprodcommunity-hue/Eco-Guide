@@ -694,9 +694,18 @@ class _EcoChatbotScreenState extends State<EcoChatbotScreen>
                                 ),
                               ],
                             ),
-                            child: const Center(
-                              child: Icon(Icons.eco,
-                                  color: Color(0xFF0E7A23), size: 26),
+                            clipBehavior: Clip.antiAlias,
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Image.asset(
+                                'assets/images/bot.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) => const Icon(
+                                  Icons.eco,
+                                  color: Color(0xFF0E7A23),
+                                  size: 26,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -965,12 +974,14 @@ class _EcoChatbotScreenState extends State<EcoChatbotScreen>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (!isUser)
-                const Padding(
-                  padding: EdgeInsets.only(right: 6, bottom: 4),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6, bottom: 4),
                   child: CircleAvatar(
                     radius: 13,
-                    backgroundColor: Color(0xFF22B53A),
-                    child: Icon(Icons.eco, color: Colors.white, size: 14),
+                    backgroundColor: Colors.white,
+                    backgroundImage:
+                        const AssetImage('assets/images/bot.png'),
+                    onBackgroundImageError: (_, _) {},
                   ),
                 ),
               Flexible(
@@ -1072,12 +1083,13 @@ class _EcoChatbotScreenState extends State<EcoChatbotScreen>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          const Padding(
-            padding: EdgeInsets.only(right: 6, bottom: 4),
+          Padding(
+            padding: const EdgeInsets.only(right: 6, bottom: 4),
             child: CircleAvatar(
               radius: 13,
-              backgroundColor: Color(0xFF22B53A),
-              child: Icon(Icons.eco, color: Colors.white, size: 14),
+              backgroundColor: Colors.white,
+              backgroundImage: const AssetImage('assets/images/bot.png'),
+              onBackgroundImageError: (_, _) {},
             ),
           ),
           Container(

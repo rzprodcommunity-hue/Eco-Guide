@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/partner_service.dart';
+import '../../providers/locale_provider.dart';
 
 class PartnerRegistrationSheet extends StatefulWidget {
   const PartnerRegistrationSheet({super.key});
@@ -56,7 +58,9 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur : $e')),
+        SnackBar(
+            content: Text(
+                '${context.read<LocaleProvider>().t('partner.error')} : $e')),
       );
     }
   }
@@ -82,6 +86,7 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
   }
 
   Widget _buildSuccess(Color primary) {
+    final lp = context.watch<LocaleProvider>();
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -97,13 +102,13 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
             child: Icon(Icons.check_circle_rounded, color: primary, size: 48),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Demande envoyée !',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          Text(
+            lp.t('partner.successTitle'),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 10),
           Text(
-            'Votre demande de partenariat a été soumise. L\'administrateur va l\'examiner et vous contactera par email.',
+            lp.t('partner.successMessage'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
@@ -124,8 +129,9 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
                     borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
-              child: const Text('Fermer',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              child: Text(lp.t('partner.close'),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -135,6 +141,7 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
 
   Widget _buildForm(ThemeData theme, Color primary) {
     final onSurface = theme.colorScheme.onSurface;
+    final lp = context.watch<LocaleProvider>();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -172,10 +179,10 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Devenir Partenaire',
-                          style: TextStyle(
+                      Text(lp.t('partner.title'),
+                          style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w800)),
-                      Text('Rejoignez notre réseau éco-responsable',
+                      Text(lp.t('partner.subtitle'),
                           style: TextStyle(
                               fontSize: 12,
                               color: onSurface.withValues(alpha: 0.6))),
@@ -192,7 +199,7 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
             const SizedBox(height: 24),
 
             // Category selector
-            Text('Type d\'activité',
+            Text(lp.t('partner.categoryLabel'),
                 style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
@@ -227,7 +234,7 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
                               size: 15,
                               color: sel ? Colors.white : primary),
                           const SizedBox(width: 6),
-                          Text(cat['label'] as String,
+                          Text(lp.t('partner.category.${cat['key']}'),
                               style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -245,47 +252,52 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
 
             _field(
               controller: _nameCtrl,
-              label: 'Nom de l\'établissement',
+              label: lp.t('partner.businessName'),
               icon: Icons.business_rounded,
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Champ obligatoire' : null,
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? context.read<LocaleProvider>().t('partner.required')
+                  : null,
             ),
             const SizedBox(height: 14),
             _field(
               controller: _descCtrl,
-              label: 'Description',
+              label: lp.t('partner.description'),
               icon: Icons.description_rounded,
               maxLines: 3,
-              validator: (v) =>
-                  v == null || v.trim().length < 20
-                      ? 'Au moins 20 caractères'
-                      : null,
+              validator: (v) => v == null || v.trim().length < 20
+                  ? context.read<LocaleProvider>().t('partner.minChars')
+                  : null,
             ),
             const SizedBox(height: 14),
             _field(
               controller: _phoneCtrl,
-              label: 'Téléphone',
+              label: lp.t('partner.phone'),
               icon: Icons.phone_rounded,
               keyboardType: TextInputType.phone,
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Champ obligatoire' : null,
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? context.read<LocaleProvider>().t('partner.required')
+                  : null,
             ),
             const SizedBox(height: 14),
             _field(
               controller: _emailCtrl,
-              label: 'Email de contact',
+              label: lp.t('partner.contactEmail'),
               icon: Icons.email_rounded,
               keyboardType: TextInputType.emailAddress,
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Champ obligatoire';
-                if (!v.contains('@')) return 'Email invalide';
+                if (v == null || v.trim().isEmpty) {
+                  return context.read<LocaleProvider>().t('partner.required');
+                }
+                if (!v.contains('@')) {
+                  return context.read<LocaleProvider>().t('partner.invalidEmail');
+                }
                 return null;
               },
             ),
             const SizedBox(height: 14),
             _field(
               controller: _addressCtrl,
-              label: 'Adresse (optionnel)',
+              label: lp.t('partner.address'),
               icon: Icons.location_on_rounded,
             ),
             const SizedBox(height: 24),
@@ -311,13 +323,13 @@ class _PartnerRegistrationSheetState extends State<PartnerRegistrationSheet> {
                               AlwaysStoppedAnimation(Colors.white),
                         ),
                       )
-                    : const Row(
+                    : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.send_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text('Envoyer la demande',
-                              style: TextStyle(
+                          const Icon(Icons.send_rounded, size: 18),
+                          const SizedBox(width: 8),
+                          Text(lp.t('partner.submit'),
+                              style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700)),
                         ],

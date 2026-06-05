@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -36,12 +37,13 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Future<void> _register() async {
+    final lp = context.read<LocaleProvider>();
     if (!_formKey.currentState!.validate()) return;
 
     if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez accepter les conditions d\'utilisation'),
+        SnackBar(
+          content: Text(lp.t('auth.register.acceptTerms')),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -77,16 +79,15 @@ class _RegisterScreenState extends State<RegisterScreen>
             color: AppTheme.errorColor,
             size: 48,
           ),
-          title: const Text('Inscription échouée'),
+          title: Text(lp.t('auth.register.failed.title')),
           content: Text(
-            authProvider.error ??
-                'Erreur lors de l\'inscription. Veuillez réessayer.',
+            authProvider.error ?? lp.t('auth.register.failed.body'),
             textAlign: TextAlign.center,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
+              child: Text(lp.t('common.ok')),
             ),
           ],
           actionsAlignment: MainAxisAlignment.center,
@@ -112,6 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final lp = context.watch<LocaleProvider>();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF12181C) : const Color(0xFFF5F0EA);
@@ -183,9 +185,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                         ],
                       ),
                       const SizedBox(height: 18),
-                      const Text(
-                        'Adventure awaits in the wild.',
-                        style: TextStyle(
+                      Text(
+                        lp.t('auth.tagline'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w500,
@@ -218,7 +220,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                     unselectedLabelColor: mutedText,
                     labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                     unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
-                    tabs: const [Tab(text: 'Sign In'), Tab(text: 'Create Account')],
+                    tabs: [
+                      Tab(text: lp.t('auth.tab.signin')),
+                      Tab(text: lp.t('auth.tab.create')),
+                    ],
                     onTap: (index) {
                       if (index == 0) Navigator.pop(context);
                     },
@@ -232,7 +237,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Full Name
-                        _fieldLabel('FULL NAME'),
+                        _fieldLabel(lp.t('auth.field.fullname')),
                         const SizedBox(height: 8),
                         _buildField(
                           controller: _fullNameController,
@@ -242,7 +247,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           fillColor: fieldFill,
                           isDark: isDark,
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Veuillez entrer votre nom';
+                            if (v == null || v.isEmpty) {
+                              return lp.t('auth.validation.name.required');
+                            }
                             return null;
                           },
                         ),
@@ -250,7 +257,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                         const SizedBox(height: 20),
 
                         // Email
-                        _fieldLabel('EMAIL ADDRESS'),
+                        _fieldLabel(lp.t('auth.field.email')),
                         const SizedBox(height: 8),
                         _buildField(
                           controller: _emailController,
@@ -260,8 +267,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                           fillColor: fieldFill,
                           isDark: isDark,
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Veuillez entrer votre email';
-                            if (!v.contains('@')) return 'Email invalide';
+                            if (v == null || v.isEmpty) {
+                              return lp.t('auth.validation.email.required');
+                            }
+                            if (!v.contains('@')) {
+                              return lp.t('auth.validation.email.invalid');
+                            }
                             return null;
                           },
                         ),
@@ -269,7 +280,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                         const SizedBox(height: 20),
 
                         // Password
-                        _fieldLabel('PASSWORD'),
+                        _fieldLabel(lp.t('auth.field.password')),
                         const SizedBox(height: 8),
                         _buildField(
                           controller: _passwordController,
@@ -289,8 +300,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Veuillez entrer un mot de passe';
-                            if (v.length < 6) return 'Au moins 6 caractères';
+                            if (v == null || v.isEmpty) {
+                              return lp.t('auth.validation.password.required');
+                            }
+                            if (v.length < 6) {
+                              return lp.t('auth.validation.password.min');
+                            }
                             return null;
                           },
                         ),
@@ -322,19 +337,20 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     color: onSurface.withValues(alpha: 0.7),
                                     height: 1.4,
                                   ),
-                                  children: const [
-                                    TextSpan(text: 'J\'accepte les '),
+                                  children: [
                                     TextSpan(
-                                      text: 'Conditions d\'utilisation',
-                                      style: TextStyle(
+                                        text: lp.t('auth.register.terms.prefix')),
+                                    TextSpan(
+                                      text: lp.t('auth.register.terms.terms'),
+                                      style: const TextStyle(
                                         color: AppTheme.primaryColor,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    TextSpan(text: ' et la '),
+                                    TextSpan(text: lp.t('auth.register.terms.and')),
                                     TextSpan(
-                                      text: 'Politique de confidentialité',
-                                      style: TextStyle(
+                                      text: lp.t('auth.register.terms.privacy'),
+                                      style: const TextStyle(
                                         color: AppTheme.primaryColor,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -367,9 +383,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     width: 20,
                                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                   )
-                                : const Text(
-                                    'Create Account',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                : Text(
+                                    lp.t('auth.register.cta'),
+                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                                   ),
                           ),
                         ),
@@ -383,7 +399,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 14),
                               child: Text(
-                                'OR CONTINUE WITH',
+                                lp.t('auth.or'),
                                 style: TextStyle(
                                   color: mutedText,
                                   fontSize: 11,
@@ -451,16 +467,16 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       fontSize: 12,
                                       height: 1.5,
                                     ),
-                                    children: const [
-                                      TextSpan(text: 'By signing in, you agree to our '),
+                                    children: [
+                                      TextSpan(text: lp.t('auth.terms.prefix')),
                                       TextSpan(
-                                        text: 'Nature Conservation Terms and Privacy Policy',
-                                        style: TextStyle(
+                                        text: lp.t('auth.terms.link'),
+                                        style: const TextStyle(
                                           color: AppTheme.primaryColor,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      TextSpan(text: '.'),
+                                      const TextSpan(text: '.'),
                                     ],
                                   ),
                                 ),

@@ -16,6 +16,7 @@ import '../../models/local_service.dart';
 import 'local_service_detail_screen.dart';
 import 'partner_registration_sheet.dart';
 import '../profile/profile_screen.dart';
+import '../map/interactive_map_screen.dart';
 
 class LocalServicesScreen extends StatefulWidget {
   const LocalServicesScreen({super.key});
@@ -310,28 +311,11 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   Widget _buildSectionHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Text(
-              context.watch<LocaleProvider>().t('services.ecoFriendly'),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            context.watch<LocaleProvider>().t('services.seeAll'),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ],
+      child: Text(
+        context.watch<LocaleProvider>().t('services.ecoFriendly'),
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -504,7 +488,11 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 16),
-          Container(
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const InteractiveMapScreen()),
+            ),
+            child: Container(
             height: 160,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
@@ -596,6 +584,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 ),
               ],
             ),
+          ),
           ),
         ],
       ),

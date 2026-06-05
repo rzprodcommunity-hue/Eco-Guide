@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../main.dart';
+import '../../providers/locale_provider.dart';
 
 class OnboardingScreen extends StatefulWidget {
   /// When [isReplay] is true the tutorial was opened again from inside the app
@@ -21,71 +23,68 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late final AnimationController _floatCtrl;
   int _currentPage = 0;
 
+  // Page text is stored as translation keys and resolved with LocaleProvider.t
+  // at render time (see _PageContent.build).
   static const _pages = [
     _OnboardingPage(
       gradient: [Color(0xFF0E7A23), Color(0xFF1AAF3C)],
       icon: Icons.landscape_rounded,
-      title: 'Bienvenue sur Eco-Guide',
-      subtitle:
-          'Votre compagnon intelligent pour explorer la nature algérienne en toute sécurité.',
+      titleKey: 'onb.p1.title',
+      subtitleKey: 'onb.p1.subtitle',
       imagePath: 'assets/images/logo.png',
       isLogo: true,
-      highlights: [
-        'Sentiers, POIs et services locaux réunis',
-        'Fonctionne aussi sans connexion internet',
+      highlightKeys: [
+        'onb.p1.hl1',
+        'onb.p1.hl2',
       ],
     ),
     _OnboardingPage(
       gradient: [Color(0xFF1565C0), Color(0xFF0288D1)],
       icon: Icons.map_rounded,
-      title: 'Carte Interactive',
-      subtitle:
-          'Explorez les sentiers et points d\'intérêt sur une carte détaillée. Fonctionne même hors connexion.',
+      titleKey: 'onb.p2.title',
+      subtitleKey: 'onb.p2.subtitle',
       imagePath: null,
       isLogo: false,
-      highlights: [
-        'Plusieurs styles : standard, relief, satellite',
-        'Itinéraires et navigation GPS',
-        'Mode hors-ligne téléchargeable',
+      highlightKeys: [
+        'onb.p2.hl1',
+        'onb.p2.hl2',
+        'onb.p2.hl3',
       ],
     ),
     _OnboardingPage(
       gradient: [Color(0xFF6A1B9A), Color(0xFFAB47BC)],
       icon: Icons.hiking_rounded,
-      title: 'Sentiers & POIs',
-      subtitle:
-          'Découvrez des sentiers classés par difficulté et des points d\'intérêt naturels et culturels.',
+      titleKey: 'onb.p3.title',
+      subtitleKey: 'onb.p3.subtitle',
       imagePath: null,
       isLogo: false,
-      highlights: [
-        'Difficulté, distance, durée et dénivelé',
-        'Guide audio (voice-over) pour les POIs',
+      highlightKeys: [
+        'onb.p3.hl1',
+        'onb.p3.hl2',
       ],
     ),
     _OnboardingPage(
       gradient: [Color(0xFFE65100), Color(0xFFFF8F00)],
       icon: Icons.quiz_rounded,
-      title: 'Quiz Nature',
-      subtitle:
-          'Testez vos connaissances sur la faune, la flore et l\'écologie. Gagnez des badges et grimpez au classement.',
+      titleKey: 'onb.p4.title',
+      subtitleKey: 'onb.p4.subtitle',
       imagePath: null,
       isLogo: false,
-      highlights: [
-        'Catégories faune, flore et écologie',
-        'Gagnez des badges et suivez vos scores',
+      highlightKeys: [
+        'onb.p4.hl1',
+        'onb.p4.hl2',
       ],
     ),
     _OnboardingPage(
       gradient: [Color(0xFFC62828), Color(0xFFE53935)],
       icon: Icons.sos_rounded,
-      title: 'SOS & Sécurité',
-      subtitle:
-          'Envoyez une alerte d\'urgence géolocalisée en un seul geste, même sans connexion internet.',
+      titleKey: 'onb.p5.title',
+      subtitleKey: 'onb.p5.subtitle',
       imagePath: null,
       isLogo: false,
-      highlights: [
-        'Alerte géolocalisée en un geste',
-        'File d\'attente hors-ligne automatique',
+      highlightKeys: [
+        'onb.p5.hl1',
+        'onb.p5.hl2',
       ],
     ),
   ];
@@ -146,6 +145,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     final page = _pages[_currentPage];
     final isLast = _currentPage == _pages.length - 1;
     final isFirst = _currentPage == 0;
@@ -191,7 +191,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     TextButton(
                       onPressed: _finish,
                       child: Text(
-                        widget.isReplay ? 'Fermer' : 'Passer',
+                        widget.isReplay ? lp.t('onb.close') : lp.t('onb.skip'),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.9),
                           fontWeight: FontWeight.w600,
@@ -291,8 +291,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           children: [
                             Text(
                               isLast
-                                  ? (widget.isReplay ? 'Terminé' : 'Commencer')
-                                  : 'Suivant',
+                                  ? (widget.isReplay
+                                        ? lp.t('onb.done')
+                                        : lp.t('onb.start'))
+                                  : lp.t('onb.next'),
                               style: TextStyle(
                                 color: page.gradient.first,
                                 fontWeight: FontWeight.w700,
@@ -325,20 +327,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 class _OnboardingPage {
   final List<Color> gradient;
   final IconData icon;
-  final String title;
-  final String subtitle;
+  // Translation keys (resolved via LocaleProvider.t at render time).
+  final String titleKey;
+  final String subtitleKey;
   final String? imagePath;
   final bool isLogo;
-  final List<String> highlights;
+  final List<String> highlightKeys;
 
   const _OnboardingPage({
     required this.gradient,
     required this.icon,
-    required this.title,
-    required this.subtitle,
+    required this.titleKey,
+    required this.subtitleKey,
     required this.imagePath,
     required this.isLogo,
-    this.highlights = const [],
+    this.highlightKeys = const [],
   });
 }
 
@@ -350,6 +353,7 @@ class _PageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
@@ -390,7 +394,7 @@ class _PageContent extends StatelessWidget {
           const SizedBox(height: 40),
           // Title
           Text(
-            page.title,
+            lp.t(page.titleKey),
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 28,
@@ -403,7 +407,7 @@ class _PageContent extends StatelessWidget {
           const SizedBox(height: 16),
           // Subtitle
           Text(
-            page.subtitle,
+            lp.t(page.subtitleKey),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
@@ -412,9 +416,9 @@ class _PageContent extends StatelessWidget {
               fontWeight: FontWeight.w400,
             ),
           ),
-          if (page.highlights.isNotEmpty) ...[
+          if (page.highlightKeys.isNotEmpty) ...[
             const SizedBox(height: 24),
-            ...page.highlights.map(
+            ...page.highlightKeys.map(
               (h) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
@@ -435,7 +439,7 @@ class _PageContent extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        h,
+                        lp.t(h),
                         style: TextStyle(
                           fontSize: 14,
                           height: 1.35,

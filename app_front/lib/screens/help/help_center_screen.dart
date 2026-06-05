@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/locale_provider.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class HelpCenterScreen extends StatefulWidget {
@@ -27,10 +29,11 @@ class _HelpCenterScreenState extends State<HelpCenterScreen>
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppTheme.darkBg : AppTheme.backgroundColor;
     final surface = isDark ? AppTheme.darkSurface : Colors.white;
-    final primary =   AppTheme.primaryColor;
+    final primary = AppTheme.primaryColor;
     final textMain = isDark ? AppTheme.darkTextMain : AppTheme.textPrimary;
     final textSub = isDark ? AppTheme.darkTextSub : AppTheme.textSecondary;
 
@@ -41,9 +44,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen>
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'Centre d\'aide',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+        title: Text(
+          lp.t('help.title'),
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -57,11 +60,11 @@ class _HelpCenterScreenState extends State<HelpCenterScreen>
             fontWeight: FontWeight.w700,
             fontSize: 13,
           ),
-          tabs: const [
-            Tab(text: 'Guide'),
-            Tab(text: 'FAQ'),
-            Tab(text: 'Contact'),
-            Tab(text: 'Tutoriel'),
+          tabs: [
+            Tab(text: lp.t('help.tab.guide')),
+            Tab(text: lp.t('help.tab.faq')),
+            Tab(text: lp.t('help.tab.contact')),
+            Tab(text: lp.t('help.tab.tutorial')),
           ],
         ),
       ),
@@ -116,19 +119,6 @@ class _TutorialTab extends StatelessWidget {
     required this.textSub,
   });
 
-  static const _chapters = [
-    (Icons.landscape_rounded, Color(0xFF0E7A23), 'Bienvenue',
-        'Découvrez Eco-Guide et tout ce que l\'app peut faire pour vous.'),
-    (Icons.map_rounded, Color(0xFF1565C0), 'Carte interactive',
-        'Sentiers, POIs, itinéraires et mode hors-ligne.'),
-    (Icons.hiking_rounded, Color(0xFF6A1B9A), 'Sentiers & POIs',
-        'Difficulté, distance, durée et guide audio.'),
-    (Icons.quiz_rounded, Color(0xFFE65100), 'Quiz Nature',
-        'Testez vos connaissances et gagnez des badges.'),
-    (Icons.sos_rounded, Color(0xFFC62828), 'SOS & Sécurité',
-        'Alerte d\'urgence géolocalisée, même hors-ligne.'),
-  ];
-
   void _replayTutorial(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -139,14 +129,27 @@ class _TutorialTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
+    final chapters = <(IconData, Color, String, String)>[
+      (Icons.landscape_rounded, const Color(0xFF0E7A23),
+          lp.t('help.tutorial.c1.title'), lp.t('help.tutorial.c1.desc')),
+      (Icons.map_rounded, const Color(0xFF1565C0),
+          lp.t('help.tutorial.c2.title'), lp.t('help.tutorial.c2.desc')),
+      (Icons.hiking_rounded, const Color(0xFF6A1B9A),
+          lp.t('help.tutorial.c3.title'), lp.t('help.tutorial.c3.desc')),
+      (Icons.quiz_rounded, const Color(0xFFE65100),
+          lp.t('help.tutorial.c4.title'), lp.t('help.tutorial.c4.desc')),
+      (Icons.sos_rounded, const Color(0xFFC62828),
+          lp.t('help.tutorial.c5.title'), lp.t('help.tutorial.c5.desc')),
+    ];
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
       children: [
         _SectionBanner(
           icon: Icons.school_rounded,
-          title: 'Revoir le tutoriel',
-          subtitle:
-              'Rejouez la visite guidée de bienvenue pour redécouvrir les fonctionnalités clés.',
+          title: lp.t('help.tutorial.banner.title'),
+          subtitle: lp.t('help.tutorial.banner.subtitle'),
           primary: primary,
           isDark: isDark,
         ),
@@ -172,8 +175,8 @@ class _TutorialTab extends StatelessWidget {
                   ],
           ),
           child: Column(
-            children: List.generate(_chapters.length, (i) {
-              final c = _chapters[i];
+            children: List.generate(chapters.length, (i) {
+              final c = chapters[i];
               return Column(
                 children: [
                   Padding(
@@ -220,7 +223,7 @@ class _TutorialTab extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (i != _chapters.length - 1)
+                  if (i != chapters.length - 1)
                     Divider(
                       height: 1,
                       indent: 70,
@@ -241,9 +244,10 @@ class _TutorialTab extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: () => _replayTutorial(context),
             icon: const Icon(Icons.play_circle_outline_rounded),
-            label: const Text(
-              'Revoir le tutoriel',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+            label: Text(
+              lp.t('help.tutorial.replay'),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: primary,
@@ -259,7 +263,7 @@ class _TutorialTab extends StatelessWidget {
         const SizedBox(height: 12),
         Center(
           child: Text(
-            'La visite guidée s\'ouvre par-dessus et se referme à la fin.',
+            lp.t('help.tutorial.note'),
             textAlign: TextAlign.center,
             style: TextStyle(color: textSub, fontSize: 12),
           ),
@@ -283,95 +287,63 @@ class _GuideTab extends StatelessWidget {
     required this.textSub,
   });
 
-  static const _features = [
-    _Feature(
-      icon: Icons.map_rounded,
-      color: Color(0xFF1565C0),
-      title: 'Carte Interactive',
-      steps: [
-        'Ouvrez l\'onglet "Carte" depuis la barre de navigation.',
-        'Pincez pour zoomer ou dézoomez sur la carte.',
-        'Appuyez sur un marqueur pour voir les détails d\'un sentier ou POI.',
-        'Activez le mode hors-ligne pour utiliser la carte sans internet.',
-        'Le bouton SOS envoie votre position en cas d\'urgence.',
-      ],
-    ),
-    _Feature(
-      icon: Icons.hiking_rounded,
-      color: Color(0xFF2E7D32),
-      title: 'Sentiers de Randonnée',
-      steps: [
-        'Accédez à "Sentiers" depuis la navigation principale.',
-        'Filtrez par difficulté : Facile, Modéré, Difficile.',
-        'Appuyez sur un sentier pour voir la distance, dénivelé et durée.',
-        'Téléchargez un sentier en mode hors-ligne via l\'icône ↓.',
-        'Démarrez la navigation GPS depuis la page de détail.',
-      ],
-    ),
-    _Feature(
-      icon: Icons.place_rounded,
-      color: Color(0xFF6A1B9A),
-      title: 'Points d\'Intérêt (POI)',
-      steps: [
-        'Explorez les POIs depuis l\'onglet dédié ou sur la carte.',
-        'Chaque POI affiche son type : cascade, sommet, vue panoramique…',
-        'Activez le Voice-over (icône 🔊) pour écouter la description.',
-        'Consultez la galerie photo et les vidéos associées.',
-        'Lancez la navigation vers le POI depuis son écran de détail.',
-      ],
-    ),
-    _Feature(
-      icon: Icons.quiz_rounded,
-      color: Color(0xFFE65100),
-      title: 'Quiz Nature',
-      steps: [
-        'Ouvrez l\'onglet "Quiz" et choisissez une catégorie.',
-        'Répondez aux questions sur la faune, flore et écologie.',
-        'Votre score est sauvegardé et comparé à vos sessions précédentes.',
-        'Gagnez des badges en complétant des catégories.',
-        'Consultez le classement général dans votre profil.',
-      ],
-    ),
-    _Feature(
-      icon: Icons.sos_rounded,
-      color: Color(0xFFC62828),
-      title: 'Alerte SOS',
-      steps: [
-        'Maintenez le bouton SOS rouge pendant 2 secondes pour l\'activer.',
-        'Votre position GPS est automatiquement jointe à l\'alerte.',
-        'L\'alerte est envoyée aux secours même sans connexion internet.',
-        'Une file d\'attente offline synchronise l\'envoi dès que le réseau revient.',
-        'Restez calme et restez sur place après avoir envoyé l\'alerte.',
-      ],
-    ),
-    _Feature(
-      icon: Icons.store_rounded,
-      color: Color(0xFF00695C),
-      title: 'Services Locaux',
-      steps: [
-        'L\'onglet "Services" liste les guides, hébergements et artisans.',
-        'Filtrez par type de service selon vos besoins.',
-        'Appelez ou envoyez un message directement depuis l\'app.',
-        'Consultez les avis et photos de chaque prestataire.',
-        'Ajoutez un service en favori pour le retrouver facilement.',
-      ],
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
+    List<String> steps(String f) =>
+        [for (var s = 1; s <= 5; s++) lp.t('help.guide.$f.s$s')];
+
+    final features = [
+      _Feature(
+        icon: Icons.map_rounded,
+        color: const Color(0xFF1565C0),
+        title: lp.t('help.guide.f1.title'),
+        steps: steps('f1'),
+      ),
+      _Feature(
+        icon: Icons.hiking_rounded,
+        color: const Color(0xFF2E7D32),
+        title: lp.t('help.guide.f2.title'),
+        steps: steps('f2'),
+      ),
+      _Feature(
+        icon: Icons.place_rounded,
+        color: const Color(0xFF6A1B9A),
+        title: lp.t('help.guide.f3.title'),
+        steps: steps('f3'),
+      ),
+      _Feature(
+        icon: Icons.quiz_rounded,
+        color: const Color(0xFFE65100),
+        title: lp.t('help.guide.f4.title'),
+        steps: steps('f4'),
+      ),
+      _Feature(
+        icon: Icons.sos_rounded,
+        color: const Color(0xFFC62828),
+        title: lp.t('help.guide.f5.title'),
+        steps: steps('f5'),
+      ),
+      _Feature(
+        icon: Icons.store_rounded,
+        color: const Color(0xFF00695C),
+        title: lp.t('help.guide.f6.title'),
+        steps: steps('f6'),
+      ),
+    ];
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
       children: [
         _SectionBanner(
           icon: Icons.menu_book_rounded,
-          title: 'Comment utiliser Eco-Guide',
-          subtitle: 'Suivez ces guides pas-à-pas pour maîtriser chaque fonctionnalité.',
+          title: lp.t('help.guide.banner.title'),
+          subtitle: lp.t('help.guide.banner.subtitle'),
           primary: primary,
           isDark: isDark,
         ),
         const SizedBox(height: 20),
-        ..._features.map(
+        ...features.map(
           (f) => _FeatureCard(
             feature: f,
             isDark: isDark,
@@ -537,56 +509,26 @@ class _FaqTab extends StatelessWidget {
     required this.textSub,
   });
 
-  static const _faqs = [
-    _Faq(
-      q: 'Comment utiliser l\'application sans connexion internet ?',
-      a: 'Téléchargez vos sentiers et cartes depuis leur page de détail en appuyant sur l\'icône de téléchargement. Ils seront disponibles hors-ligne. Les alertes SOS peuvent aussi être envoyées hors-ligne et seront synchronisées dès le retour de la connexion.',
-    ),
-    _Faq(
-      q: 'Comment créer un compte Eco-Guide ?',
-      a: 'Depuis l\'écran de connexion, appuyez sur "Créer un compte". Renseignez votre nom, email et mot de passe. Votre compte est sécurisé via Supabase Authentication.',
-    ),
-    _Faq(
-      q: 'Comment envoyer une alerte SOS ?',
-      a: 'Maintenez le bouton SOS rouge (en bas au centre) pendant 2 secondes. Votre position GPS sera automatiquement incluse. L\'alerte fonctionne même sans internet grâce à la file d\'attente hors-ligne.',
-    ),
-    _Faq(
-      q: 'Pourquoi le Voice-over POI ne fonctionne-t-il pas ?',
-      a: 'Assurez-vous que le volume de votre appareil est activé. Sur iOS, vérifiez que le mode silencieux est désactivé. La synthèse vocale utilise la langue de l\'application (FR, EN ou AR).',
-    ),
-    _Faq(
-      q: 'Comment changer la langue de l\'application ?',
-      a: 'Allez dans Paramètres → faites défiler jusqu\'à la section "Langue" → choisissez Français, English ou العربية. L\'interface se met à jour immédiatement.',
-    ),
-    _Faq(
-      q: 'Mes scores de quiz sont-ils sauvegardés ?',
-      a: 'Oui, vos scores sont synchronisés avec votre compte en ligne. Ils sont visibles depuis votre profil et dans la page Quiz sous chaque catégorie.',
-    ),
-    _Faq(
-      q: 'Comment activer le mode sombre ?',
-      a: 'Allez dans Paramètres → section "Affichage" → activez le switch "Mode sombre". Le thème s\'applique instantanément sans redémarrage.',
-    ),
-    _Faq(
-      q: 'Comment signaler un problème dans l\'application ?',
-      a: 'Rendez-vous dans l\'onglet Contact du Centre d\'aide et envoyez-nous un email détaillant le problème. Incluez votre version d\'appareil et les étapes pour reproduire le bug.',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
+    final faqs = [
+      for (var i = 1; i <= 8; i++)
+        _Faq(q: lp.t('help.faq.q$i'), a: lp.t('help.faq.a$i')),
+    ];
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
       children: [
         _SectionBanner(
           icon: Icons.help_outline_rounded,
-          title: 'Questions Fréquentes',
-          subtitle:
-              'Retrouvez les réponses aux questions les plus posées par nos utilisateurs.',
+          title: lp.t('help.faq.banner.title'),
+          subtitle: lp.t('help.faq.banner.subtitle'),
           primary: primary,
           isDark: isDark,
         ),
         const SizedBox(height: 20),
-        ..._faqs.map(
+        ...faqs.map(
           (faq) => _FaqCard(
             faq: faq,
             isDark: isDark,
@@ -708,14 +650,14 @@ class _ContactTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
       children: [
         _SectionBanner(
           icon: Icons.contact_support_rounded,
-          title: 'Contactez-nous',
-          subtitle:
-              'Notre équipe est disponible pour vous aider du lundi au vendredi.',
+          title: lp.t('help.contact.banner.title'),
+          subtitle: lp.t('help.contact.banner.subtitle'),
           primary: primary,
           isDark: isDark,
         ),
@@ -723,9 +665,9 @@ class _ContactTab extends StatelessWidget {
         _ContactCard(
           icon: Icons.email_rounded,
           color: const Color(0xFF1565C0),
-          title: 'Email Support',
+          title: lp.t('help.contact.email.title'),
           subtitle: 'support@ecoguide.dz',
-          detail: 'Réponse sous 24-48h en jours ouvrables.',
+          detail: lp.t('help.contact.email.detail'),
           isDark: isDark,
           surface: surface,
           textMain: textMain,
@@ -735,9 +677,9 @@ class _ContactTab extends StatelessWidget {
         _ContactCard(
           icon: Icons.bug_report_rounded,
           color: const Color(0xFFC62828),
-          title: 'Signaler un Bug',
+          title: lp.t('help.contact.bug.title'),
           subtitle: 'bugs@ecoguide.dz',
-          detail: 'Décrivez le problème et votre modèle d\'appareil.',
+          detail: lp.t('help.contact.bug.detail'),
           isDark: isDark,
           surface: surface,
           textMain: textMain,
@@ -747,9 +689,9 @@ class _ContactTab extends StatelessWidget {
         _ContactCard(
           icon: Icons.lightbulb_rounded,
           color: const Color(0xFFE65100),
-          title: 'Suggérer une Fonctionnalité',
+          title: lp.t('help.contact.feature.title'),
           subtitle: 'feedback@ecoguide.dz',
-          detail: 'Vos idées nous aident à améliorer l\'application.',
+          detail: lp.t('help.contact.feature.detail'),
           isDark: isDark,
           surface: surface,
           textMain: textMain,
@@ -771,7 +713,7 @@ class _ContactTab extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Version 1.0.0 · Eco-Guide Algeria\nDéveloppé avec ❤️ pour les randonneurs algériens.',
+                  lp.t('help.contact.footer'),
                   style: TextStyle(
                     color: textSub,
                     fontSize: 13,

@@ -206,9 +206,53 @@ class _QuizScreenState extends State<QuizScreen>
         ],
       ),
       actions: [
+        Consumer<QuizProvider>(
+          builder: (context, provider, _) {
+            if (provider.isDownloading) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+              );
+            }
+            return IconButton(
+              tooltip: lp.t('quiz.download'),
+              icon: const Icon(Icons.cloud_download_outlined,
+                  color: AppTheme.primaryColor),
+              onPressed: () => _downloadQuizzes(context),
+            );
+          },
+        ),
         _ProfileAvatarAction(),
         const SizedBox(width: 12),
       ],
+    );
+  }
+
+  Future<void> _downloadQuizzes(BuildContext context) async {
+    final provider = context.read<QuizProvider>();
+    final lp = context.read<LocaleProvider>();
+    final categories =
+        _categories.map((c) => c['key'] as String).toList();
+    final count = await provider.downloadAllQuizzes(categories);
+    await provider.loadCategoryStats();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          count > 0
+              ? '$count ${lp.t('quiz.downloadedMsg')}'
+              : lp.t('quiz.downloadFailedMsg'),
+        ),
+      ),
     );
   }
 

@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import '../models/quiz.dart';
 import '../services/api_client.dart';
 import '../services/badge_service.dart';
+import '../services/offline_progress_service.dart';
 import '../services/quiz_service.dart';
 
 class QuizProvider extends ChangeNotifier {
   final QuizService _service;
+  final OfflineProgressService _offline = OfflineProgressService.instance;
+
+  bool _isDownloading = false;
+  String _downloadStatus = '';
+  bool get isDownloading => _isDownloading;
+  String get downloadStatus => _downloadStatus;
 
   List<Quiz> _quizzes = [];
   Quiz? _currentQuiz;
@@ -53,11 +60,15 @@ class QuizProvider extends ChangeNotifier {
         category: category,
       );
       if (_quizzes.isNotEmpty) {
-        _currentQuiz = _quizzes[0];
+        await _offline.cacheQuizzes(category ?? 'all', _quizzes);
       }
     } catch (e) {
-      _error = e.toString();
+      // Offline fallback: use cached quizzes for this category (or the pool).
+      _quizzes = await _offline.getCachedQuizzes(category ?? 'all');
+      if (_quizzes.length > count) _quizzes = _quizzes.sublist(0, count);
+      if (_quizzes.isEmpty) _error = e.toString();
     } finally {
+      if (_quizzes.isNotEmpty) _currentQuiz = _quizzes[0];
       _isLoading = false;
       notifyListeners();
     }
@@ -73,14 +84,51 @@ class QuizProvider extends ChangeNotifier {
     try {
       _quizzes = await _service.getQuizzesByCategory(category);
       if (_quizzes.isNotEmpty) {
-        _currentQuiz = _quizzes[0];
+        await _offline.cacheQuizzes(category, _quizzes);
       }
     } catch (e) {
-      _error = e.toString();
+      _quizzes = await _offline.getCachedQuizzes(category);
+      if (_quizzes.isEmpty) _error = e.toString();
     } finally {
+      if (_quizzes.isNotEmpty) _currentQuiz = _quizzes[0];
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Downloads (and updates) every category's quizzes into the offline cache so
+  /// the whole quiz feature works without a connection.
+  Future<int> downloadAllQuizzes(List<String> categories) async {
+    if (_isDownloading) return 0;
+    _isDownloading = true;
+    _downloadStatus = '';
+    notifyListeners();
+    var total = 0;
+    try {
+      // Random pool (mixed categories) for the "random" mode.
+      try {
+        final pool = await _service.getRandomQuizzes(count: 50);
+        if (pool.isNotEmpty) await _offline.cacheQuizzes('all', pool);
+      } catch (_) {}
+
+      for (var i = 0; i < categories.length; i++) {
+        final cat = categories[i];
+        _downloadStatus = '${i + 1}/${categories.length}';
+        notifyListeners();
+        try {
+          final qs = await _service.getQuizzesByCategory(cat);
+          if (qs.isNotEmpty) {
+            await _offline.cacheQuizzes(cat, qs);
+            total += qs.length;
+          }
+        } catch (_) {}
+      }
+    } finally {
+      _isDownloading = false;
+      _downloadStatus = '';
+      notifyListeners();
+    }
+    return total;
   }
 
   Future<void> loadQuizzesByTrail(String trailId) async {
@@ -108,17 +156,37 @@ class QuizProvider extends ChangeNotifier {
       _categoryStats = await _service.getCategoryStats();
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading category stats: $e');
+      // Offline: derive category counts from the cached quizzes.
+      final cats = await _offline.getCachedCategories();
+      final stats = <CategoryStats>[];
+      for (final c in cats) {
+        final qs = await _offline.getCachedQuizzes(c);
+        stats.add(CategoryStats(category: c, quizCount: qs.length));
+      }
+      if (stats.isNotEmpty) {
+        _categoryStats = stats;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> loadUserScores() async {
+    final local = await _offline.getScores();
     try {
-      _userScores = await _service.getMyScores();
-      notifyListeners();
+      final remote = await _service.getMyScores();
+      // Merge by category; the server value wins when present.
+      final byCat = <String, QuizScore>{};
+      for (final s in local) {
+        byCat[s.category ?? 'general'] = s;
+      }
+      for (final s in remote) {
+        byCat[s.category ?? 'general'] = s;
+      }
+      _userScores = byCat.values.toList();
     } catch (e) {
-      debugPrint('Error loading user scores: $e');
+      _userScores = local;
     }
+    notifyListeners();
   }
 
   QuizScore? getScoreForCategory(String? category) {
@@ -175,6 +243,24 @@ class QuizProvider extends ChangeNotifier {
   Future<void> finishQuiz() async {
     if (_quizzes.isEmpty) return;
 
+    // 1) Always persist the result locally (works fully offline).
+    await _offline.recordScore(
+      category: _currentCategory,
+      score: _score,
+      correctAnswers: _correctAnswers,
+      totalQuestions: _quizzes.length,
+    );
+    final completed = await _offline.totalQuizzesCompleted();
+    _newlyEarnedBadges = await _offline.awardBadges(
+      score: _score,
+      correctAnswers: _correctAnswers,
+      totalQuestions: _quizzes.length,
+      quizzesCompleted: completed,
+      category: _currentCategory,
+    );
+    notifyListeners();
+
+    // 2) Best-effort sync to the backend when connected.
     try {
       await _service.submitScore(
         category: _currentCategory,
@@ -182,26 +268,20 @@ class QuizProvider extends ChangeNotifier {
         correctAnswers: _correctAnswers,
         totalQuestions: _quizzes.length,
       );
-      await loadUserScores();
-    } catch (e) {
-      debugPrint('Error submitting score: $e');
-    }
-
-    // Award badges based on performance
-    try {
-      final completed = _userScores.length;
-      final earned = await BadgeService.checkAndAward(
+      await BadgeService.checkAndAward(
         score: _score,
         correctAnswers: _correctAnswers,
         totalQuestions: _quizzes.length,
-        quizzesCompleted: completed > 0 ? completed : 1,
+        quizzesCompleted: completed,
         category: _currentCategory,
       );
-      _newlyEarnedBadges = earned;
-      if (earned.isNotEmpty) notifyListeners();
+      // Mirror any server-side badges back into the offline store.
+      await _offline.mergeServerBadges(await BadgeService.getMyBadges());
     } catch (e) {
-      debugPrint('Error awarding badges: $e');
+      debugPrint('Quiz online sync skipped (offline?): $e');
     }
+
+    await loadUserScores();
   }
 
   void _resetQuiz() {

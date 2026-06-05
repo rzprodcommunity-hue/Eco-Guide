@@ -10,6 +10,7 @@ import '../../core/constants/app_constants.dart';
 import '../../providers/locale_provider.dart';
 import '../../services/map_offline_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_chatbot_fab.dart';
 import '../../core/widgets/map_pull_button.dart';
 import '../../models/local_service.dart';
@@ -21,6 +22,7 @@ import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
 import '../../providers/weather_provider.dart';
 import '../chatbot/eco_chatbot_screen.dart';
+import '../settings/qr_unlock_screen.dart';
 import '../help/help_center_screen.dart';
 import '../poi/poi_detail_screen.dart';
 import '../services/local_service_detail_screen.dart';
@@ -56,9 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final MapController _mapController = MapController();
   final MapOfflineService _mapOfflineService = MapOfflineService();
   final ScrollController _scrollController = ScrollController();
-  _DashboardMapStyle _mapStyle = _DashboardMapStyle.standard;
   bool _hasCenteredOnUser = false;
-  bool _styleAutoSet = false;
   bool _buttonDragging = false;
 
   // Hero map "grow then open" animation.
@@ -74,6 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    appMapStyle.addListener(_onMapStyleChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
       _mapOfflineService.initialize();
@@ -84,16 +85,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_styleAutoSet) {
-      _styleAutoSet = true;
-      if (Theme.of(context).brightness == Brightness.dark) {
-        _mapStyle = _DashboardMapStyle.satellite;
-      }
-    }
+    ensureMapStyleDefault(context);
+  }
+
+  /// Rebuild when the shared map style changes elsewhere (big map / navigation)
+  /// so the mini-map always reflects the latest choice.
+  void _onMapStyleChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    appMapStyle.removeListener(_onMapStyleChanged);
     _scrollController.dispose();
     try {
       context.read<WeatherProvider>().stopAutoRefresh();
@@ -450,8 +453,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             children: [
               TileLayer(
-                key: ValueKey(_mapStyle),
-                urlTemplate: _mapStyle.urlTemplate,
+                key: ValueKey(appMapStyle.value),
+                urlTemplate: appMapStyle.value.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
                 maxZoom: 18,
                 maxNativeZoom: 18,
@@ -522,10 +525,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(_mapStyle.icon, size: 15, color: AppTheme.primaryColor),
+                  Icon(appMapStyle.value.icon,
+                      size: 15, color: AppTheme.primaryColor),
                   const SizedBox(width: 6),
                   Text(
-                    _mapStyle.label,
+                    appMapStyle.value.label,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -536,12 +540,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ),
-          // Bottom white shadow
+          // Bottom black shadow (thin, half as prominent)
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            height: 60,
+            height: 28,
             child: IgnorePointer(
               child: Container(
                 decoration: BoxDecoration(
@@ -549,8 +553,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      bgColor.withValues(alpha: 0.8),
-                      bgColor.withValues(alpha: 0.0),
+                      Colors.black.withValues(alpha: 0.4),
+                      Colors.black.withValues(alpha: 0.0),
                     ],
                   ),
                 ),
@@ -576,7 +580,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final navBarHeight = 64 + (bottomInset > 0 ? bottomInset : 10);
     return Padding(
       padding: EdgeInsets.only(bottom: navBarHeight + 12, right: 2),
-      child: EcoChatbotFab(onPressed: _openChatbot),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          EcoChatbotFab(onPressed: _openChatbot),
+          const SizedBox(height: 12),
+          // QR scan shortcut, just below the chatbot button.
+          _buildQrShortcut(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQrShortcut() {
+    const size = 48.0;
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.25),
+      child: InkWell(
+        onTap: _openQrScanner,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF1B8A2C),
+                      width: 2.4,
+                    ),
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.qr_code_scanner_rounded,
+                color: Color(0xFF0E7A23),
+                size: 24,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -586,6 +637,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => EcoChatbotScreen(userPosition: _currentPosition),
+    );
+  }
+
+  void _openQrScanner() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const QrUnlockScreen()),
     );
   }
 
@@ -666,12 +723,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _cycleMapStyle() {
-    final styles = _DashboardMapStyle.values;
-    final currentIndex = styles.indexOf(_mapStyle);
-    final nextIndex = (currentIndex + 1) % styles.length;
-    final nextStyle = styles[nextIndex];
-
-    setState(() => _mapStyle = nextStyle);
+    final nextStyle = appMapStyle.value.next;
+    // Updates the shared notifier → the mini-map, the big map and the
+    // navigation map all switch to (and keep) this style.
+    appMapStyle.value = nextStyle;
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -1646,31 +1701,3 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-enum _DashboardMapStyle {
-  standard(
-    'Standard',
-    Icons.map_outlined,
-    'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-  ),
-  relief(
-    'Relief',
-    Icons.terrain_outlined,
-    'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-  ),
-  dark(
-    'Sombre',
-    Icons.dark_mode_outlined,
-    'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-  ),
-  satellite(
-    'Satellite',
-    Icons.satellite_alt_outlined,
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  );
-
-  final String label;
-  final IconData icon;
-  final String urlTemplate;
-
-  const _DashboardMapStyle(this.label, this.icon, this.urlTemplate);
-}

@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/services/location_service.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../models/local_service.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
@@ -55,8 +56,6 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
 
   bool _isLoading = false;
   bool _isRouting = false;
-  bool _styleAutoSet = false;
-  _MapVisualStyle _mapStyle = _MapVisualStyle.standard;
 
   LatLng? _activeOrigin;
   LatLng? _activeDestination;
@@ -78,6 +77,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   @override
   void initState() {
     super.initState();
+    appMapStyle.addListener(_onMapStyleChanged);
     _mapOfflineService.initialize();
     _activeOrigin = _currentPosition;
     _activeOriginLabel = 'Ma position';
@@ -112,16 +112,18 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_styleAutoSet) {
-      _styleAutoSet = true;
-      if (Theme.of(context).brightness == Brightness.dark) {
-        _mapStyle = _MapVisualStyle.satellite;
-      }
-    }
+    ensureMapStyleDefault(context);
+  }
+
+  /// Rebuild when the shared map style changes elsewhere (mini-map /
+  /// navigation) so the full map always reflects the latest choice.
+  void _onMapStyleChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    appMapStyle.removeListener(_onMapStyleChanged);
     _gpsTimer?.cancel();
     _connectivitySub?.cancel();
     _tts.stop();
@@ -199,7 +201,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
 
     _mapController.move(
       _activeDestination ?? _currentPosition,
-      _mapStyle.maxZoom.clamp(14, 18),
+      appMapStyle.value.maxZoom.clamp(14, 18),
     );
     debugPrint(
       '[GPS] fix lat=${fix.latitude.toStringAsFixed(6)} '
@@ -299,20 +301,20 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               initialZoom: 13,
               minZoom: 3,
               // Allow overzoom past the tiles' native max (upscaled tiles).
-              maxZoom: _mapStyle.maxZoom + 3,
+              maxZoom: appMapStyle.value.maxZoom + 3,
             ),
             children: [
               TileLayer(
                 // Rebuild (refetch) when the offline mode toggles.
-                key: ValueKey('${_mapStyle.label}_$_forceOffline'),
+                key: ValueKey('${appMapStyle.value.label}_$_forceOffline'),
                 // Forced offline uses the standard (Google "m") layer — the
                 // only one cached on disk.
                 urlTemplate: _forceOffline
                     ? MapOfflineService.standardTileUrlTemplate
-                    : _mapStyle.urlTemplate,
+                    : appMapStyle.value.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
-                maxZoom: _mapStyle.maxZoom + 3,
-                maxNativeZoom: _mapStyle.maxZoom.toInt(),
+                maxZoom: appMapStyle.value.maxZoom + 3,
+                maxNativeZoom: appMapStyle.value.maxZoom.toInt(),
                 tileProvider: LocalFirstTileProvider(
                   service: _mapOfflineService,
                   forceOffline: () => _forceOffline,
@@ -532,16 +534,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _buildOfflineIndicator(),
-                      ),
-                      _buildActionColumn(),
-                    ],
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildActionColumn(),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -567,6 +562,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Connection status: a simple green (online) / red (offline) dot.
+        // Tap it to see the current state.
+        _buildStatusDotButton(),
+        const SizedBox(height: 8),
         _buildRoundButton(
           icon: _forceOffline ? Icons.cloud_off : Icons.cloud_queue,
           onPressed: _toggleForceOffline,
@@ -589,7 +588,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
           icon: Icons.add,
           onPressed: () {
             final next = (_mapController.camera.zoom + 1)
-                .clamp(3.0, _mapStyle.maxZoom + 3);
+                .clamp(3.0, appMapStyle.value.maxZoom + 3);
             _mapController.move(_mapController.camera.center, next);
           },
         ),
@@ -598,7 +597,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
           icon: Icons.remove,
           onPressed: () {
             final next = (_mapController.camera.zoom - 1)
-                .clamp(3.0, _mapStyle.maxZoom + 3);
+                .clamp(3.0, appMapStyle.value.maxZoom + 3);
             _mapController.move(_mapController.camera.center, next);
           },
         ),
@@ -715,42 +714,70 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     );
   }
 
-  Widget _buildOfflineIndicator() {
-    const onlineColor = Color(0xFF0E7A23);
-    const offlineColor = Color(0xFFE53935);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dotColor = _isOnline ? onlineColor : offlineColor;
-
+  /// A round control button showing connection status as a single coloured
+  /// dot (green = online, red = offline). Tapping it reveals the state.
+  Widget _buildStatusDotButton() {
+    final dotColor =
+        _isOnline ? const Color(0xFF0E7A23) : const Color(0xFFE53935);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
-        color: isDark
-            ? dotColor.withValues(alpha: 0.1)
-            : dotColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: dotColor.withValues(alpha: isDark ? 0.3 : 0.4),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _isOnline ? 'Mode en ligne' : 'Mode hors ligne',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
+      ),
+      child: IconButton(
+        tooltip: _isOnline ? 'Mode en ligne' : 'Mode hors ligne',
+        onPressed: _showConnectionState,
+        icon: Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: dotColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: dotColor.withValues(alpha: 0.55),
+                blurRadius: 6,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showConnectionState() {
+    final online = _isOnline;
+    final color = online ? const Color(0xFF0E7A23) : const Color(0xFFE53935);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: color,
+        content: Row(
+          children: [
+            Icon(online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Text(
+              online ? 'Mode en ligne' : 'Mode hors ligne',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -928,11 +955,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   }
 
   void _cycleMapStyle() {
-    final styles = _MapVisualStyle.values;
-    final currentIndex = styles.indexOf(_mapStyle);
-    final nextIndex = (currentIndex + 1) % styles.length;
-    final nextStyle = styles[nextIndex];
-    setState(() => _mapStyle = nextStyle);
+    // Toggle between the two shared styles; the notifier keeps every map
+    // (mini-map / navigation) in sync with the choice.
+    appMapStyle.value = appMapStyle.value.next;
   }
 
   Widget _buildNearbyPanel(List<_NearbyItem> items) {
@@ -1607,27 +1632,3 @@ class _RoutePointOption {
   });
 }
 
-enum _MapVisualStyle {
-  standard(
-    'Normal',
-    'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-    19,
-  ),
-  relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png', 17),
-  dark(
-    'Dark',
-    'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-    19,
-  ),
-  satellite(
-    'Satellite',
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    18,
-  );
-
-  final String label;
-  final String urlTemplate;
-  final double maxZoom;
-
-  const _MapVisualStyle(this.label, this.urlTemplate, this.maxZoom);
-}

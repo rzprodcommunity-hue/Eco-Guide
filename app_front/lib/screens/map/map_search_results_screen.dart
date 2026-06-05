@@ -8,6 +8,7 @@ import '../../models/local_service.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/local_service_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
 import '../poi/poi_detail_screen.dart';
@@ -136,13 +137,14 @@ class _MapSearchResultsScreenState extends State<MapSearchResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     final filtered = _items.where((item) {
       if (_category == _SearchCategory.all) return true;
       return item.type == _category;
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Recherche Carte')),
+      appBar: AppBar(title: Text(lp.t('mapSearch.title'))),
       body: Column(
         children: [
           Padding(
@@ -151,7 +153,7 @@ class _MapSearchResultsScreenState extends State<MapSearchResultsScreen> {
               controller: _searchController,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Search trail, POI, service...',
+                hintText: lp.t('mapSearch.searchHint'),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -171,10 +173,16 @@ class _MapSearchResultsScreenState extends State<MapSearchResultsScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                _categoryChip('All', _SearchCategory.all),
-                _categoryChip('Trail', _SearchCategory.trail),
+                _categoryChip(lp.t('mapSearch.categoryAll'), _SearchCategory.all),
+                _categoryChip(
+                  lp.t('mapSearch.categoryTrail'),
+                  _SearchCategory.trail,
+                ),
                 _categoryChip('POI', _SearchCategory.poi),
-                _categoryChip('Service', _SearchCategory.service),
+                _categoryChip(
+                  lp.t('mapSearch.categoryService'),
+                  _SearchCategory.service,
+                ),
               ],
             ),
           ),
@@ -183,7 +191,7 @@ class _MapSearchResultsScreenState extends State<MapSearchResultsScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : filtered.isEmpty
-                ? const Center(child: Text('No result found'))
+                ? Center(child: Text(lp.t('mapSearch.noResults')))
                 : ListView.separated(
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),

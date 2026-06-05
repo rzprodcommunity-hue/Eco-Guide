@@ -20,7 +20,7 @@ class EcoShortcutBadge extends StatelessWidget {
 
   // Layout constants — fully-rounded pill, SOS inline with the tabs.
   static const _barH = 64.0;
-  static const _sosSize = 55.0;
+  static const _sosSize = 52.0;
   // Outer margin from the screen edges.
   static const _hMargin = 14.0;
   // Inner padding INSIDE the pill — tweak to push the icons / SOS away from
@@ -60,7 +60,7 @@ class EcoShortcutBadge extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_barRadius),
             boxShadow: [
-              // Subtle grounding drop shadow only — no foggy white halo.
+              // Subtle grounding drop shadow only — no foggy white h(lo.
               BoxShadow(
                 color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.12),
                 blurRadius: 16,
@@ -187,6 +187,9 @@ class _TabItem extends StatelessWidget {
 
 // ── SOS button ───────────────────────────────────────────────────────────────
 
+/// SOS button styled exactly like the main hold-to-send button on the SOS
+/// page: three nested red radial-gradient shells with a glowing red shadow and
+/// the bold "SOS" label. Tapping it opens the SOS page.
 class _SosButton extends StatelessWidget {
   final double size;
   const _SosButton({required this.size});
@@ -202,42 +205,92 @@ class _SosButton extends StatelessWidget {
           fullscreenDialog: true,
         ),
       ),
+      // ── Outer shell ──────────────────────────────────────────────────────
       child: Container(
         width: s,
         height: s,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: const RadialGradient(
-            center: Alignment(0, -0.30),
-            radius: 0.85,
-            colors: [Color(0xFFFF6B60), Color(0xFFE53935), Color(0xFFC62828)],
+            center: Alignment(0, -0.36),
+            radius: 0.75,
+            colors: [Color(0xFFFF7065), Color(0xFFE53935), Color(0xFFBD2723)],
             stops: [0.0, 0.55, 1.0],
           ),
-          border: Border.all(color: Colors.white, width: 2.4),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE53935).withValues(alpha: 0.30),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+              color: const Color(0xFFE53935).withValues(alpha: 0.40),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.16),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Center(
-          child: Text(
-            'SOS',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: s * 0.28,
-              fontWeight: FontWeight.w900,
-              letterSpacing: s * 0.020,
-              height: 1.0,
-              shadows: const [
-                Shadow(
-                  color: Color(0x55000000),
-                  blurRadius: 6,
-                  offset: Offset(0, 1),
+          // ── Middle shell ───────────────────────────────────────────────
+          child: Container(
+            width: s * 0.914,
+            height: s * 0.914,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const RadialGradient(
+                center: Alignment(0, -0.30),
+                radius: 0.65,
+                colors: [Color(0xFFC42924), Color(0xFFC62828), Color(0xFFBC2724)],
+                stops: [0.0, 0.70, 1.0],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                  spreadRadius: -3,
                 ),
               ],
+            ),
+            child: Center(
+              // ── Inner face ─────────────────────────────────────────────
+              child: Container(
+                width: s * 0.843,
+                height: s * 0.843,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    center: Alignment(0, -0.40),
+                    radius: 0.65,
+                    colors: [
+                      Color(0xFFFF8C81),
+                      Color(0xFFEF4945),
+                      Color(0xFFC62828),
+                    ],
+                    stops: [0.0, 0.40, 1.0],
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    'SOS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: s * 0.26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: s * 0.03,
+                      height: 1.0,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.black38,
+                          blurRadius: 0,
+                          offset: Offset(0, 1),
+                        ),
+                        Shadow(color: Colors.black26, blurRadius: 8),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),

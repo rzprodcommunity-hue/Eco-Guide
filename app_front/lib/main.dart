@@ -91,9 +91,14 @@ class EcoGuideApp extends StatelessWidget {
         ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
         // Locale Provider
         ChangeNotifierProvider<LocaleProvider>(create: (_) => LocaleProvider()),
-        // Favorites Provider
-        ChangeNotifierProvider<FavoritesProvider>(
+        // Favorites Provider — scoped to the signed-in account.
+        ChangeNotifierProxyProvider<AuthProvider, FavoritesProvider>(
           create: (_) => FavoritesProvider(),
+          update: (_, auth, previous) {
+            final provider = previous ?? FavoritesProvider();
+            provider.setUser(auth.user?.id);
+            return provider;
+          },
         ),
       ],
       child: Consumer2<ThemeProvider, LocaleProvider>(

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../models/poi.dart';
 import '../../models/trail.dart';
 import '../../providers/poi_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../../services/map_offline_service.dart';
@@ -116,12 +117,13 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     final current = _current;
     final target = _trailStart;
     final trailPoints = _trailPoints;
 
     return Scaffold(
-      appBar: const EcoPageHeader(title: 'Navigation & SOS'),
+      appBar: EcoPageHeader(title: lp.t('nav.title')),
       bottomNavigationBar: EcoShortcutBadge(
         currentTab: EcoShortcutTab.map,
         onTabSelected: (tab) {
@@ -249,9 +251,9 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Text(
-                      'Continuer sur le sentier principal',
-                      style: TextStyle(color: Colors.black87),
+                    Text(
+                      context.read<LocaleProvider>().t('nav.continueMainTrail'),
+                      style: const TextStyle(color: Colors.black87),
                     ),
                   ],
                 ),
@@ -277,9 +279,9 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
             children: [
               const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Off-Trail Alert: vous etes eloigne du trajet recommande.',
+                  context.read<LocaleProvider>().t('nav.offTrailAlert'),
                 ),
               ),
               FilledButton(
@@ -288,7 +290,7 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                     _mapController.move(_current!, 16);
                   }
                 },
-                child: const Text('Re-route'),
+                child: Text(context.read<LocaleProvider>().t('nav.reroute')),
               ),
             ],
           ),
@@ -344,10 +346,10 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _metric('1h 15m', 'Restant'),
-                  _metric('${km.toStringAsFixed(1)} km', 'Distance'),
-                  _metric('4.2 km/h', 'Allure'),
-                  _metric('+120m', 'Elevation'),
+                  _metric('1h 15m', context.read<LocaleProvider>().t('nav.remaining')),
+                  _metric('${km.toStringAsFixed(1)} km', context.read<LocaleProvider>().t('nav.distance')),
+                  _metric('4.2 km/h', context.read<LocaleProvider>().t('nav.pace')),
+                  _metric('+120m', context.read<LocaleProvider>().t('nav.elevation')),
                 ],
               ),
               const SizedBox(height: 10),
@@ -357,7 +359,7 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.pause),
-                      label: const Text('Pause'),
+                      label: Text(context.read<LocaleProvider>().t('nav.pause')),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -365,7 +367,7 @@ class _TrailNavigationScreenState extends State<TrailNavigationScreen> {
                     child: FilledButton.icon(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.flag),
-                      label: const Text('Finish'),
+                      label: Text(context.read<LocaleProvider>().t('nav.finish')),
                     ),
                   ),
                 ],

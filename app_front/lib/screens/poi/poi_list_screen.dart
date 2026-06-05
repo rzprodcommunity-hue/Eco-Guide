@@ -12,6 +12,7 @@ import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/poi_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../models/poi.dart';
 import '../map/map_screen.dart';
 import 'poi_detail_screen.dart';
@@ -142,10 +143,11 @@ class _PoiListScreenState extends State<PoiListScreen> {
       Navigator.push(context, MaterialPageRoute(builder: (_) => PoiDetailScreen(poi: poi)));
       return;
     }
+    final lp = context.read<LocaleProvider>();
     final uri = Uri.tryParse(link.trim());
     if (uri == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid link for this POI')),
+        SnackBar(content: Text(lp.t('poiList.invalidLink'))),
       );
       return;
     }
@@ -155,12 +157,13 @@ class _PoiListScreenState extends State<PoiListScreen> {
     }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open this link')),
+      SnackBar(content: Text(lp.t('poiList.couldNotOpenLink'))),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     final provider = context.watch<PoiProvider>();
     final pois = provider.pois;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -172,8 +175,8 @@ class _PoiListScreenState extends State<PoiListScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: const EcoPageHeader(
-        title: 'Local Heritage',
+      appBar: EcoPageHeader(
+        title: lp.t('poiList.title'),
       ),
       body: RefreshIndicator(
         color: AppTheme.primaryColor,
@@ -187,7 +190,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Discover the wonders of the Vercors ecosystem',
+                    lp.t('poiList.subtitle'),
                     style: TextStyle(
                       fontSize: 13,
                       color: subtleText,
@@ -206,7 +209,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                       ),
                     ),
                     child: Text(
-                      '${pois.length} POIs',
+                      '${pois.length} ${lp.t('poiList.poisUnit')}',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -235,12 +238,12 @@ class _PoiListScreenState extends State<PoiListScreen> {
                       controller: _searchController,
                       onChanged: _onSearchChanged,
                       style: TextStyle(color: onSurface, fontSize: 14),
-                      decoration: const InputDecoration(
-                        hintText: 'Rechercher un point d\'intérêt...',
-                        hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: lp.t('poiList.searchHint'),
+                        hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
                         border: InputBorder.none,
-                        prefixIcon: Icon(Icons.search, color: Color(0xFF6B7280), size: 20),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280), size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
                   ),
@@ -276,7 +279,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                 scrollDirection: Axis.horizontal,
                 children: [
                   _TypeFilterChip(
-                    label: 'All',
+                    label: lp.t('poiList.filterAll'),
                     icon: Icons.apps_rounded,
                     isSelected: _selectedType == null,
                     color: const Color(0xFF2E7D32),
@@ -285,7 +288,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                   ),
                   ..._allPoiTypes.map(
                     (type) => _TypeFilterChip(
-                      label: _formatType(type),
+                      label: _typeLabel(lp, type),
                       icon: _getPoiIcon(type),
                       isSelected: _selectedType == type,
                       color: _getTypeColor(type),
@@ -319,7 +322,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                       const CircularProgressIndicator(color: AppTheme.primaryColor),
                       const SizedBox(height: 16),
                       Text(
-                        'Loading points of interest...',
+                        lp.t('poiList.loading'),
                         style: TextStyle(
                           color: subtleText,
                           fontSize: 13,
@@ -351,7 +354,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No results found',
+                        lp.t('poiList.emptyTitle'),
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
@@ -360,7 +363,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Try adjusting your search or filter',
+                        lp.t('poiList.emptySubtitle'),
                         style: TextStyle(
                           fontSize: 13,
                           color: subtleText,
@@ -373,7 +376,7 @@ class _PoiListScreenState extends State<PoiListScreen> {
                           _onFilterSelected(null);
                         },
                         icon: const Icon(Icons.refresh_rounded, size: 16),
-                        label: const Text('Clear filters'),
+                        label: Text(lp.t('poiList.clearFilters')),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.primaryColor,
                           side: const BorderSide(color: AppTheme.primaryColor),
@@ -420,8 +423,8 @@ class _PoiListScreenState extends State<PoiListScreen> {
     );
   }
 
-  String _formatType(String type) {
-    return type.split('_').map((p) => p.isEmpty ? p : '${p[0].toUpperCase()}${p.substring(1)}').join(' ');
+  String _typeLabel(LocaleProvider lp, String type) {
+    return lp.t('poiList.type.$type');
   }
 }
 
@@ -448,6 +451,7 @@ class _PoiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     final theme = Theme.of(context);
     final cardBg = theme.cardColor;
     final onSurface = theme.colorScheme.onSurface;
@@ -564,14 +568,14 @@ class _PoiCard extends StatelessWidget {
                             color: Colors.black.withValues(alpha: 0.45),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.star_rounded, size: 11, color: Color(0xFFFFD54F)),
-                              SizedBox(width: 4),
+                              const Icon(Icons.star_rounded, size: 11, color: Color(0xFFFFD54F)),
+                              const SizedBox(width: 4),
                               Text(
-                                'Featured',
-                                style: TextStyle(
+                                lp.t('poiList.featured'),
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -622,65 +626,7 @@ class _PoiCard extends StatelessWidget {
                         height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Badge chip — compact, auto-width
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: typeColor.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: typeColor.withValues(alpha: 0.25)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(icon, size: 11, color: typeColor),
-                              const SizedBox(width: 5),
-                              Text(
-                                poi.badge?.trim().isNotEmpty == true
-                                    ? poi.badge!
-                                    : poi.typeDisplayName,
-                                style: TextStyle(
-                                  color: typeColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Learn More — compact pill
-                        GestureDetector(
-                          onTap: onTapLearnMore,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'En savoir plus',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(width: 4),
-                                Icon(Icons.arrow_forward_rounded, size: 12, color: Colors.white),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                 ],
                 ),
               ),
             ],
@@ -801,6 +747,7 @@ class _MapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lp = context.watch<LocaleProvider>();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -844,7 +791,7 @@ class _MapCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Explore Nearby POIs',
+                        lp.t('poiList.mapTitle'),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -854,10 +801,10 @@ class _MapCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         nearbyCount == null
-                            ? 'Searching nearby points...'
+                            ? lp.t('poiList.searchingNearby')
                             : nearbyCount! > 0
-                                ? '$nearbyCount more points nearby'
-                                : 'All nearby points shown',
+                                ? '$nearbyCount ${lp.t('poiList.morePointsNearby')}'
+                                : lp.t('poiList.allNearbyShown'),
                         style: TextStyle(
                           fontSize: 12,
                           color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
@@ -874,14 +821,14 @@ class _MapCard extends StatelessWidget {
                       color: AppTheme.primaryColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.explore_rounded, size: 14, color: Colors.white),
-                        SizedBox(width: 5),
+                        const Icon(Icons.explore_rounded, size: 14, color: Colors.white),
+                        const SizedBox(width: 5),
                         Text(
-                          'Open Map',
-                          style: TextStyle(
+                          lp.t('poiList.openMap'),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

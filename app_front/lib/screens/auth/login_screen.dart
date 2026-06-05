@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  String? _loginError;
   late TabController _tabController;
 
   @override
@@ -34,40 +36,20 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _login() async {
+    setState(() => _loginError = null);
     if (!_formKey.currentState!.validate()) return;
     final authProvider = context.read<AuthProvider>();
+    final lp = context.read<LocaleProvider>();
     final success = await authProvider.login(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
     if (!mounted) return;
     if (!success) {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          icon: const Icon(
-            Icons.error_outline,
-            color: AppTheme.errorColor,
-            size: 48,
-          ),
-          title: const Text('Connexion échouée'),
-          content: Text(
-            authProvider.error ??
-                'Email ou mot de passe incorrect. Veuillez réessayer.',
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-          actionsAlignment: MainAxisAlignment.center,
-        ),
-      );
+      // Inline red message under the fields (persistent + clearly visible).
+      setState(() {
+        _loginError = authProvider.error ?? lp.t('auth.login.failed.body');
+      });
       authProvider.clearError();
     }
   }
@@ -93,6 +75,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final lp = context.watch<LocaleProvider>();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF12181C) : const Color(0xFFF5F0EA);
@@ -166,9 +149,9 @@ class _LoginScreenState extends State<LoginScreen>
                         ],
                       ),
                       const SizedBox(height: 18),
-                      const Text(
-                        'Adventure awaits in the wild.',
-                        style: TextStyle(
+                      Text(
+                        lp.t('auth.tagline'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w500,
@@ -203,7 +186,10 @@ class _LoginScreenState extends State<LoginScreen>
                     unselectedLabelColor: mutedText,
                     labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                     unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
-                    tabs: const [Tab(text: 'Sign In'), Tab(text: 'Create Account')],
+                    tabs: [
+                      Tab(text: lp.t('auth.tab.signin')),
+                      Tab(text: lp.t('auth.tab.create')),
+                    ],
                     onTap: (index) {
                       if (index == 1) {
                         Navigator.push(
@@ -224,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Email
-                        _fieldLabel('EMAIL ADDRESS'),
+                        _fieldLabel(lp.t('auth.field.email')),
                         const SizedBox(height: 8),
                         _buildField(
                           controller: _emailController,
@@ -234,8 +220,12 @@ class _LoginScreenState extends State<LoginScreen>
                           fillColor: fieldFill,
                           isDark: isDark,
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Please enter your email';
-                            if (!v.contains('@')) return 'Please enter a valid email';
+                            if (v == null || v.isEmpty) {
+                              return lp.t('auth.validation.email.required');
+                            }
+                            if (!v.contains('@')) {
+                              return lp.t('auth.validation.email.invalid');
+                            }
                             return null;
                           },
                         ),
@@ -243,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 20),
 
                         // Password
-                        _fieldLabel('PASSWORD'),
+                        _fieldLabel(lp.t('auth.field.password')),
                         const SizedBox(height: 8),
                         _buildField(
                           controller: _passwordController,
@@ -263,7 +253,9 @@ class _LoginScreenState extends State<LoginScreen>
                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Please enter your password';
+                            if (v == null || v.isEmpty) {
+                              return lp.t('auth.validation.password.required');
+                            }
                             return null;
                           },
                         ),
@@ -277,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen>
                               padding: const EdgeInsets.only(top: 8, bottom: 4),
                             ),
                             child: Text(
-                              'Forgot Password?',
+                              lp.t('auth.login.forgot'),
                               style: TextStyle(
                                 color: onSurface,
                                 fontWeight: FontWeight.w600,
@@ -288,6 +280,41 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
 
                         const SizedBox(height: 8),
+
+                        // Inline error — shown when the email/password are wrong.
+                        if (_loginError != null)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.errorColor.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: AppTheme.errorColor.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline,
+                                    color: AppTheme.errorColor, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _loginError!,
+                                    style: const TextStyle(
+                                      color: AppTheme.errorColor,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
                         // Start Exploring button
                         SizedBox(
@@ -308,9 +335,9 @@ class _LoginScreenState extends State<LoginScreen>
                                     width: 20,
                                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                   )
-                                : const Text(
-                                    'Start Exploring',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                : Text(
+                                    lp.t('auth.login.cta'),
+                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                                   ),
                           ),
                         ),
@@ -324,7 +351,7 @@ class _LoginScreenState extends State<LoginScreen>
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 14),
                               child: Text(
-                                'OR CONTINUE WITH',
+                                lp.t('auth.or'),
                                 style: TextStyle(
                                   color: mutedText,
                                   fontSize: 11,
@@ -391,16 +418,16 @@ class _LoginScreenState extends State<LoginScreen>
                                       fontSize: 12,
                                       height: 1.5,
                                     ),
-                                    children: const [
-                                      TextSpan(text: 'By signing in, you agree to our '),
+                                    children: [
+                                      TextSpan(text: lp.t('auth.terms.prefix')),
                                       TextSpan(
-                                        text: 'Nature Conservation Terms and Privacy Policy',
-                                        style: TextStyle(
+                                        text: lp.t('auth.terms.link'),
+                                        style: const TextStyle(
                                           color: AppTheme.primaryColor,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      TextSpan(text: '.'),
+                                      const TextSpan(text: '.'),
                                     ],
                                   ),
                                 ),

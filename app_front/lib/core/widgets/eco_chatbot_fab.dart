@@ -72,27 +72,31 @@ class _EcoChatbotFabState extends State<EcoChatbotFab>
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                // Mascot centered on the white circle (whole character shown,
-                // small inset). Falls back to an icon if the asset is missing.
+                // Animated chatbot mascot — gentle "breathing" (scale + wiggle).
                 Positioned.fill(
                   child: Padding(
-                    padding: EdgeInsets.all(size * 0.12),
-                    child: Image.asset(
-                      'assets/images/bot.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, _, _) => Container(
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF22B53A), Color(0xFF0E7A23)],
+                    padding: EdgeInsets.all(size * 0.10),
+                    child: Center(
+                      child: AnimatedBuilder(
+                        animation: _pulse,
+                        builder: (context, child) {
+                          final t = Curves.easeInOut.transform(_pulse.value);
+                          return Transform.rotate(
+                            angle: (t - 0.5) * 0.14,
+                            child: Transform.scale(
+                              scale: 1.0 + t * 0.07,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Image.asset(
+                          'assets/images/bot.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => const Icon(
+                            Icons.smart_toy_outlined,
+                            color: Color(0xFF0E7A23),
+                            size: 26,
                           ),
-                        ),
-                        child: const Icon(
-                          Icons.smart_toy_outlined,
-                          color: Colors.white,
-                          size: 26,
                         ),
                       ),
                     ),
@@ -113,7 +117,7 @@ class _EcoChatbotFabState extends State<EcoChatbotFab>
                 // "online" status dot.
                 Positioned(
                   right: size * 0.06,
-                  top: size * 0.11,
+                  top: size * 0.13,
                   child: Container(
                     width: 11,
                     height: 11,

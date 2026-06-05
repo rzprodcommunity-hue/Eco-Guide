@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/eco_page_header.dart';
+import '../../core/widgets/logout_dialog.dart';
 import '../../models/activity.dart';
 import '../../models/trail.dart';
 import '../../models/user.dart';
@@ -13,6 +14,7 @@ import '../../providers/trail_provider.dart';
 import '../../services/activity_service.dart';
 import '../../services/api_client.dart';
 import '../../services/badge_service.dart';
+import '../../services/offline_progress_service.dart';
 import '../trails/trail_detail_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -28,6 +30,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   List<UserBadge> _badges = [];
   List<Activity> _trailActivities = [];
   Set<String> _completedTrailIds = {};
+  int _localCompleted = 0;
+  double _localDistanceKm = 0;
   bool _isLoading = false;
 
   late AnimationController _barController;
@@ -60,13 +64,29 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _loadStats() async {
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) return;
+    // Capture before any await (avoids using context across an async gap).
+    final activityService = ActivityService(context.read<ApiClient>());
 
     setState(() => _isLoading = true);
 
-    try {
-      final apiClient = context.read<ApiClient>();
-      final activityService = ActivityService(apiClient);
+    // 1) Offline-first: load locally stored progress so the profile works
+    //    fully without a connection (badges, completed trails, distances).
+    final offline = OfflineProgressService.instance;
+    final localBadges = await offline.getBadges();
+    final localCompleted = await offline.getCompletedTrailIds();
+    final localCount = await offline.completedTrailCount();
+    final localDistance = await offline.totalDistanceKm();
+    if (mounted) {
+      setState(() {
+        _badges = localBadges;
+        _completedTrailIds = {..._completedTrailIds, ...localCompleted};
+        _localCompleted = localCount;
+        _localDistanceKm = localDistance;
+      });
+    }
 
+    // 2) Then sync with the backend and merge when connected.
+    try {
       final results = await Future.wait<dynamic>([
         activityService.getMyStats(),
         BadgeService.getMyBadges(),
@@ -75,19 +95,25 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       if (!mounted) return;
       final allActivities = results[2] as List<Activity>;
+      final serverBadges = results[1] as List<UserBadge>;
+      await offline.mergeServerBadges(serverBadges);
+      final mergedBadges = await offline.getBadges();
+
       setState(() {
         _stats = results[0] as UserStats;
-        _badges = results[1] as List<UserBadge>;
-        _completedTrailIds = allActivities
-            .where((a) => a.type == 'trail_completed' && a.trailId != null)
-            .map((a) => a.trailId!)
-            .toSet();
+        _badges = mergedBadges;
+        _completedTrailIds = {
+          ..._completedTrailIds,
+          ...allActivities
+              .where((a) => a.type == 'trail_completed' && a.trailId != null)
+              .map((a) => a.trailId!),
+        };
         _trailActivities = allActivities
             .where((a) => a.type == 'trail_started' && a.trailId != null)
             .toList();
       });
     } catch (_) {
-      // UI-only screen: ignore fetch failures and keep fallbacks.
+      // Offline (or fetch failed): keep the locally loaded values.
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -266,8 +292,17 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildStatsSection() {
-    final distance = _stats?.distanceText ?? '124 km';
-    final completed = _stats?.totalTrailsCompleted ?? 18;
+    // Prefer the server stats, but fall back to (and never under-report) the
+    // locally stored offline progress.
+    final distance = _stats?.distanceText ??
+        (_localDistanceKm > 0
+            ? '${_localDistanceKm.toStringAsFixed(_localDistanceKm < 10 ? 1 : 0)} km'
+            : '0 km');
+    final serverCompleted = _stats?.totalTrailsCompleted ?? 0;
+    final localCompleted =
+        _completedTrailIds.isNotEmpty ? _completedTrailIds.length : _localCompleted;
+    final completed =
+        serverCompleted > localCompleted ? serverCompleted : localCompleted;
 
     final cards = [
       _KpiData(
@@ -316,13 +351,13 @@ class _ProfileScreenState extends State<ProfileScreen>
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Badges & Succès',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF212121),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -341,7 +376,9 @@ class _ProfileScreenState extends State<ProfileScreen>
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F5),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppTheme.darkCard
+                  : const Color(0xFFF5F5F5),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Center(
@@ -368,7 +405,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ? _hexColor(def['iconColor']!)
                     : const Color(0xFFA7A7A7);
                 return _BadgeTile(
-                  color: earned ? bgColor : const Color(0xFFF0F0F0),
+                  color: earned
+                      ? bgColor
+                      : (Theme.of(context).brightness == Brightness.dark
+                          ? AppTheme.darkCard
+                          : const Color(0xFFF0F0F0)),
                   icon: earned ? _iconFromKey(def['icon']!) : Icons.lock,
                   iconColor: iconColor,
                   label: earned ? def['label']! : '???',
@@ -410,10 +451,10 @@ class _ProfileScreenState extends State<ProfileScreen>
             Expanded(
               child: Text(
                 context.watch<LocaleProvider>().t('profile.favorites'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF212121),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -433,9 +474,15 @@ class _ProfileScreenState extends State<ProfileScreen>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 28),
             decoration: BoxDecoration(
-              color: const Color(0xFFF2EFE8),
+              color: Theme.of(context).brightness == Brightness.dark
+                ? AppTheme.darkCard
+                : const Color(0xFFF2EFE8),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFD5C0A0), width: 1.2),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppTheme.darkBorder
+                    : const Color(0xFFD5C0A0),
+                width: 1.2),
             ),
             child: Column(
               children: [
@@ -482,13 +529,13 @@ class _ProfileScreenState extends State<ProfileScreen>
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Activite Mensuelle',
                 style: TextStyle(
                   fontSize: 40 / 2,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF212121),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -510,9 +557,15 @@ class _ProfileScreenState extends State<ProfileScreen>
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(14, 18, 14, 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF2EFE8),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppTheme.darkCard
+                : const Color(0xFFF2EFE8),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFD5C0A0), width: 1.2),
+            border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppTheme.darkBorder
+                    : const Color(0xFFD5C0A0),
+                width: 1.2),
           ),
           child: Column(
             children: [
@@ -679,25 +732,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Deconnexion'),
-                  content: const Text('Voulez-vous vous deconnecter ?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Annuler'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Deconnecter'),
-                    ),
-                  ],
-                ),
-              );
-
-              if (confirm == true) {
+              final confirm = await showLogoutDialog(context);
+              if (confirm) {
                 await authProvider.logout();
               }
             },
@@ -765,9 +801,15 @@ class _KpiCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2EFE8),
+        color: Theme.of(context).brightness == Brightness.dark
+                ? AppTheme.darkCard
+                : const Color(0xFFF2EFE8),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD5C0A0), width: 1.2),
+        border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppTheme.darkBorder
+                    : const Color(0xFFD5C0A0),
+                width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -809,8 +851,14 @@ class _FavoriteTrailCard extends StatelessWidget {
       width: 140,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: const Color(0xFFF2EFE8),
-        border: Border.all(color: const Color(0xFFD5C0A0), width: 1.1),
+        color: Theme.of(context).brightness == Brightness.dark
+                ? AppTheme.darkCard
+                : const Color(0xFFF2EFE8),
+        border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppTheme.darkBorder
+                : const Color(0xFFD5C0A0),
+            width: 1.1),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -1146,8 +1194,8 @@ class _TrailMetaInfo extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           value,
-          style: const TextStyle(
-            color: Color(0xFF2F2F2F),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w700,
             fontSize: 16,
           ),

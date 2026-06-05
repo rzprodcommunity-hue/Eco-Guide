@@ -11,6 +11,7 @@ import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../providers/trail_provider.dart';
 import '../../providers/poi_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../models/trail.dart';
 import '../../models/poi.dart';
 import '../../services/map_offline_service.dart';
@@ -216,6 +217,7 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     final trailProvider = context.watch<TrailProvider>();
     final poiProvider = context.watch<PoiProvider>();
+    final lp = context.watch<LocaleProvider>();
 
     return Scaffold(
       appBar: EcoPageHeader(
@@ -351,7 +353,7 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                       child: Text(
-                        'Carte Tabarka offline activee',
+                        lp.t('mapPage.offlineMapActive'),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 11,

@@ -19,6 +19,7 @@ import '../map/navigation_sos_screen.dart';
 import '../offline/offline_trails_screen.dart';
 import '../poi/poi_detail_screen.dart';
 import '../settings/qr_unlock_screen.dart';
+import '../sos/sos_button.dart';
 
 class TrailDetailScreen extends StatefulWidget {
   final Trail trail;
@@ -741,10 +742,17 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                     if (routePoints.length > 1)
                       PolylineLayer(
                         polylines: [
+                          // White casing underneath for contrast over the map.
                           Polyline(
                             points: routePoints,
-                            strokeWidth: 4,
-                            color: Theme.of(context).primaryColor,
+                            strokeWidth: 7,
+                            color: Colors.white,
+                          ),
+                          // Yellow-orange trail line.
+                          Polyline(
+                            points: routePoints,
+                            strokeWidth: 4.5,
+                            color: const Color(0xFFF5A623),
                           ),
                         ],
                       ),
@@ -756,7 +764,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                           height: 38,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
+                              color: const Color(0xFF0E7A23),
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
                             ),
@@ -1389,54 +1397,63 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
             ),
           ],
         ),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed:
-                widget.trail.startLatitude == null ||
-                    widget.trail.startLongitude == null
-                ? null
-                : () {
-                    if (_trailUnlocked) {
-                      _startNavigation();
-                    } else {
-                      _showLockedDialog();
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _trailUnlocked
-                  ? Theme.of(context).primaryColor
-                  : const Color(0xFF8A8A8A),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _trailUnlocked ? Icons.navigation : Icons.lock,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _trailUnlocked
-                      ? (_unlockRemaining != null
-                          ? '${context.watch<LocaleProvider>().t('trail.start')} · ${_formatRemaining(_unlockRemaining!)}'
-                          : context.watch<LocaleProvider>().t('trail.start'))
-                      : 'Verrouillé — scanner le QR',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed:
+                    widget.trail.startLatitude == null ||
+                        widget.trail.startLongitude == null
+                    ? null
+                    : () {
+                        if (_trailUnlocked) {
+                          _startNavigation();
+                        } else {
+                          _showLockedDialog();
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _trailUnlocked
+                      ? Theme.of(context).primaryColor
+                      : const Color(0xFF8A8A8A),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 0,
                 ),
-              ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _trailUnlocked ? Icons.navigation : Icons.lock,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _trailUnlocked
+                            ? (_unlockRemaining != null
+                                ? '${context.watch<LocaleProvider>().t('trail.start')} · ${_formatRemaining(_unlockRemaining!)}'
+                                : context.watch<LocaleProvider>().t('trail.start'))
+                            : 'Verrouillé — scanner le QR',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            const _TrailSosButton(),
+          ],
         ),
       ),
     );
@@ -1823,5 +1840,201 @@ class _AddCommentSheetState extends State<_AddCommentSheet> {
     if (r >= 3) return 'Correct';
     if (r >= 2) return 'Décevant';
     return 'À éviter';
+  }
+}
+
+/// Compact SOS button reproducing the main SOS screen design:
+/// pulsing halo + three nested radial-gradient shells. Opens [SosScreen].
+class _TrailSosButton extends StatefulWidget {
+  const _TrailSosButton();
+
+  @override
+  State<_TrailSosButton> createState() => _TrailSosButtonState();
+}
+
+class _TrailSosButtonState extends State<_TrailSosButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  void _openSos() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const SosScreen(),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _openSos,
+      child: AnimatedBuilder(
+        animation: _pulseController,
+        builder: (context, _) {
+          final t = _pulseController.value; // 0 → 1 → 0
+          return SizedBox(
+            width: 60,
+            height: 60,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // ── Halo 1 — outer ──────────────────────────────────────
+                Transform.scale(
+                  scale: 1.0 + t * 0.18,
+                  child: Opacity(
+                    opacity: (0.85 - t * 0.50).clamp(0.0, 1.0),
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFE53935).withValues(alpha: 0.10),
+                      ),
+                    ),
+                  ),
+                ),
+                // ── Halo 2 — inner ──────────────────────────────────────
+                Transform.scale(
+                  scale: 1.0 + t * 0.10,
+                  child: Opacity(
+                    opacity: (0.80 - t * 0.35).clamp(0.0, 1.0),
+                    child: Container(
+                      width: 51,
+                      height: 51,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFE53935).withValues(alpha: 0.16),
+                      ),
+                    ),
+                  ),
+                ),
+                // ── Outer shell — animated glow ─────────────────────────
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const RadialGradient(
+                      center: Alignment(0, -0.36),
+                      radius: 0.75,
+                      colors: [
+                        Color(0xFFFF7065),
+                        Color(0xFFE53935),
+                        Color(0xFFBD2723),
+                      ],
+                      stops: [0.0, 0.55, 1.0],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE53935)
+                            .withValues(alpha: 0.30 + t * 0.22),
+                        blurRadius: 10 + t * 10,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.16),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    // ── Middle shell ────────────────────────────────────
+                    child: Container(
+                      width: 49,
+                      height: 49,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const RadialGradient(
+                          center: Alignment(0, -0.30),
+                          radius: 0.65,
+                          colors: [
+                            Color(0xFFC42924),
+                            Color(0xFFC62828),
+                            Color(0xFFBC2724),
+                          ],
+                          stops: [0.0, 0.70, 1.0],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.22),
+                            blurRadius: 6,
+                            offset: const Offset(0, 3),
+                            spreadRadius: -2,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        // ── Inner face ──────────────────────────────────
+                        child: Container(
+                          width: 45,
+                          height: 45,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const RadialGradient(
+                              center: Alignment(0, -0.40),
+                              radius: 0.65,
+                              colors: [
+                                Color(0xFFFF8C81),
+                                Color(0xFFEF4945),
+                                Color(0xFFC62828),
+                              ],
+                              stops: [0.0, 0.40, 1.0],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.16),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'SOS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.0,
+                                height: 1,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black38,
+                                    blurRadius: 0,
+                                    offset: Offset(0, 1),
+                                  ),
+                                  Shadow(color: Colors.black26, blurRadius: 8),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/services/network_service.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../core/widgets/user_avatar_badge.dart';
@@ -11,6 +13,7 @@ import '../../providers/locale_provider.dart';
 import '../../models/trail.dart';
 import 'trail_detail_screen.dart';
 import '../profile/profile_screen.dart';
+import '../offline/offline_trails_screen.dart';
 
 class TrailsListScreen extends StatefulWidget {
   const TrailsListScreen({super.key});
@@ -29,6 +32,11 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
   double? _localMinDistance;
   double? _localMaxDistance;
   int? _localMaxDuration;
+
+  // Dismissible "Ready for adventure?" offline banner (per account).
+  bool _bannerHidden = false;
+  String get _bannerHiddenKey =>
+      'trails_offline_banner_hidden_${Supabase.instance.client.auth.currentUser?.id ?? 'guest'}';
 
   bool get _hasLocalFilters =>
       _localDifficulty != null ||
@@ -52,9 +60,22 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadBannerHidden();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TrailProvider>().loadTrails(refresh: true);
     });
+  }
+
+  Future<void> _loadBannerHidden() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hidden = prefs.getBool(_bannerHiddenKey) ?? false;
+    if (mounted && hidden) setState(() => _bannerHidden = true);
+  }
+
+  Future<void> _hideOfflineBanner() async {
+    setState(() => _bannerHidden = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_bannerHiddenKey, true);
   }
 
   @override
@@ -153,7 +174,11 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      // Let content flow UNDER the floating bottom bar so its edges stay
+      // transparent (like the home & map pages) instead of sitting on an
+      // opaque white shelf.
       body: SafeArea(
+        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -199,11 +224,19 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
                       )
                     : ListView.builder(
                         controller: _scrollController,
-                        padding: EdgeInsets.only(top: 8, bottom: MediaQuery.of(context).padding.bottom),
+                        // Clear the floating bottom bar (pill + margin) so the
+                        // last items scroll above it while content slides under.
+                        padding: EdgeInsets.only(
+                            top: 8,
+                            bottom: MediaQuery.of(context).padding.bottom + 88),
                         itemCount:
                             displayedTrails.length + (showLoadMore ? 1 : 0) + 2,
                         itemBuilder: (context, index) {
-                          if (index == 0) return _buildOfflineBanner();
+                          if (index == 0) {
+                            return _bannerHidden
+                                ? const SizedBox.shrink()
+                                : _buildOfflineBanner();
+                          }
                           if (index == 1) return _buildSectionTitle();
 
                           final trailIndex = index - 2;
@@ -387,13 +420,32 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            context.watch<LocaleProvider>().t('trails.ready'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.watch<LocaleProvider>().t('trails.ready'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              // Hide this banner permanently (per account).
+              InkWell(
+                onTap: _hideOfflineBanner,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
@@ -402,7 +454,11 @@ class _TrailsListScreenState extends State<TrailsListScreen> {
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () {},
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const OfflineTrailsScreen(),
+              ),
+            ),
             icon: const Icon(
               Icons.download,
               size: 16,

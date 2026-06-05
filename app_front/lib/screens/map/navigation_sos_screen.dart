@@ -15,9 +15,11 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/services/location_service.dart';
+import '../../core/utils/map_tile_url.dart';
 import '../../services/activity_service.dart';
 import '../../services/api_client.dart';
 import '../../services/map_offline_service.dart';
+import '../../services/offline_progress_service.dart';
 import '../../core/widgets/eco_page_header.dart';
 import '../sos/sos_button.dart';
 import '../../models/local_service.dart';
@@ -82,8 +84,6 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   static const double _approachMeters = 7;
   bool _approachAnnounced = false;
   bool _arrivedAnnounced = false;
-
-  _MapVisualStyle _mapStyle = _MapVisualStyle.satellite;
 
   // When there is no connection we fall back to the standard (Google "m")
   // tiles, the only ones cached for offline use — but only if a map has
@@ -153,6 +153,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   @override
   void initState() {
     super.initState();
+    appMapStyle.addListener(_onMapStyleChanged);
     _tileResetStream = StreamController<void>();
     _mapOfflineService.initialize();
     _initConnectivity();
@@ -195,8 +196,15 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     _mapController.move(_currentPosition, 19);
   }
 
+  /// Rebuild when the shared map style changes elsewhere (mini-map / big map)
+  /// so the navigation map always reflects the latest choice.
+  void _onMapStyleChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    appMapStyle.removeListener(_onMapStyleChanged);
     _gpsTimer?.cancel();
     _positionStream?.cancel();
     _compassStream?.cancel();
@@ -586,7 +594,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: const Icon(Icons.location_off, color: Color(0xFFE65245), size: 42),
+        icon: const Icon(Icons.location_off, color: Color(0xFFE53935), size: 42),
         title: const Text('Vous n\'êtes pas au départ',
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.w800)),
@@ -641,9 +649,27 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   Future<void> _logTrailActivity(String type) async {
     final trail = widget.trail;
     if (trail == null) return;
+
+    // Capture before any await to avoid using context across an async gap.
+    final activityService = ActivityService(context.read<ApiClient>());
+
+    // Persist completion locally (offline-first) so the profile history,
+    // completed-trail count and total distance survive without a connection.
+    if (type == 'trail_completed') {
+      try {
+        await OfflineProgressService.instance.markTrailCompleted(
+          trailId: trail.id,
+          trailName: trail.name,
+          distanceKm: _distanceTraveled > 0 ? _distanceTraveled : trail.distance,
+          imageUrl: trail.imageUrls?.isNotEmpty == true
+              ? trail.imageUrls!.first
+              : null,
+          durationSeconds: _elapsedTime.inSeconds,
+        );
+      } catch (_) {}
+    }
+
     try {
-      final apiClient = context.read<ApiClient>();
-      final activityService = ActivityService(apiClient);
       await activityService.logActivity(
         type: type,
         trailId: trail.id,
@@ -1491,10 +1517,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   }
 
   void _cycleMapStyle() {
-    final styles = _MapVisualStyle.values;
-    final currentIndex = styles.indexOf(_mapStyle);
-    final nextIndex = (currentIndex + 1) % styles.length;
-    setState(() => _mapStyle = styles[nextIndex]);
+    // Toggle between the two shared styles; the notifier keeps every map
+    // (mini-map / big map) in sync with the choice.
+    appMapStyle.value = appMapStyle.value.next;
   }
 
   Widget _navIconButton({
@@ -1663,8 +1688,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 // (Google "m") tiles, the only ones cached for offline use;
                 // otherwise keep the chosen style.
                 urlTemplate: (_isOffline && _hasOfflineTiles
-                        ? _MapVisualStyle.standard
-                        : _mapStyle)
+                        ? AppMapStyle.standard
+                        : appMapStyle.value)
                     .urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
                 // Real tiles up to 19; levels 20-22 are upscaled so the user
@@ -1731,7 +1756,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                       ],
                       strokeWidth: 3,
                       color: _offTrailAlert
-                          ? const Color(0xFFE65245)
+                          ? const Color(0xFFE53935)
                           : const Color(0xFF1A73E8),
                       pattern: const StrokePattern.dotted(),
                     ),
@@ -2018,12 +2043,12 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFFE65245).withValues(alpha: 0.6),
+          color: const Color(0xFFE53935).withValues(alpha: 0.6),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE65245).withValues(alpha: 0.22),
+            color: const Color(0xFFE53935).withValues(alpha: 0.22),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -2035,12 +2060,12 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              color: const Color(0xFFE65245).withValues(alpha: 0.18),
+              color: const Color(0xFFE53935).withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.warning_amber_rounded,
-              color: Color(0xFFE65245),
+              color: Color(0xFFE53935),
               size: 18,
             ),
           ),
@@ -2110,8 +2135,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     required String tooltip,
     bool primary = false,
   }) {
-    final color = primary ? const Color(0xFFE65245) : Colors.white;
-    final iconColor = primary ? Colors.white : const Color(0xFFE65245);
+    final color = primary ? const Color(0xFFE53935) : Colors.white;
+    final iconColor = primary ? Colors.white : const Color(0xFFE53935);
     return Tooltip(
       message: tooltip,
       child: Material(
@@ -2676,17 +2701,6 @@ class _RouteStep {
   });
 }
 
-enum _MapVisualStyle {
-  standard('Normal', 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'),
-  relief('Relief', 'https://tile.opentopomap.org/{z}/{x}/{y}.png'),
-  dark('Dark', 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'),
-  satellite('Satellite', 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}');
-
-  final String label;
-  final String urlTemplate;
-
-  const _MapVisualStyle(this.label, this.urlTemplate);
-}
 
 enum _HikeStatus { notStarted, inProgress, paused, finished }
 
