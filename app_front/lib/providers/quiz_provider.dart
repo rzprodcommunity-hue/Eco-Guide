@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/quiz.dart';
 import '../services/api_client.dart';
+import '../services/offline_cache_service.dart';
 import '../services/quiz_service.dart';
 
 class QuizProvider extends ChangeNotifier {
@@ -52,7 +53,16 @@ class QuizProvider extends ChangeNotifier {
         _currentQuiz = _quizzes[0];
       }
     } catch (e) {
-      _error = e.toString();
+      final cached = await OfflineCacheService.instance.getOfflineQuizzes(
+        category: category,
+      );
+      if (cached.isNotEmpty) {
+        _quizzes = cached.length > count ? cached.sublist(0, count) : cached;
+        _currentQuiz = _quizzes.isNotEmpty ? _quizzes[0] : null;
+        _error = null;
+      } else {
+        _error = e.toString();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -72,7 +82,16 @@ class QuizProvider extends ChangeNotifier {
         _currentQuiz = _quizzes[0];
       }
     } catch (e) {
-      _error = e.toString();
+      final cached = await OfflineCacheService.instance.getOfflineQuizzes(
+        category: category,
+      );
+      if (cached.isNotEmpty) {
+        _quizzes = cached;
+        _currentQuiz = _quizzes[0];
+        _error = null;
+      } else {
+        _error = e.toString();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -92,7 +111,16 @@ class QuizProvider extends ChangeNotifier {
         _currentQuiz = _quizzes[0];
       }
     } catch (e) {
-      _error = e.toString();
+      final cached = await OfflineCacheService.instance.getOfflineQuizzes(
+        trailId: trailId,
+      );
+      if (cached.isNotEmpty) {
+        _quizzes = cached;
+        _currentQuiz = _quizzes[0];
+        _error = null;
+      } else {
+        _error = e.toString();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

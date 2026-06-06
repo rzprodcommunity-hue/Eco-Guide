@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/local_service.dart';
 import '../models/poi.dart';
+import '../models/quiz.dart';
 import '../models/trail.dart';
 
 class OfflineCacheService {
@@ -20,7 +21,7 @@ class OfflineCacheService {
     final dbPath = await getDatabasesPath();
     _database = await openDatabase(
       p.join(dbPath, 'ecoguide_offline.db'),
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE offline_trails (
@@ -47,12 +48,33 @@ class OfflineCacheService {
             downloadedAt TEXT NOT NULL
           )
         ''');
+
+        await db.execute('''
+          CREATE TABLE offline_quizzes (
+            id TEXT PRIMARY KEY,
+            category TEXT,
+            trailId TEXT,
+            payload TEXT NOT NULL,
+            downloadedAt TEXT NOT NULL
+          )
+        ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('''
             CREATE TABLE IF NOT EXISTS offline_local_services (
               id TEXT PRIMARY KEY,
+              payload TEXT NOT NULL,
+              downloadedAt TEXT NOT NULL
+            )
+          ''');
+        }
+        if (oldVersion < 3) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS offline_quizzes (
+              id TEXT PRIMARY KEY,
+              category TEXT,
+              trailId TEXT,
               payload TEXT NOT NULL,
               downloadedAt TEXT NOT NULL
             )
@@ -188,5 +210,64 @@ class OfflineCacheService {
     final db = await _db;
     await db.delete('offline_trails', where: 'id = ?', whereArgs: [trailId]);
     await db.delete('offline_pois', where: 'trailId = ?', whereArgs: [trailId]);
+  }
+
+  Future<void> saveQuizzes(List<Quiz> quizzes) async {
+    final db = await _db;
+    final batch = db.batch();
+    final now = DateTime.now().toIso8601String();
+
+    for (final quiz in quizzes) {
+      batch.insert('offline_quizzes', {
+        'id': quiz.id,
+        'category': quiz.category,
+        'trailId': quiz.trailId,
+        'payload': jsonEncode(quiz.toJson()),
+        'downloadedAt': now,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<Quiz>> getOfflineQuizzes({
+    String? category,
+    String? trailId,
+  }) async {
+    final db = await _db;
+
+    String? where;
+    List<Object?>? whereArgs;
+
+    if (category != null && trailId != null) {
+      where = 'category = ? OR trailId = ?';
+      whereArgs = [category, trailId];
+    } else if (category != null) {
+      where = 'category = ?';
+      whereArgs = [category];
+    } else if (trailId != null) {
+      where = 'trailId = ?';
+      whereArgs = [trailId];
+    }
+
+    final rows = await db.query(
+      'offline_quizzes',
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: 'downloadedAt DESC',
+    );
+
+    return rows
+        .map(
+          (row) => Quiz.fromJson(
+            jsonDecode(row['payload'] as String) as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> clearOfflineQuizzes() async {
+    final db = await _db;
+    await db.delete('offline_quizzes');
   }
 }
