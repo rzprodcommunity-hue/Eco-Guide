@@ -48,7 +48,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
     final isCompact = Responsive.isCompact(context);
 
-    final headerTitle = const Column(
+    final headerTitle = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -56,13 +56,15 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           'Global system settings and platform customization for the Eco-Guide ecosystem.',
-          style: TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
         ),
       ],
     );
@@ -73,8 +75,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         OutlinedButton(
           onPressed: () {},
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.textSecondary,
-            side: const BorderSide(color: AppColors.divider),
+            foregroundColor:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            side: BorderSide(color: Theme.of(context).dividerColor),
           ),
           child: const Text('Discard'),
         ),
@@ -415,11 +418,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         width: double.infinity,
                         errorBuilder: (_, __, ___) => Container(
                           height: 250,
-                          color: Colors.grey[200],
-                          child: const Icon(
+                          color: Theme.of(context).cardColor,
+                          child: Icon(
                             Icons.map_outlined,
                             size: 64,
-                            color: AppColors.textSecondary,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
                           ),
                         ),
                       ),
@@ -454,10 +460,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Column(
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Danger Zone',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -465,11 +471,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                             fontSize: 16,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Deleting your organization account will purge all trails, user logs, and local directory data.',
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
                             fontSize: 13,
                           ),
                         ),
@@ -501,7 +510,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -522,7 +531,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(
+                color:
+                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ],
           const SizedBox(height: 24),
@@ -546,10 +558,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: icon != null
-            ? Icon(icon, color: AppColors.textSecondary)
+            ? Icon(
+                icon,
+                color:
+                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              )
             : null,
         filled: !enabled,
-        fillColor: enabled ? Colors.white : AppColors.background,
+        fillColor: enabled
+            ? Theme.of(context).cardColor
+            : Theme.of(context).scaffoldBackgroundColor,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -581,7 +599,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          Text(label, style: const TextStyle(color: AppColors.textPrimary)),
+          Text(
+            label,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          ),
         ],
       ),
     );

@@ -8,11 +8,15 @@ import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:web/web.dart' as web;
 import '../../core/providers/trails_provider.dart';
 import '../../core/models/trail_model.dart';
+import '../../core/models/poi_model.dart';
 import '../../core/services/trail_service.dart';
+import '../../core/services/poi_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/supabase_storage_service.dart';
 
@@ -46,6 +50,19 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
   bool _isLocating = false;
   LatLng? _markerLocation;
 
+  // Trail video (single mp4 URL)
+  String? _videoUrl;
+  bool _isUploadingVideo = false;
+
+  // POI selection
+  List<PoiModel> _allPois = [];
+  bool _isLoadingPois = false;
+  final Set<String> _selectedPoiIds = {};
+  Set<String> _initialPoiIds = {};
+
+  // Auto-calc state
+  bool _isComputingMetrics = false;
+
   // GPS recording state
   bool _isRecording = false;
   List<LatLng> _recordedPoints = [];
@@ -57,9 +74,42 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
   @override
   void initState() {
     super.initState();
+    _loadPois();
     if (isEditing) {
       _loadTrail();
     }
+  }
+
+  /// Load every POI once so the admin can attach/detach them from this trail.
+  Future<void> _loadPois() async {
+    setState(() => _isLoadingPois = true);
+    try {
+      final result = await PoiService.getPois(limit: 1000);
+      final pois = (result['pois'] as List).cast<PoiModel>();
+      if (!mounted) return;
+      setState(() {
+        _allPois = pois;
+        // Pre-select POIs already attached to this trail (edit mode).
+        if (isEditing) {
+          for (final p in pois) {
+            if (p.trailId == widget.trailId) {
+              _selectedPoiIds.add(p.id);
+            }
+          }
+          _initialPoiIds = Set<String>.from(_selectedPoiIds);
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur chargement POIs: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+    if (mounted) setState(() => _isLoadingPois = false);
   }
 
   Future<void> _loadTrail() async {
@@ -82,6 +132,7 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       _isActive = trail.isActive;
       _geojson = trail.geojson;
       _imageUrls = trail.imageUrls ?? [];
+      _videoUrl = trail.videoUrl;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -159,9 +210,14 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       _geojson = _pointsToGeoJson(_recordedPoints);
       _latitudeController.text = _recordedPoints.first.latitude.toStringAsFixed(6);
       _longitudeController.text = _recordedPoints.first.longitude.toStringAsFixed(6);
-      // Auto-fill the two derived metrics (admin can still edit them).
-      _distanceController.text = km.toStringAsFixed(2);
-      _durationController.text = _estimateDurationMinutes(km).toString();
+      // Auto-fill the derived metrics ONLY when the field is still empty so we
+      // never clobber a value the admin typed manually.
+      if (_distanceController.text.trim().isEmpty) {
+        _distanceController.text = km.toStringAsFixed(2);
+      }
+      if (_durationController.text.trim().isEmpty) {
+        _durationController.text = _estimateDurationMinutes(km).toString();
+      }
     });
   }
 
@@ -198,9 +254,12 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       ? _recordedPoints
       : _pointsFromGeoJson(_geojson);
 
-  /// (Re)compute Distance (km) + Estimated duration (min) from the track.
-  /// The admin keeps full control: the fields stay editable afterwards.
-  void _recalculateMetrics({bool showSnack = false}) {
+  /// (Re)compute Distance (km), Dénivelé (m) and Estimated duration (min) from
+  /// the track. Distance comes from the Haversine sum of the points, elevation
+  /// gain from the track altitude (if present) or the Open-Meteo elevation API,
+  /// and duration from Naismith's rule. The admin keeps full control: the
+  /// fields stay editable afterwards.
+  Future<void> _recalculateMetrics({bool showSnack = false}) async {
     final points = _currentTrackPoints();
     if (points.length < 2) {
       if (showSnack && mounted) {
@@ -211,18 +270,122 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       }
       return;
     }
+
+    setState(() => _isComputingMetrics = true);
+
+    // 1) Distance (km) via Haversine sum.
     final km = _computeDistanceMeters(points) / 1000.0;
-    final duration = _estimateDurationMinutes(km);
-    setState(() {
-      _distanceController.text = km.toStringAsFixed(2);
-      _durationController.text = duration.toString();
-    });
+    if (mounted) {
+      setState(() => _distanceController.text = km.toStringAsFixed(2));
+    }
+
+    // 2) Elevation gain (m). Try the track's own altitudes first; otherwise
+    //    query the free Open-Meteo elevation API.
+    int? gain = _elevationGainFromGeoJson();
+    if (gain == null) {
+      try {
+        gain = await _fetchElevationGain(points);
+      } catch (e) {
+        if (showSnack && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Dénivelé non calculé (API): $e'),
+            backgroundColor: AppColors.warning,
+          ));
+        }
+      }
+    }
+    if (gain != null && mounted) {
+      setState(() => _elevationController.text = gain.toString());
+    }
+
+    // 3) Duration (min) via Naismith's rule.
+    final gainForDuration =
+        gain ?? int.tryParse(_elevationController.text.trim()) ?? 0;
+    final duration =
+        ((km / 4.0 + gainForDuration / 600.0) * 60).round();
+    if (mounted) {
+      setState(() => _durationController.text = duration.toString());
+    }
+
+    if (mounted) setState(() => _isComputingMetrics = false);
+
     if (showSnack && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Calculé : ${km.toStringAsFixed(2)} km · ~$duration min'),
+        content: Text(
+          'Calculé : ${km.toStringAsFixed(2)} km'
+          '${gain != null ? ' · ${gain}m D+' : ''} · ~$duration min',
+        ),
         backgroundColor: AppColors.success,
       ));
     }
+  }
+
+  /// Sum positive consecutive altitude deltas if the GeoJSON LineString carries
+  /// a 3rd (elevation) coordinate. Returns null when no altitude data exists.
+  int? _elevationGainFromGeoJson() {
+    try {
+      final features = _geojson?['features'] as List?;
+      if (features == null || features.isEmpty) return null;
+      final geom = features.first['geometry'] as Map<String, dynamic>?;
+      final coords = geom?['coordinates'] as List?;
+      if (coords == null || coords.length < 2) return null;
+      double gain = 0;
+      bool hasAlt = false;
+      double? prev;
+      for (final c in coords) {
+        if (c is List && c.length >= 3 && c[2] != null) {
+          hasAlt = true;
+          final alt = (c[2] as num).toDouble();
+          if (prev != null && alt > prev) gain += alt - prev;
+          prev = alt;
+        }
+      }
+      if (!hasAlt) return null;
+      return gain.round();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Query the Open-Meteo elevation API for up to 100 evenly-spaced points and
+  /// sum the positive consecutive deltas to get the total ascent (metres).
+  Future<int> _fetchElevationGain(List<LatLng> points) async {
+    // Down-sample to at most 100 evenly-spaced points.
+    final sampled = <LatLng>[];
+    const maxSamples = 100;
+    if (points.length <= maxSamples) {
+      sampled.addAll(points);
+    } else {
+      final step = (points.length - 1) / (maxSamples - 1);
+      for (int i = 0; i < maxSamples; i++) {
+        sampled.add(points[(i * step).round().clamp(0, points.length - 1)]);
+      }
+    }
+
+    final lats = sampled.map((p) => p.latitude.toStringAsFixed(6)).join(',');
+    final lngs = sampled.map((p) => p.longitude.toStringAsFixed(6)).join(',');
+    final uri = Uri.parse(
+      'https://api.open-meteo.com/v1/elevation'
+      '?latitude=$lats&longitude=$lngs',
+    );
+
+    final resp = await http.get(uri);
+    if (resp.statusCode != 200) {
+      throw Exception('HTTP ${resp.statusCode}');
+    }
+    final json = jsonDecode(resp.body) as Map<String, dynamic>;
+    final elevations = (json['elevation'] as List?)
+        ?.map((e) => (e as num).toDouble())
+        .toList();
+    if (elevations == null || elevations.length < 2) {
+      throw Exception('Données indisponibles');
+    }
+    double gain = 0;
+    for (int i = 1; i < elevations.length; i++) {
+      final delta = elevations[i] - elevations[i - 1];
+      if (delta > 0) gain += delta;
+    }
+    return gain.round();
   }
 
   // ── Use current GPS position for start coordinates ─────────────────────
@@ -587,23 +750,26 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
 
   Widget _buildLocationMap() {
     if (_markerLocation == null) {
+      final onSurface = Theme.of(context).colorScheme.onSurface;
       return Container(
         height: 240,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.map_outlined, size: 48, color: Colors.grey.shade400),
+              Icon(Icons.map_outlined,
+                  size: 48, color: onSurface.withValues(alpha: 0.4)),
               const SizedBox(height: 8),
               Text(
                 'Appuyez sur « Utiliser ma position GPS » pour afficher\nvotre position sur la carte',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                style: TextStyle(
+                    color: onSurface.withValues(alpha: 0.6), fontSize: 13),
               ),
             ],
           ),
@@ -650,29 +816,30 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
         : _pointsFromGeoJson(_geojson);
 
     if (points.isEmpty) {
+      final onSurface = Theme.of(context).colorScheme.onSurface;
       return Container(
         height: 280,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.map_outlined,
-                  size: 48, color: Colors.grey.shade400),
+                  size: 48, color: onSurface.withValues(alpha: 0.4)),
               const SizedBox(height: 8),
               Text(
                 'Aucun tracé pour le moment',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(color: onSurface.withValues(alpha: 0.6)),
               ),
               const SizedBox(height: 4),
               Text(
                 'Démarrez l\'enregistrement GPS ou importez un fichier',
                 style: TextStyle(
-                    color: Colors.grey.shade500, fontSize: 12),
+                    color: onSurface.withValues(alpha: 0.5), fontSize: 12),
               ),
             ],
           ),
@@ -893,6 +1060,61 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
     });
   }
 
+  /// Pick + upload a single MP4 video (max 100 MB) to Supabase storage.
+  Future<void> _pickAndUploadVideo() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['mp4'],
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return;
+
+    final file = result.files.single;
+    final isMp4 = file.name.toLowerCase().endsWith('.mp4');
+    final tooBig = file.bytes!.length > 100 * 1024 * 1024;
+    if (!isMp4 || tooBig) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(!isMp4
+                ? 'Format invalide : seul le MP4 est accepté.'
+                : 'La vidéo dépasse 100 Mo.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isUploadingVideo = true);
+    try {
+      final url = await SupabaseStorageService.uploadVideo(
+        fileName: file.name,
+        bytes: file.bytes!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _videoUrl = url;
+        _isUploadingVideo = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vidéo uploadée avec succès!'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingVideo = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur upload vidéo: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -920,21 +1142,32 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
           : null,
       'geojson': _geojson,
       'imageUrls': _imageUrls,
+      'videoUrl': _videoUrl,
       'isActive': _isActive,
     };
 
     final provider = context.read<TrailsProvider>();
-    bool success;
 
-    if (isEditing) {
-      success = await provider.updateTrail(widget.trailId!, data);
-    } else {
-      success = await provider.createTrail(data);
-    }
+    try {
+      // Persist the trail directly so we can read back the new id; then refresh
+      // the provider list so the table stays in sync.
+      String trailId;
+      if (isEditing) {
+        await TrailService.updateTrail(widget.trailId!, data);
+        trailId = widget.trailId!;
+      } else {
+        final created = await TrailService.createTrail(data);
+        trailId = created.id;
+      }
 
-    setState(() => _isLoading = false);
+      // Reconcile POI assignments. api_service strips nulls, so detaching a POI
+      // (trailId -> null) must go through Supabase directly.
+      await _reconcilePoiAssignments(trailId);
 
-    if (success && mounted) {
+      await provider.loadTrails(page: provider.currentPage);
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(isEditing ? 'Sentier modifie' : 'Sentier cree'),
@@ -942,13 +1175,32 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
         ),
       );
       context.go('/trails');
-    } else if (provider.error != null && mounted) {
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(provider.error!),
+          content: Text('Erreur: $e'),
           backgroundColor: AppColors.error,
         ),
       );
+    }
+  }
+
+  /// Attach newly-selected POIs to this trail and detach the ones removed.
+  Future<void> _reconcilePoiAssignments(String trailId) async {
+    final sb = Supabase.instance.client;
+    // Attach: selected but not originally on this trail.
+    for (final id in _selectedPoiIds) {
+      if (!_initialPoiIds.contains(id)) {
+        await sb.from('pois').update({'trailId': trailId}).eq('id', id);
+      }
+    }
+    // Detach: originally on this trail but now deselected.
+    for (final id in _initialPoiIds) {
+      if (!_selectedPoiIds.contains(id)) {
+        await sb.from('pois').update({'trailId': null}).eq('id', id);
+      }
     }
   }
 
@@ -972,9 +1224,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
               const SizedBox(width: 8),
               Text(
                 isEditing ? 'Modifier le sentier' : 'Nouveau sentier',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
@@ -983,7 +1236,7 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -1113,6 +1366,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
                     _buildPreviewMap(),
                   ]),
                   const SizedBox(height: 24),
+                  _buildSection('Points d\'intérêt du sentier', [
+                    _buildPoiSelectionSection(),
+                  ]),
+                  const SizedBox(height: 24),
                   _buildSection('Statut', [
                     SwitchListTile(
                       title: const Text('Sentier actif'),
@@ -1170,9 +1427,13 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Ajoutez des photos pour illustrer ce sentier',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -1194,12 +1455,197 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               '${_imageUrls.length} image${_imageUrls.length > 1 ? 's' : ''} ajoutée${_imageUrls.length > 1 ? 's' : ''}',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.6),
                 fontSize: 12,
               ),
             ),
           ),
+        const SizedBox(height: 20),
+        _buildVideoUploadSection(),
+      ],
+    );
+  }
+
+  /// Single-MP4 video upload row + current-video chip.
+  Widget _buildVideoUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Vidéo du sentier',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Une vidéo MP4 (100 Mo max) pour présenter le sentier',
+          style: TextStyle(
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.6),
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: _isUploadingVideo ? null : _pickAndUploadVideo,
+          icon: _isUploadingVideo
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Icon(Icons.videocam_outlined, size: 18),
+          label: Text(_isUploadingVideo
+              ? 'Téléversement...'
+              : 'Ajouter une vidéo (MP4, max 100 Mo)'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        ),
+        if (_videoUrl != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border:
+                  Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.movie_outlined,
+                    color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _videoUrl!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => setState(() => _videoUrl = null),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close,
+                        color: Colors.white, size: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Checkbox list to attach/detach POIs to/from this trail.
+  Widget _buildPoiSelectionSection() {
+    if (_isLoadingPois) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_allPois.isEmpty) {
+      return Text(
+        'Aucun point d\'intérêt disponible.',
+        style: TextStyle(
+          color:
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          fontSize: 13,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Cochez les points d\'intérêt qui font partie de ce sentier '
+          '(${_selectedPoiIds.length} sélectionné${_selectedPoiIds.length > 1 ? 's' : ''}).',
+          style: TextStyle(
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 320),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Theme.of(context).dividerColor),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: _allPois.length,
+            separatorBuilder: (_, _) =>
+                Divider(height: 1, color: Theme.of(context).dividerColor),
+            itemBuilder: (context, i) {
+              final poi = _allPois[i];
+              final selected = _selectedPoiIds.contains(poi.id);
+              final attachedElsewhere =
+                  poi.trailId != null && poi.trailId != widget.trailId;
+              return CheckboxListTile(
+                value: selected,
+                onChanged: (v) => setState(() {
+                  if (v == true) {
+                    _selectedPoiIds.add(poi.id);
+                  } else {
+                    _selectedPoiIds.remove(poi.id);
+                  }
+                }),
+                activeColor: AppColors.primary,
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+                title: Text(
+                  poi.name,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 14,
+                  ),
+                ),
+                subtitle: Text(
+                  attachedElsewhere && !selected
+                      ? '${poi.typeLabel} · déjà rattaché à un autre sentier'
+                      : poi.typeLabel,
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -1218,7 +1664,7 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
               width: 110,
               height: 110,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Column(
@@ -1283,7 +1729,7 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
         width: 110,
         height: 110,
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: AppColors.primary.withValues(alpha: 0.3),
@@ -1328,10 +1774,10 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 16),
@@ -1372,12 +1818,15 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
         children: [
           const Icon(Icons.auto_awesome, color: AppColors.primary, size: 18),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Distance et durée sont calculées automatiquement à partir du '
-              'tracé GPS. Vous pouvez les ajuster manuellement.',
+              'Distance, dénivelé et durée sont calculés automatiquement à '
+              'partir du tracé GPS. Vous pouvez les ajuster manuellement.',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.6),
                 fontSize: 12,
                 height: 1.4,
               ),
@@ -1385,10 +1834,22 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
           ),
           const SizedBox(width: 12),
           ElevatedButton.icon(
-            onPressed:
-                hasTrack ? () => _recalculateMetrics(showSnack: true) : null,
-            icon: const Icon(Icons.calculate_outlined, size: 18),
-            label: const Text('Calculer depuis le tracé'),
+            onPressed: (hasTrack && !_isComputingMetrics)
+                ? () => _recalculateMetrics(showSnack: true)
+                : null,
+            icon: _isComputingMetrics
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.calculate_outlined, size: 18),
+            label: Text(_isComputingMetrics
+                ? 'Calcul...'
+                : 'Recalculer automatiquement'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,

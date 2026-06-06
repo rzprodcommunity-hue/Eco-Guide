@@ -69,7 +69,7 @@ class _MainLayoutState extends State<MainLayout> {
                     isMobile: isCompact, dark: dark),
                 Expanded(
                   child: Container(
-                    color: AppColors.background,
+                    color: Theme.of(context).scaffoldBackgroundColor,
                     child: widget.child,
                   ),
                 ),
@@ -89,7 +89,7 @@ class _MainLayoutState extends State<MainLayout> {
     bool dark,
   ) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: _navSurface(dark),
         elevation: 0,

@@ -13,6 +13,7 @@ class Trail {
   final double? startLatitude;
   final double? startLongitude;
   final Map<String, dynamic>? geojson;
+  final String? videoUrl;
   final bool isActive;
   final DateTime createdAt;
 
@@ -31,6 +32,7 @@ class Trail {
     this.startLatitude,
     this.startLongitude,
     this.geojson,
+    this.videoUrl,
     required this.isActive,
     required this.createdAt,
   });
@@ -117,6 +119,7 @@ class Trail {
       startLatitude: _parseNullableDouble(json['startLatitude']),
       startLongitude: _parseNullableDouble(json['startLongitude']),
       geojson: json['geojson'] as Map<String, dynamic>?,
+      videoUrl: json['videoUrl'] as String? ?? json['video_url'] as String?,
       isActive: json['isActive'] as bool? ?? true,
       createdAt: DateTime.parse(
         json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
@@ -140,6 +143,7 @@ class Trail {
       'startLatitude': startLatitude,
       'startLongitude': startLongitude,
       'geojson': geojson,
+      'videoUrl': videoUrl,
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
     };

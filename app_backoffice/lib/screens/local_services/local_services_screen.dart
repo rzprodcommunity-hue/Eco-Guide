@@ -236,10 +236,13 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   errorBuilder: (_, __, ___) => Container(
                     width: 120,
                     height: 120,
-                    color: Colors.grey[200],
-                    child: const Icon(
+                    color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                    child: Icon(
                       Icons.broken_image_outlined,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
                     ),
                   ),
                 ),
@@ -272,7 +275,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: AppColors.success,
@@ -446,7 +449,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
 
     final isCompact = Responsive.isCompact(context);
 
-    final headerTitle = const Column(
+    final headerTitle = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -454,13 +457,15 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           'Manage local guides, artisans, and eco-lodges supporting the trail network.',
-          style: TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
         ),
       ],
     );
@@ -574,17 +579,17 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -593,10 +598,10 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             children: [
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(width: 12),
@@ -613,7 +618,10 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   style: TextStyle(
                     color: isPositive
                         ? AppColors.success
-                        : AppColors.textSecondary,
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -630,9 +638,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Form(
         key: _formKey,
@@ -723,9 +731,12 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Upload a cover photo (shown in the list)',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 13,
+              ),
             ),
             const SizedBox(height: 12),
             _buildPhotoSection(),
@@ -743,12 +754,15 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     controller: _mapSearchController,
                     decoration: InputDecoration(
                       hintText: 'Chercher un lieu (ex: Jbel Chitana)...',
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.search,
-                        color: AppColors.textHint,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
                       ),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Theme.of(context).scaffoldBackgroundColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -810,7 +824,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       children: [
                         TileLayer(
                           urlTemplate:
-                              'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                              'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
                           userAgentPackageName: 'com.ecoguide.app',
                         ),
                         MarkerLayer(
@@ -836,7 +850,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       child: FloatingActionButton.small(
                         heroTag: 'localServiceMyLocation',
                         onPressed: _isLocating ? null : _useMyLocation,
-                        backgroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).cardColor,
                         foregroundColor: AppColors.primary,
                         tooltip: 'Ma position',
                         child: _isLocating
@@ -923,9 +937,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: [
@@ -935,12 +949,15 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 child: TextField(
                   decoration: InputDecoration(
                     hintText: 'Search directory...',
-                    prefixIcon: const Icon(
+                    prefixIcon: Icon(
                       Icons.search,
-                      color: AppColors.textHint,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
                     ),
                     filled: true,
-                    fillColor: Colors.grey[50],
+                    fillColor: Theme.of(context).scaffoldBackgroundColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -955,7 +972,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.divider),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Row(
@@ -1007,10 +1024,15 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                                     Container(
                                   width: 48,
                                   height: 48,
-                                  color: Colors.grey[200],
-                                  child: const Icon(
+                                  color: Theme.of(context)
+                                      .dividerColor
+                                      .withValues(alpha: 0.3),
+                                  child: Icon(
                                     Icons.broken_image_outlined,
-                                    color: AppColors.textSecondary,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
                                   ),
                                 ),
                                 loadingBuilder:
@@ -1019,7 +1041,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                                   return Container(
                                     width: 48,
                                     height: 48,
-                                    color: Colors.grey[100],
+                                    color: Theme.of(context)
+                                        .dividerColor
+                                        .withValues(alpha: 0.2),
                                     child: const Center(
                                       child: SizedBox(
                                         width: 18,
@@ -1035,8 +1059,16 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                             : Container(
                                 width: 48,
                                 height: 48,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.store),
+                                color: Theme.of(context)
+                                    .dividerColor
+                                    .withValues(alpha: 0.3),
+                                child: Icon(
+                                  Icons.store,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
                               ),
                       ),
                       const SizedBox(width: 16),
@@ -1069,8 +1101,11 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                           service.description,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
                             fontSize: 13,
                           ),
                         ),
@@ -1079,17 +1114,23 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                         flex: 2,
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.phone,
                               size: 14,
-                              color: AppColors.textSecondary,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 service.contact ?? 'N/A',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
                                   fontSize: 13,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -1102,10 +1143,13 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.edit,
                               size: 18,
-                              color: AppColors.textSecondary,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
                             ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -1135,8 +1179,11 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             children: [
               Text(
                 'Showing ${provider.services.length} of ${provider.total} entries',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
                   fontSize: 12,
                 ),
               ),

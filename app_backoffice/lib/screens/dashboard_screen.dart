@@ -94,7 +94,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHeader(dynamic stats) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -102,13 +102,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
           'Vue d\'ensemble du contenu de l\'écosystème Eco-Guide.',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 13,
+          ),
         ),
       ],
     );
@@ -195,7 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -223,7 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: TextStyle(
               fontSize: isMobile ? 20 : 26,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
               height: 1.1,
             ),
           ),
@@ -233,7 +236,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: isMobile ? 11 : 13,
               fontWeight: FontWeight.w500,
             ),
@@ -247,7 +250,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -265,7 +268,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: TextStyle(
               fontSize: isMobile ? 15 : 18,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           SizedBox(height: isMobile ? 16 : 24),
@@ -308,7 +311,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               titles[value.toInt()],
                               style: TextStyle(
                                 fontSize: isMobile ? 9 : 12,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.6),
                               ),
                             ),
                           );
@@ -325,7 +331,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         value.toInt().toString(),
                         style: TextStyle(
                           fontSize: isMobile ? 9 : 11,
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
                         ),
                       ),
                     ),
@@ -384,7 +393,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: EdgeInsets.all(isMobile ? 18 : 24),
       decoration: BoxDecoration(
-        color: hasAlerts ? AppColors.error.withValues(alpha: 0.08) : Colors.white,
+        color: hasAlerts
+            ? AppColors.error.withValues(alpha: 0.08)
+            : Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: hasAlerts ? Border.all(color: AppColors.error, width: 1.5) : null,
         boxShadow: [
@@ -413,7 +424,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: TextStyle(
                     fontSize: isMobile ? 28 : 36,
                     fontWeight: FontWeight.bold,
-                    color: hasAlerts ? AppColors.error : AppColors.textPrimary,
+                    color: hasAlerts
+                        ? AppColors.error
+                        : Theme.of(context).colorScheme.onSurface,
                     height: 1.1,
                   ),
                 ),
@@ -424,7 +437,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     fontSize: isMobile ? 12 : 14,
                     color: hasAlerts
                         ? AppColors.error
-                        : AppColors.textSecondary,
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
                     fontWeight: FontWeight.w500,
                   ),
                 ),

@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chewie/chewie.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../core/widgets/fullscreen_image_viewer.dart';
@@ -42,6 +46,12 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
   bool _trailUnlocked = false;
   Duration? _unlockRemaining;
 
+  // Real terrain-elevation profile sampled along the trail path (computed via
+  // the Open-Meteo elevation API since the GeoJSON only carries 2D points).
+  List<double>? _elevations;
+  bool _loadingElevation = false;
+  bool _elevationFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +64,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PoiProvider>().loadPoisByTrail(widget.trail.id);
       _loadReviews();
+      _loadElevationProfile();
     });
   }
 
@@ -256,6 +267,11 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                     children: [
                       const SizedBox(height: 20),
                       _buildStatsCard(),
+                      if (widget.trail.videoUrl != null &&
+                          widget.trail.videoUrl!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 32),
+                        _buildVideoSection(),
+                      ],
                       const SizedBox(height: 32),
                       _buildAboutSection(),
                       const SizedBox(height: 32),
@@ -641,6 +657,27 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
     );
   }
 
+  Widget _buildVideoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Vidéo du sentier',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: _TrailVideoPlayer(url: widget.trail.videoUrl!.trim()),
+        ),
+      ],
+    );
+  }
+
   Widget _buildAboutSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -919,16 +956,17 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            Text(
-              "Max: 1,650m",
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.7),
+            if (_elevations != null && _elevations!.isNotEmpty)
+              Text(
+                "Max: ${_elevations!.reduce((a, b) => a > b ? a : b).round()} m",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -948,8 +986,32 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
             ),
           ),
-          child: CustomPaint(
-            painter: _ElevationChartPainter(),
+          child: (_elevations == null || _elevations!.length < 2)
+              ? Center(
+                  child: _loadingElevation
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(
+                          _elevationFailed
+                              ? 'Profil indisponible hors ligne'
+                              : 'Profil indisponible',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
+                )
+              : CustomPaint(
+            painter: _ElevationChartPainter(
+              _elevations!,
+              Theme.of(context).colorScheme.primary,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -966,7 +1028,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                       ),
                     ),
                     Text(
-                      "2km",
+                      '${(widget.trail.distance * 0.25).toStringAsFixed(1)}km',
                       style: TextStyle(
                         fontSize: 10,
                         color: Theme.of(
@@ -975,7 +1037,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                       ),
                     ),
                     Text(
-                      "4km",
+                      '${(widget.trail.distance * 0.5).toStringAsFixed(1)}km',
                       style: TextStyle(
                         fontSize: 10,
                         color: Theme.of(
@@ -984,7 +1046,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                       ),
                     ),
                     Text(
-                      "6km",
+                      '${(widget.trail.distance * 0.75).toStringAsFixed(1)}km',
                       style: TextStyle(
                         fontSize: 10,
                         color: Theme.of(
@@ -1009,6 +1071,80 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
         ),
       ],
     );
+  }
+
+  /// Builds the real elevation profile by sampling the trail path and asking
+  /// the free Open-Meteo elevation API for the terrain altitude at each point.
+  Future<void> _loadElevationProfile() async {
+    final coords = _trailPathCoords();
+    if (coords.length < 2) return; // no path → nothing to profile
+    setState(() => _loadingElevation = true);
+    try {
+      final sampled = _sampleCoords(coords, 60);
+      final lats = sampled.map((c) => c.latitude.toStringAsFixed(5)).join(',');
+      final lons = sampled.map((c) => c.longitude.toStringAsFixed(5)).join(',');
+      final url = Uri.parse(
+        'https://api.open-meteo.com/v1/elevation?latitude=$lats&longitude=$lons',
+      );
+      final resp = await http.get(url);
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final list = (data['elevation'] as List?)
+            ?.map((e) => (e as num).toDouble())
+            .toList();
+        if (list != null && list.length >= 2 && mounted) {
+          setState(() {
+            _elevations = list;
+            _loadingElevation = false;
+          });
+          return;
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _elevationFailed = true;
+          _loadingElevation = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _elevationFailed = true;
+          _loadingElevation = false;
+        });
+      }
+    }
+  }
+
+  /// Extracts the trail's LineString coordinates ([lng,lat] → LatLng).
+  List<LatLng> _trailPathCoords() {
+    final geo = widget.trail.geojson;
+    if (geo == null) return [];
+    try {
+      final features = geo['features'] as List?;
+      if (features == null || features.isEmpty) return [];
+      final geometry = features[0]['geometry'] as Map<String, dynamic>;
+      if (geometry['type'] != 'LineString') return [];
+      final coords = geometry['coordinates'] as List;
+      return coords
+          .map((c) =>
+              LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Evenly samples at most [maxPoints] points (Open-Meteo allows up to 100).
+  List<LatLng> _sampleCoords(List<LatLng> pts, int maxPoints) {
+    if (pts.length <= maxPoints) return pts;
+    final out = <LatLng>[];
+    final step = pts.length / maxPoints;
+    for (double i = 0; i < pts.length; i += step) {
+      out.add(pts[i.floor()]);
+    }
+    if (out.isEmpty || out.last != pts.last) out.add(pts.last);
+    return out;
   }
 
   Widget _buildPoisSection(PoiProvider poiProvider) {
@@ -1538,58 +1674,71 @@ class _CircleIconButton extends StatelessWidget {
 }
 
 class _ElevationChartPainter extends CustomPainter {
+  /// Terrain altitudes (metres) sampled from start to finish along the path.
+  final List<double> elevations;
+  final Color color;
+
+  _ElevationChartPainter(this.elevations, this.color);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF2E7D32)
+    if (elevations.length < 2) return;
+
+    double minE = elevations.first;
+    double maxE = elevations.first;
+    for (final e in elevations) {
+      if (e < minE) minE = e;
+      if (e > maxE) maxE = e;
+    }
+    // Avoid a divide-by-zero on a perfectly flat trail.
+    final range = (maxE - minE) < 1 ? 1.0 : (maxE - minE);
+
+    // Keep the curve off the very top/bottom edges.
+    final topPad = size.height * 0.12;
+    final usable = size.height * 0.74;
+
+    Offset pointAt(int i) {
+      final x = size.width * (i / (elevations.length - 1));
+      final norm = (elevations[i] - minE) / range; // 0 = lowest, 1 = highest
+      final y = topPad + usable * (1 - norm);
+      return Offset(x, y);
+    }
+
+    final linePaint = Paint()
+      ..color = color
       ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
+      ..style = PaintingStyle.stroke
+      ..strokeJoin = StrokeJoin.round;
 
     final fillPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFF2E7D32).withValues(alpha: 0.2),
-          const Color(0xFF2E7D32).withValues(alpha: 0.0),
+          color.withValues(alpha: 0.22),
+          color.withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTRB(0, 0, size.width, size.height))
       ..style = PaintingStyle.fill;
 
-    final path = Path();
-    final points = [
-      Offset(0, size.height * 0.7),
-      Offset(size.width * 0.2, size.height * 0.65),
-      Offset(size.width * 0.4, size.height * 0.55),
-      Offset(size.width * 0.6, size.height * 0.45),
-      Offset(size.width * 0.8, size.height * 0.5),
-      Offset(size.width, size.height * 0.6),
-    ];
-
-    path.moveTo(points[0].dx, points[0].dy);
-    for (int i = 0; i < points.length - 1; i++) {
-      final p1 = points[i + 1];
-      path.lineTo(p1.dx, p1.dy);
+    final path = Path()..moveTo(pointAt(0).dx, pointAt(0).dy);
+    for (int i = 1; i < elevations.length; i++) {
+      final p = pointAt(i);
+      path.lineTo(p.dx, p.dy);
     }
 
-    final fillPath = Path.from(path);
-    fillPath.lineTo(size.width, size.height);
-    fillPath.lineTo(0, size.height);
-    fillPath.close();
+    final fillPath = Path.from(path)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
 
     canvas.drawPath(fillPath, fillPaint);
-    canvas.drawPath(path, paint);
-
-    final dotPaint = Paint()
-      ..color = const Color(0xFF2E7D32)
-      ..style = PaintingStyle.fill;
-    for (var point in points) {
-      canvas.drawCircle(point, 4, dotPaint);
-    }
+    canvas.drawPath(path, linePaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ElevationChartPainter oldDelegate) =>
+      oldDelegate.elevations != elevations || oldDelegate.color != color;
 }
 
 class _CommentResult {
@@ -2035,6 +2184,115 @@ class _TrailSosButtonState extends State<_TrailSosButton>
           );
         },
       ),
+    );
+  }
+}
+
+/// Lazily-initialized network video player used in the trail detail screen.
+/// Wraps [VideoPlayerController] + [ChewieController], shows a loader while
+/// initializing and a graceful placeholder on failure.
+class _TrailVideoPlayer extends StatefulWidget {
+  final String url;
+
+  const _TrailVideoPlayer({required this.url});
+
+  @override
+  State<_TrailVideoPlayer> createState() => _TrailVideoPlayerState();
+}
+
+class _TrailVideoPlayerState extends State<_TrailVideoPlayer> {
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+  bool _initializing = true;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+      );
+      _videoController = controller;
+      await controller.initialize();
+      if (!mounted) {
+        controller.dispose();
+        return;
+      }
+      _chewieController = ChewieController(
+        videoPlayerController: controller,
+        autoPlay: false,
+        looping: false,
+        aspectRatio: controller.value.aspectRatio,
+      );
+      setState(() => _initializing = false);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _initializing = false;
+          _hasError = true;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _chewieController?.dispose();
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (_initializing) {
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          color: theme.cardColor,
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (_hasError || _chewieController == null) {
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          color: theme.cardColor,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.videocam_off_outlined,
+                  size: 36,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Vidéo indisponible',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return AspectRatio(
+      aspectRatio: _videoController!.value.aspectRatio,
+      child: Chewie(controller: _chewieController!),
     );
   }
 }

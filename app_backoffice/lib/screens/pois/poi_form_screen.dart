@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/providers/pois_provider.dart';
 import '../../core/models/poi_model.dart';
+import '../../core/models/trail_model.dart';
 import '../../core/services/poi_service.dart';
+import '../../core/services/trail_service.dart';
 import '../../core/constants/app_colors.dart';
 
 class PoiFormScreen extends StatefulWidget {
@@ -36,14 +39,40 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
   bool _isLocating = false;
   LatLng? _markerLocation;
 
+  String? _selectedTrailId;
+  List<TrailModel> _trails = [];
+  bool _isLoadingTrails = false;
+
   bool get isEditing => widget.poiId != null;
 
   @override
   void initState() {
     super.initState();
+    _loadTrails();
     if (isEditing) {
       _loadPoi();
     }
+  }
+
+  Future<void> _loadTrails() async {
+    setState(() => _isLoadingTrails = true);
+    try {
+      final result = await TrailService.getTrails(limit: 1000);
+      if (!mounted) return;
+      setState(() {
+        _trails = (result['trails'] as List).cast<TrailModel>();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur chargement sentiers: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+    if (mounted) setState(() => _isLoadingTrails = false);
   }
 
   Future<void> _loadPoi() async {
@@ -61,6 +90,7 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
       _audioGuideUrlController.text = poi.audioGuideUrl ?? '';
       _type = poi.type;
       _isActive = poi.isActive;
+      _selectedTrailId = poi.trailId;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -171,7 +201,23 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
     if (isEditing) {
       success = await provider.updatePoi(widget.poiId!, data);
     } else {
+      // Include trailId in the create payload (api_service strips it if null).
+      data['trailId'] = _selectedTrailId;
       success = await provider.createPoi(data);
+    }
+
+    // On edit, persist the trail link directly via Supabase so that clearing it
+    // to null is honored (api_service strips nulls from update payloads). On
+    // create, the payload above already carries a non-null trailId, and a
+    // brand-new POI has no stale link to clear — so no extra call is needed.
+    if (success && isEditing) {
+      try {
+        await Supabase.instance.client
+            .from('pois')
+            .update({'trailId': _selectedTrailId}).eq('id', widget.poiId!);
+      } catch (_) {
+        // Non-fatal: POI was saved; trail link update failed silently.
+      }
     }
 
     setState(() => _isLoading = false);
@@ -225,7 +271,7 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -275,6 +321,8 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
                     ),
                     const SizedBox(height: 16),
                     _buildTypeDropdown(),
+                    const SizedBox(height: 16),
+                    _buildTrailDropdown(),
                   ]),
                   const SizedBox(height: 24),
                   _buildSection('Localisation', [
@@ -399,20 +447,31 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
       return Container(
         height: 240,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.map_outlined, size: 48, color: Colors.grey.shade400),
+              Icon(
+                Icons.map_outlined,
+                size: 48,
+                color:
+                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
               const SizedBox(height: 8),
               Text(
                 'Appuyez sur « Utiliser ma position GPS » pour afficher\nvotre position sur la carte',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -459,10 +518,10 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 16),
@@ -513,6 +572,40 @@ class _PoiFormScreenState extends State<PoiFormScreen> {
         return DropdownMenuItem(value: t, child: Text(types[t] ?? t.name));
       }).toList(),
       onChanged: (v) => setState(() => _type = v ?? PoiType.viewpoint),
+    );
+  }
+
+  Widget _buildTrailDropdown() {
+    return DropdownButtonFormField<String?>(
+      value: _selectedTrailId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Sentier associe',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        suffixIcon: _isLoadingTrails
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : null,
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Aucun sentier'),
+        ),
+        ..._trails.map((t) {
+          return DropdownMenuItem<String?>(
+            value: t.id,
+            child: Text(t.name, overflow: TextOverflow.ellipsis),
+          );
+        }),
+      ],
+      onChanged: (v) => setState(() => _selectedTrailId = v),
     );
   }
 }

@@ -311,7 +311,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
 
     final isCompact = Responsive.isCompact(context);
 
-    final headerTitle = const Column(
+    final headerTitle = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -319,14 +319,14 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
           'Create and manage educational challenges for hikers.',
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             fontSize: 14,
           ),
         ),
@@ -420,9 +420,13 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Quiz Builder',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 24),
               const Center(
@@ -487,7 +491,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                 ],
               ),
               SizedBox(height: isCompact ? 24 : 40),
-              Container(height: 1, color: AppColors.divider.withOpacity(0.5)),
+              Container(height: 1, color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
               const SizedBox(height: 32),
 
               Row(
@@ -581,9 +585,9 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
     
 
     final decoration = BoxDecoration(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+      border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.02),
@@ -607,14 +611,14 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       hintText: hintText,
       prefixIcon: prefixIcon,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Theme.of(context).cardColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.divider),
+        borderSide: BorderSide(color: Theme.of(context).dividerColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.divider),
+        borderSide: BorderSide(color: Theme.of(context).dividerColor),
       ),
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -627,9 +631,9 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -645,9 +649,9 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       margin: const EdgeInsets.only(bottom: 24),
       padding: EdgeInsets.all(isCompact ? 16 : 24),
       decoration: BoxDecoration(
-        color: Colors.grey[50], // Professional slight contrast
+        color: Theme.of(context).scaffoldBackgroundColor, // Professional slight contrast
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider.withOpacity(0.8)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.8)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.01),
@@ -680,13 +684,13 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Question Details',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -749,7 +753,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       controller: q.correctCtrl,
       decoration: InputDecoration(
         hintText: 'Correct Answer...',
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).cardColor,
         filled: true,
         prefixIcon: const Icon(
           Icons.check_circle,
@@ -806,9 +810,9 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                   width: 110,
                   height: 110,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.divider),
+                    border: Border.all(color: Theme.of(context).dividerColor),
                   ),
                   child: q.isUploading
                       ? const Center(child: CircularProgressIndicator())
@@ -850,19 +854,19 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                         )
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(
+                          children: [
+                            const Icon(
                               Icons.add_photo_alternate_outlined,
                               color: AppColors.success,
                               size: 32,
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
                               'Add\nPhoto',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -953,12 +957,14 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
     // the parent page ListView and the scroll gets stuck. Let it shrink-wrap
     // so the parent handles all scrolling. On desktop it keeps its own scroll.
     final Widget recentList = provider.quizzes.isEmpty
-        ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+        ? Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: Text(
                 'No quizzes found.',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
               ),
             ),
           )
@@ -974,10 +980,10 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                     return Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.divider.withOpacity(0.5),
+                          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -1008,10 +1014,10 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                               children: [
                                 Text(
                                   quiz.question,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
-                                    color: AppColors.textPrimary,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -1026,16 +1032,16 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                                       ),
                                       decoration: BoxDecoration(
                                         border: Border.all(
-                                          color: AppColors.divider,
+                                          color: Theme.of(context).dividerColor,
                                         ),
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       child: Text(
                                         quiz.category?.name.toUpperCase() ??
                                             'NONE',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 11,
-                                          color: AppColors.textSecondary,
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -1043,9 +1049,9 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                                     const SizedBox(width: 8),
                                     Text(
                                       '${quiz.points} Points',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: AppColors.textSecondary,
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                       ),
                                     ),
                                   ],
@@ -1058,9 +1064,9 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                               IconButton(
                                 constraints: const BoxConstraints(),
                                 padding: EdgeInsets.zero,
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.edit_note,
-                                  color: AppColors.textSecondary,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   size: 22,
                                 ),
                                 onPressed: () => _editQuiz(quiz),
@@ -1090,12 +1096,12 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Recent Quizzes',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             TextButton(

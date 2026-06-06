@@ -85,8 +85,8 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
         ),
       Text(
         '${provider.alerts.length} alertes au total',
-        style: const TextStyle(
-          color: AppColors.textSecondary,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
           fontSize: 16,
         ),
       ),
@@ -159,12 +159,12 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             color: AppColors.success.withOpacity(0.5),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Aucune alerte',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -172,7 +172,11 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             _showActiveOnly
                 ? 'Aucune alerte active en ce moment'
                 : 'Aucune alerte enregistree',
-            style: const TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
           ),
         ],
       ),
@@ -195,7 +199,7 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: isActive ? Border.all(color: AppColors.error, width: 2) : null,
         boxShadow: [
@@ -213,7 +217,7 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             decoration: BoxDecoration(
               color: isActive
                   ? AppColors.error.withOpacity(0.1)
-                  : AppColors.background,
+                  : Theme.of(context).scaffoldBackgroundColor,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(14),
               ),
@@ -240,8 +244,10 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                       ),
                       Text(
                         'Emise le ${DateFormat('dd/MM/yyyy a HH:mm').format(alert.createdAt)}',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                           fontSize: 12,
                         ),
                       ),
@@ -347,9 +353,9 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -363,10 +369,10 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -374,17 +380,21 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.email_outlined,
                         size: 14,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           email,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
                             fontSize: 13,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -397,17 +407,21 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.phone_outlined,
                         size: 14,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           phone,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
                             fontSize: 13,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -418,10 +432,12 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                 ],
                 if (!hasProfile) ...[
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Aucun profil associe',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                       fontSize: 12,
                       fontStyle: FontStyle.italic,
                     ),
@@ -457,10 +473,12 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
           if (email != null && email.isNotEmpty)
             IconButton(
               onPressed: () => _copyText(email, 'Email copie'),
-              icon: const Icon(
+              icon: Icon(
                 Icons.copy,
                 size: 18,
-                color: AppColors.textSecondary,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               tooltip: 'Copier email',
             ),
@@ -504,7 +522,7 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: Theme.of(context).cardColor,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -561,7 +579,11 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: AppColors.textSecondary),
+        Icon(
+          icon,
+          size: 20,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -569,16 +591,18 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                   fontSize: 12,
                 ),
               ),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
@@ -662,20 +686,22 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Localisation de l\'alerte SOS',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Lat: ${alert.latitude.toStringAsFixed(6)}  |  Lng: ${alert.longitude.toStringAsFixed(6)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                             ),
                           ],
@@ -698,7 +724,7 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                     children: [
                       TileLayer(
                         urlTemplate:
-                            'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                            'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
                         userAgentPackageName: 'com.ecoguide.backoffice',
                       ),
                       MarkerLayer(
@@ -757,8 +783,10 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                    color: Theme.of(context).cardColor,
+                    border: Border(
+                      top: BorderSide(color: Theme.of(context).dividerColor),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,

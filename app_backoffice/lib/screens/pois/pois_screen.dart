@@ -7,8 +7,11 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/providers/pois_provider.dart';
 import '../../core/models/poi_model.dart';
+import '../../core/models/trail_model.dart';
+import '../../core/services/trail_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/responsive.dart';
 import '../../core/services/supabase_storage_service.dart';
@@ -40,6 +43,11 @@ class _PoisScreenState extends State<PoisScreen> {
   String? _mediaUrl;
   Uint8List? _pickedImageBytes;
 
+  // Associated trail (a POI belongs to at most ONE trail).
+  String? _selectedTrailId;
+  List<TrailModel> _trails = [];
+  bool _isLoadingTrails = false;
+
   // Map controls (search + my location)
   final MapController _mapController = MapController();
   final TextEditingController _mapSearchController = TextEditingController();
@@ -55,7 +63,64 @@ class _PoisScreenState extends State<PoisScreen> {
     _longitudeController.text = _selectedLocation.longitude.toStringAsFixed(6);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PoisProvider>().loadPois();
+      _loadTrails();
+      _autoLocate();
     });
+  }
+
+  /// Quickly centers the map on the user's current position when creating a
+  /// new POI: a last-known fix first (instant), then a fresh fix.
+  Future<void> _autoLocate() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        return;
+      }
+      void apply(Position pos, double zoom) {
+        if (!mounted || _editingPoi != null) return;
+        final p = LatLng(pos.latitude, pos.longitude);
+        setState(() {
+          _selectedLocation = p;
+          _latitudeController.text = p.latitude.toStringAsFixed(6);
+          _longitudeController.text = p.longitude.toStringAsFixed(6);
+        });
+        try {
+          _mapController.move(p, zoom);
+        } catch (_) {}
+      }
+
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) apply(last, 14);
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 6),
+        ),
+      );
+      apply(pos, 15);
+    } catch (_) {
+      // Best-effort convenience; ignore failures silently.
+    }
+  }
+
+  /// Loads trails so the form can offer a "Sentier associé" dropdown.
+  Future<void> _loadTrails() async {
+    setState(() => _isLoadingTrails = true);
+    try {
+      final res = await TrailService.getTrails(limit: 1000);
+      if (!mounted) return;
+      setState(() => _trails = res['trails'] as List<TrailModel>);
+    } catch (_) {
+      // Non-fatal: the dropdown just shows "Aucun sentier".
+    } finally {
+      if (mounted) setState(() => _isLoadingTrails = false);
+    }
   }
 
   @override
@@ -76,6 +141,7 @@ class _PoisScreenState extends State<PoisScreen> {
       _nameController.clear();
       _descriptionController.clear();
       _selectedType = PoiType.flora;
+      _selectedTrailId = null;
       _isActive = true;
       _mediaUrl = null;
       _pickedImageBytes = null;
@@ -92,6 +158,7 @@ class _PoisScreenState extends State<PoisScreen> {
       _nameController.text = poi.name;
       _descriptionController.text = poi.description;
       _selectedType = poi.type;
+      _selectedTrailId = poi.trailId;
       _isActive = poi.isActive;
       _mediaUrl = poi.mediaUrl;
       _pickedImageBytes = null;
@@ -127,9 +194,11 @@ class _PoisScreenState extends State<PoisScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(
+                color: Theme.of(c).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ),
           ElevatedButton(
@@ -221,12 +290,32 @@ class _PoisScreenState extends State<PoisScreen> {
       if (_mediaUrl != null && _mediaUrl!.isNotEmpty) {
         data['mediaUrl'] = _mediaUrl;
       }
+      // A POI belongs to at most one trail. On create, send it in the payload
+      // (null is stripped, which is fine for a brand-new POI).
+      if (_selectedTrailId != null) {
+        data['trailId'] = _selectedTrailId;
+      }
+
+      final editingId = _editingPoi?.id;
+      final selectedTrail = _selectedTrailId;
 
       bool success;
-      if (_editingPoi != null) {
-        success = await provider.updatePoi(_editingPoi!.id, data);
+      if (editingId != null) {
+        success = await provider.updatePoi(editingId, data);
       } else {
         success = await provider.createPoi(data);
+      }
+
+      // On edit, push the trail link directly so clearing it to "Aucun" (null)
+      // is honored (api_service strips null values from update payloads).
+      if (success && editingId != null) {
+        try {
+          await Supabase.instance.client
+              .from('pois')
+              .update({'trailId': selectedTrail}).eq('id', editingId);
+        } catch (_) {
+          // Non-fatal: the POI is saved; only the trail-link update failed.
+        }
       }
 
       setState(() => _isSaving = false);
@@ -275,20 +364,20 @@ class _PoisScreenState extends State<PoisScreen> {
 
     final headerTitle = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
+      children: [
         Text(
           'Points of Interest Management',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
           'Manage markers, educational content, and geographic assets',
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             fontSize: 14,
           ),
         ),
@@ -409,14 +498,14 @@ class _PoisScreenState extends State<PoisScreen> {
                   )
                 : null,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Theme.of(context).cardColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.divider),
+              borderSide: BorderSide(color: Theme.of(context).dividerColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.divider),
+              borderSide: BorderSide(color: Theme.of(context).dividerColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -435,7 +524,9 @@ class _PoisScreenState extends State<PoisScreen> {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Material(
-                  color: isSelected ? AppColors.primary : Colors.white,
+                  color: isSelected
+                      ? AppColors.primary
+                      : Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(24),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(24),
@@ -450,7 +541,7 @@ class _PoisScreenState extends State<PoisScreen> {
                         border: Border.all(
                           color: isSelected
                               ? AppColors.primary
-                              : AppColors.divider.withValues(alpha: 0.6),
+                              : Theme.of(context).dividerColor.withValues(alpha: 0.6),
                         ),
                       ),
                       child: Row(
@@ -459,13 +550,17 @@ class _PoisScreenState extends State<PoisScreen> {
                           Icon(
                             icon,
                             size: 14,
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                            color: isSelected
+                                ? Colors.white
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 6),
                           Text(
                             cat['label'] as String,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : AppColors.textSecondary,
+                              color: isSelected
+                                  ? Colors.white
+                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -610,9 +705,9 @@ class _PoisScreenState extends State<PoisScreen> {
   Widget _buildMapCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
       ),
       child: Column(
         children: [
@@ -631,7 +726,7 @@ class _PoisScreenState extends State<PoisScreen> {
                         color: AppColors.textHint,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Theme.of(context).scaffoldBackgroundColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -692,7 +787,7 @@ class _PoisScreenState extends State<PoisScreen> {
                     children: [
                       TileLayer(
                         urlTemplate:
-                            'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                            'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
                         userAgentPackageName: 'com.ecoguide.app',
                       ),
                       MarkerLayer(
@@ -718,7 +813,7 @@ class _PoisScreenState extends State<PoisScreen> {
                     child: FloatingActionButton.small(
                       heroTag: 'poiMyLocation',
                       onPressed: _isLocating ? null : _useMyLocation,
-                      backgroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).cardColor,
                       foregroundColor: AppColors.primary,
                       tooltip: 'Ma position',
                       child: _isLocating
@@ -738,7 +833,7 @@ class _PoisScreenState extends State<PoisScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: AppColors.divider.withValues(alpha: 0.3)),
+                top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3)),
               ),
             ),
             child: Column(
@@ -817,9 +912,9 @@ class _PoisScreenState extends State<PoisScreen> {
     return Container(
       padding: EdgeInsets.all(isCompact ? 16 : 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
       ),
       child: Form(
         key: _formKey,
@@ -829,13 +924,13 @@ class _PoisScreenState extends State<PoisScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Flexible(
+                Flexible(
                   child: Text(
                     'POI Details',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -845,7 +940,7 @@ class _PoisScreenState extends State<PoisScreen> {
                     Text(
                       'Active',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -881,13 +976,15 @@ class _PoisScreenState extends State<PoisScreen> {
                       Expanded(flex: 1, child: _poiCategoryField()),
                     ],
                   ),
+            const SizedBox(height: 16),
+            _poiTrailField(),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Description',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
-                color: Color(0xFF1E293B),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
@@ -901,14 +998,14 @@ class _PoisScreenState extends State<PoisScreen> {
                   fontSize: 14,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: AppColors.divider),
+                  borderSide: BorderSide(color: Theme.of(context).dividerColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: AppColors.divider),
+                  borderSide: BorderSide(color: Theme.of(context).dividerColor),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -920,12 +1017,12 @@ class _PoisScreenState extends State<PoisScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Gallery Images',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
-                    color: Color(0xFF1E293B),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 ElevatedButton(
@@ -964,9 +1061,9 @@ class _PoisScreenState extends State<PoisScreen> {
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.divider, width: 1.5),
+                      border: Border.all(color: Theme.of(context).dividerColor, width: 1.5),
                     ),
                     child: _isUploading
                         ? const Center(
@@ -1022,10 +1119,10 @@ class _PoisScreenState extends State<PoisScreen> {
                           errorBuilder: (_, __, ___) => Container(
                             width: 80,
                             height: 80,
-                            color: Colors.grey[200],
-                            child: const Icon(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            child: Icon(
                               Icons.broken_image_outlined,
-                              color: AppColors.textSecondary,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                         ),
@@ -1064,12 +1161,12 @@ class _PoisScreenState extends State<PoisScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'POI Name',
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
-            color: Color(0xFF1E293B),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 8),
@@ -1082,14 +1179,14 @@ class _PoisScreenState extends State<PoisScreen> {
               fontSize: 14,
             ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Theme.of(context).cardColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.divider),
+              borderSide: BorderSide(color: Theme.of(context).dividerColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.divider),
+              borderSide: BorderSide(color: Theme.of(context).dividerColor),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1104,12 +1201,12 @@ class _PoisScreenState extends State<PoisScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Category',
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
-            color: Color(0xFF1E293B),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 8),
@@ -1118,14 +1215,14 @@ class _PoisScreenState extends State<PoisScreen> {
           isExpanded: true,
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Theme.of(context).cardColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.divider),
+              borderSide: BorderSide(color: Theme.of(context).dividerColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.divider),
+              borderSide: BorderSide(color: Theme.of(context).dividerColor),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1136,9 +1233,9 @@ class _PoisScreenState extends State<PoisScreen> {
                   value: type,
                   child: Text(
                     _getTypeLabel(type),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF1E293B),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -1147,6 +1244,84 @@ class _PoisScreenState extends State<PoisScreen> {
           onChanged: (v) {
             if (v != null) setState(() => _selectedType = v);
           },
+        ),
+      ],
+    );
+  }
+
+  Widget _poiTrailField() {
+    // Guard against an assertion crash if the selected id isn't (yet) in the
+    // loaded list (e.g. trails still loading or the trail was deleted).
+    final trailIds = _trails.map((t) => t.id).toSet();
+    final safeValue =
+        (_selectedTrailId != null && trailIds.contains(_selectedTrailId))
+            ? _selectedTrailId
+            : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sentier associé',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String?>(
+          value: safeValue,
+          isExpanded: true,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Theme.of(context).cardColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Theme.of(context).dividerColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Theme.of(context).dividerColor),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            suffixIcon: _isLoadingTrails
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : null,
+          ),
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text(
+                'Aucun sentier',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+            ..._trails.map(
+              (t) => DropdownMenuItem<String?>(
+                value: t.id,
+                child: Text(
+                  t.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          onChanged: (v) => setState(() => _selectedTrailId = v),
         ),
       ],
     );
@@ -1162,9 +1337,9 @@ class _PoisScreenState extends State<PoisScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1181,12 +1356,12 @@ class _PoisScreenState extends State<PoisScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'Existing Markers',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1218,14 +1393,14 @@ class _PoisScreenState extends State<PoisScreen> {
                     ),
                     _buildStatChip(
                       label: '${provider.pois.length - activeCount} draft',
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.4)),
+          Divider(height: 1, color: Theme.of(context).dividerColor.withValues(alpha: 0.4)),
           // List
           SizedBox(
             height: 620,
@@ -1241,12 +1416,12 @@ class _PoisScreenState extends State<PoisScreen> {
                         Icon(Icons.place_outlined,
                             size: 48, color: AppColors.textHint),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'No markers found',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -1314,10 +1489,10 @@ class _PoisScreenState extends State<PoisScreen> {
                                     children: [
                                       Text(
                                         poi.name,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 13,
-                                          color: Color(0xFF1E293B),
+                                          color: Theme.of(context).colorScheme.onSurface,
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
@@ -1393,7 +1568,7 @@ class _PoisScreenState extends State<PoisScreen> {
                                                     fontWeight: FontWeight.w600,
                                                     color: poi.isActive
                                                         ? AppColors.success
-                                                        : AppColors.textSecondary,
+                                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                                   ),
                                                 ),
                                               ],
@@ -1428,7 +1603,7 @@ class _PoisScreenState extends State<PoisScreen> {
                     },
                   ),
           ),
-          Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.4)),
+          Divider(height: 1, color: Theme.of(context).dividerColor.withValues(alpha: 0.4)),
           // Pagination
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -1456,8 +1631,8 @@ class _PoisScreenState extends State<PoisScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
                         'Page ${provider.currentPage} / ${provider.totalPages == 0 ? 1 : provider.totalPages}',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1524,7 +1699,7 @@ class _PoisScreenState extends State<PoisScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: enabled ? Colors.white : Colors.grey.shade100,
+      color: enabled ? Theme.of(context).cardColor : Colors.grey.shade100,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -1533,12 +1708,14 @@ class _PoisScreenState extends State<PoisScreen> {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.divider),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Icon(
             icon,
             size: 18,
-            color: enabled ? AppColors.textSecondary : AppColors.textHint,
+            color: enabled
+                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+                : AppColors.textHint,
           ),
         ),
       ),

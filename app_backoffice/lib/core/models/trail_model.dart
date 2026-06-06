@@ -15,6 +15,7 @@ class TrailModel {
   final int? reviewCount;
   final double? startLatitude;
   final double? startLongitude;
+  final String? videoUrl;
   final bool isActive;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -34,6 +35,7 @@ class TrailModel {
     this.reviewCount,
     this.startLatitude,
     this.startLongitude,
+    this.videoUrl,
     required this.isActive,
     required this.createdAt,
     this.updatedAt,
@@ -67,6 +69,7 @@ class TrailModel {
       startLongitude: json['startLongitude'] != null
           ? _parseDouble(json['startLongitude'])
           : null,
+      videoUrl: json['videoUrl'] as String? ?? json['video_url'] as String?,
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
@@ -100,6 +103,7 @@ class TrailModel {
       'reviewCount': reviewCount,
       'startLatitude': startLatitude,
       'startLongitude': startLongitude,
+      'videoUrl': videoUrl,
       'isActive': isActive,
     };
   }

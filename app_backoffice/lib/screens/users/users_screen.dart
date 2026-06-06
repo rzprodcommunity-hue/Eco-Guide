@@ -68,9 +68,11 @@ class _UsersScreenState extends State<UsersScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text(
+              child: Text(
                 'Annuler',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
               ),
             ),
             ElevatedButton(
@@ -113,9 +115,11 @@ class _UsersScreenState extends State<UsersScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ),
           ElevatedButton(
@@ -164,15 +168,15 @@ class _UsersScreenState extends State<UsersScreen> {
             size: 18,
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Theme.of(context).cardColor,
           contentPadding: const EdgeInsets.symmetric(vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.divider),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.divider),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
           ),
         ),
       ),
@@ -180,22 +184,22 @@ class _UsersScreenState extends State<UsersScreen> {
 
     final exportButton = OutlinedButton.icon(
       onPressed: () {},
-      icon: const Icon(
+      icon: Icon(
         Icons.download,
         size: 16,
-        color: AppColors.textPrimary,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
-      label: const Text(
+      label: Text(
         'Export CSV',
         style: TextStyle(
-          color: AppColors.textPrimary,
+          color: Theme.of(context).colorScheme.onSurface,
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
       ),
       style: OutlinedButton.styleFrom(
-        backgroundColor: Colors.white,
-        side: BorderSide(color: AppColors.divider),
+        backgroundColor: Theme.of(context).cardColor,
+        side: BorderSide(color: Theme.of(context).dividerColor),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -206,7 +210,7 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
     );
 
-    final headerTitle = const Column(
+    final headerTitle = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -214,14 +218,14 @@ class _UsersScreenState extends State<UsersScreen> {
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
           'Manage hiker accounts, roles, and access permissions',
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             fontSize: 14,
           ),
         ),
@@ -266,15 +270,17 @@ class _UsersScreenState extends State<UsersScreen> {
           if (isMobile)
             Column(
               children: [
-                _buildStatCard('Total Users', '${provider.total}', null),
+                _buildStatCard(context, 'Total Users', '${provider.total}', null),
                 const SizedBox(height: 12),
                 _buildStatCard(
+                  context,
                   'Active Now',
                   '${provider.total > 0 ? provider.total - 2 : 0}',
                   '+12%',
                 ),
                 const SizedBox(height: 12),
                 _buildStatCard(
+                  context,
                   'New This Week',
                   '${newerUsersCount > 0 ? newerUsersCount : 42}',
                   null,
@@ -285,12 +291,13 @@ class _UsersScreenState extends State<UsersScreen> {
             Row(
               children: [
                 Expanded(
-                  child:
-                      _buildStatCard('Total Users', '${provider.total}', null),
+                  child: _buildStatCard(
+                      context, 'Total Users', '${provider.total}', null),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: _buildStatCard(
+                    context,
                     'Active Now',
                     '${provider.total > 0 ? provider.total - 2 : 0}',
                     '+12%',
@@ -299,6 +306,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 const SizedBox(width: 20),
                 Expanded(
                   child: _buildStatCard(
+                    context,
                     'New This Week',
                     '${newerUsersCount > 0 ? newerUsersCount : 42}',
                     null,
@@ -311,9 +319,11 @@ class _UsersScreenState extends State<UsersScreen> {
           // ── User Data Table ──
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.02),
@@ -341,12 +351,14 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
                   )
                 else if (provider.users.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(40),
+                  Padding(
+                    padding: const EdgeInsets.all(40),
                     child: Center(
                       child: Text(
                         'No users found.',
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
                       ),
                     ),
                   )
@@ -364,21 +376,28 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, String? percentage) {
+  Widget _buildStatCard(
+    BuildContext context,
+    String title,
+    String value,
+    String? percentage,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -388,10 +407,10 @@ class _UsersScreenState extends State<UsersScreen> {
             children: [
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               if (percentage != null) ...[
@@ -432,12 +451,12 @@ class _UsersScreenState extends State<UsersScreen> {
         dividerThickness: 1,
         dataRowMaxHeight: 76,
         dataRowMinHeight: 76,
-        columns: const [
+        columns: [
           DataColumn(
             label: Text(
               'User Details',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -447,7 +466,7 @@ class _UsersScreenState extends State<UsersScreen> {
             label: Text(
               'Role',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -457,7 +476,7 @@ class _UsersScreenState extends State<UsersScreen> {
             label: Text(
               'Status',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -467,7 +486,7 @@ class _UsersScreenState extends State<UsersScreen> {
             label: Text(
               'Joined Date',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -477,7 +496,7 @@ class _UsersScreenState extends State<UsersScreen> {
             label: Text(
               'Actions',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -518,18 +537,18 @@ class _UsersScreenState extends State<UsersScreen> {
                       children: [
                         Text(
                           user.fullName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
-                            color: AppColors.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           user.email,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -545,16 +564,16 @@ class _UsersScreenState extends State<UsersScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: AppColors.divider),
+                    color: Theme.of(context).cardColor,
+                    border: Border.all(color: Theme.of(context).dividerColor),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     _formatRole(user.role),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -577,9 +596,9 @@ class _UsersScreenState extends State<UsersScreen> {
                     const SizedBox(width: 8),
                     Text(
                       user.isActive ? 'Active' : 'Inactive',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -589,9 +608,9 @@ class _UsersScreenState extends State<UsersScreen> {
               DataCell(
                 Text(
                   DateFormat('MMM dd, yyyy').format(user.createdAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -601,10 +620,10 @@ class _UsersScreenState extends State<UsersScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.edit,
                         size: 18,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       onPressed: () => _showEditDialog(user, provider),
                       tooltip: 'Edit',
@@ -640,7 +659,9 @@ class _UsersScreenState extends State<UsersScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: AppColors.divider.withOpacity(0.5)),
+          top: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+          ),
         ),
       ),
       child: Row(
@@ -648,8 +669,8 @@ class _UsersScreenState extends State<UsersScreen> {
         children: [
           Text(
             'Showing $startIdx-$endIdx of ${NumberFormat("#,###").format(provider.total)} users',
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 13,
             ),
           ),
@@ -708,13 +729,15 @@ class _UsersScreenState extends State<UsersScreen> {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.divider),
+          border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           icon,
           size: 16,
-          color: onPressed == null ? AppColors.textHint : AppColors.textPrimary,
+          color: onPressed == null
+              ? AppColors.textHint
+              : Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );
@@ -730,13 +753,17 @@ class _UsersScreenState extends State<UsersScreen> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isSelected ? AppColors.success : Colors.transparent,
-          border: isSelected ? null : Border.all(color: AppColors.divider),
+          border: isSelected
+              ? null
+              : Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           '$page',
           style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.textPrimary,
+            color: isSelected
+                ? Colors.white
+                : Theme.of(context).colorScheme.onSurface,
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
           ),

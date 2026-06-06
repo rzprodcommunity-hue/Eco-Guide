@@ -45,12 +45,23 @@ class EcoGuideBackoffice extends StatelessWidget {
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
+          // The router is created here so it is rebuilt only when auth changes.
+          // Theme changes must NOT recreate it (that would reset navigation and
+          // bounce the user back to the dashboard), so the ThemeProvider is read
+          // in a nested Consumer that only re-themes the same router instance.
           final router = createRouter(authProvider);
-          return MaterialApp.router(
-            title: 'Eco-Guide Admin',
-            debugShowCheckedModeBanner: false,
-            theme: _buildAdminTheme(),
-            routerConfig: router,
+          return Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) {
+              return MaterialApp.router(
+                title: 'Eco-Guide Admin',
+                debugShowCheckedModeBanner: false,
+                theme: _buildAdminTheme(),
+                darkTheme: _buildAdminDarkTheme(),
+                themeMode:
+                    themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
+                routerConfig: router,
+              );
+            },
           );
         },
       ),
@@ -137,6 +148,93 @@ ThemeData _buildAdminTheme() {
       backgroundColor: AppColors.background,
       selectedColor: AppColors.primary.withValues(alpha: 0.2),
       labelStyle: TextStyle(color: AppColors.textPrimary),
+      secondaryLabelStyle: const TextStyle(color: Colors.white),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+    ),
+  );
+}
+
+ThemeData _buildAdminDarkTheme() {
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.dark,
+    ),
+    scaffoldBackgroundColor: AppColors.darkBackground,
+    canvasColor: AppColors.darkSurface,
+    cardColor: AppColors.darkCard,
+    dividerColor: AppColors.darkBorder,
+    appBarTheme: AppBarTheme(
+      backgroundColor: AppColors.darkSurface,
+      foregroundColor: AppColors.darkTextPrimary,
+      elevation: 0,
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.darkCard,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+    dialogTheme: DialogThemeData(backgroundColor: AppColors.darkSurface),
+    popupMenuTheme: PopupMenuThemeData(color: AppColors.darkSurface),
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      filled: true,
+      fillColor: AppColors.darkSurfaceAlt,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 24,
+          vertical: 12,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        side: const BorderSide(color: AppColors.primary),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 24,
+          vertical: 12,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return AppColors.primary;
+        }
+        return null;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return AppColors.primary.withValues(alpha: 0.5);
+        }
+        return null;
+      }),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: AppColors.darkSurfaceAlt,
+      selectedColor: AppColors.primary.withValues(alpha: 0.2),
+      labelStyle: TextStyle(color: AppColors.darkTextPrimary),
       secondaryLabelStyle: const TextStyle(color: Colors.white),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),

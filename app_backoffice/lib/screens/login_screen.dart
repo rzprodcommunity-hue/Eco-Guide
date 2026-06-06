@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final isDesktop = size.width > 900;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).cardColor,
       body: Row(
         children: [
           if (isDesktop)
@@ -132,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Expanded(
             flex: 6,
             child: Container(
-              color: AppColors.surface,
+              color: Theme.of(context).cardColor,
               child: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(48.0),
@@ -144,19 +144,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
+                          Text(
                             "Administrator Login",
                             style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1E293B),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             "Access the Eco-Guide management console",
                             style: TextStyle(
-                              color: AppColors.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
                               fontSize: 16,
                             ),
                           ),
@@ -190,11 +192,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 24),
                           ],
-                          const Text(
+                          Text(
                             "Email Address",
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1E293B),
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 14,
                             ),
                           ),
@@ -202,17 +204,21 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                             decoration: InputDecoration(
                               hintText: 'admin@ecoguide.com',
                               hintStyle: const TextStyle(
                                 color: AppColors.textHint,
                               ),
-                              prefixIcon: const Icon(
+                              prefixIcon: Icon(
                                 Icons.email_outlined,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
                                 size: 22,
                               ),
                               border: InputBorder.none,
@@ -233,11 +239,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                           const SizedBox(height: 24),
-                          const Text(
+                          Text(
                             "Password",
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1E293B),
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 14,
                             ),
                           ),
@@ -245,8 +251,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
                               letterSpacing: 2,
                             ),
                             decoration: InputDecoration(
@@ -255,9 +263,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: AppColors.textHint,
                                 letterSpacing: 2,
                               ),
-                              prefixIcon: const Icon(
+                              prefixIcon: Icon(
                                 Icons.lock_outline,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
                                 size: 22,
                               ),
                               suffixIcon: IconButton(
@@ -265,7 +275,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   _obscurePassword
                                       ? Icons.visibility_outlined
                                       : Icons.visibility_off_outlined,
-                                  color: AppColors.textSecondary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                                   size: 22,
                                 ),
                                 onPressed: () => setState(
@@ -352,8 +364,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
-                                    children: const [
-                                      Text(
+                                    children: [
+                                      const Text(
                                         'Identifiants administrateur',
                                         style: TextStyle(
                                           color: AppColors.primary,
@@ -361,11 +373,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                           fontSize: 12,
                                         ),
                                       ),
-                                      SizedBox(height: 2),
+                                      const SizedBox(height: 2),
                                       SelectableText(
                                         'admin@ecoguide.com',
                                         style: TextStyle(
-                                          color: AppColors.textSecondary,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.6),
                                           fontSize: 12,
                                           fontFamily: 'monospace',
                                         ),
@@ -373,7 +388,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                       SelectableText(
                                         'EcoAdmin2026!',
                                         style: TextStyle(
-                                          color: AppColors.textSecondary,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.6),
                                           fontSize: 12,
                                           fontFamily: 'monospace',
                                         ),
