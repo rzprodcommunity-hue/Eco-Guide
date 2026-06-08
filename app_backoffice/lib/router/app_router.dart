@@ -15,7 +15,10 @@ import '../screens/quizzes/quiz_form_screen.dart';
 import '../screens/local_services/local_services_screen.dart';
 import '../screens/local_services/local_service_form_screen.dart';
 import '../screens/sos/sos_alerts_screen.dart';
+import '../screens/emergency/emergency_contacts_screen.dart';
 import '../screens/settings/admin_settings_screen.dart';
+import '../screens/formation/formation_screen.dart';
+import '../screens/contact/contact_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey =
@@ -107,6 +110,18 @@ GoRouter createRouter(AuthProvider authProvider) {
           GoRoute(
             path: '/sos-alerts',
             builder: (context, state) => const SosAlertsScreen(),
+          ),
+          GoRoute(
+            path: '/emergency-contacts',
+            builder: (context, state) => const EmergencyContactsScreen(),
+          ),
+          GoRoute(
+            path: '/formation',
+            builder: (context, state) => const FormationScreen(),
+          ),
+          GoRoute(
+            path: '/contact',
+            builder: (context, state) => const ContactScreen(),
           ),
           GoRoute(
             path: '/settings',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../core/providers/auth_provider.dart';
+import '../core/providers/theme_provider.dart';
 import '../core/constants/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -41,12 +42,15 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final isDark = context.watch<ThemeProvider>().isDark;
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 900;
 
     return Scaffold(
       backgroundColor: Theme.of(context).cardColor,
-      body: Row(
+      body: Stack(
+        children: [
+          Row(
         children: [
           if (isDesktop)
             Expanded(
@@ -98,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
                       const Text(
-                        "Preserving nature through",
+                        "Préserver la nature grâce à",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -107,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        "Responsible Exploration",
+                        "Une exploration responsable",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 42,
@@ -117,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        "Admin Dashboard v2.4",
+                        "Tableau de bord admin v2.4",
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.7),
                           fontSize: 14,
@@ -145,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            "Administrator Login",
+                            "Connexion administrateur",
                             style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w700,
@@ -154,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            "Access the Eco-Guide management console",
+                            "Accédez à la console de gestion Eco-Guide",
                             style: TextStyle(
                               color: Theme.of(
                                 context,
@@ -193,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 24),
                           ],
                           Text(
-                            "Email Address",
+                            "Adresse e-mail",
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               color: Theme.of(context).colorScheme.onSurface,
@@ -240,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 24),
                           Text(
-                            "Password",
+                            "Mot de passe",
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               color: Theme.of(context).colorScheme.onSurface,
@@ -327,7 +331,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           MainAxisAlignment.center,
                                       children: const [
                                         Text(
-                                          "Secure Sign In",
+                                          "Connexion sécurisée",
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
@@ -408,6 +412,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+          ),
+          Positioned(
+            top: 16,
+            right: 16,
+            child: IconButton(
+              tooltip: isDark ? 'Mode clair' : 'Mode sombre',
+              icon: Icon(
+                isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              onPressed: () => context.read<ThemeProvider>().toggle(),
             ),
           ),
         ],

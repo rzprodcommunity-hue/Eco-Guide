@@ -31,7 +31,7 @@ class SosAlertModel {
       longitude: (json['longitude'] ?? 0).toDouble(),
       message: json['message'],
       emergencyContact: json['emergencyContact'],
-      isResolved: json['isResolved'] ?? false,
+      isResolved: json['isResolved'] == true || json['status'] == 'resolved',
       resolvedAt: json['resolvedAt'] != null
           ? DateTime.parse(json['resolvedAt'])
           : null,

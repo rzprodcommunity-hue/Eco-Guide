@@ -100,7 +100,7 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
     if (answers.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Veuillez ajouter au moins 2 reponses'),
+          content: Text('Veuillez ajouter au moins 2 réponses'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -138,7 +138,7 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isEditing ? 'Quiz modifie' : 'Quiz cree'),
+          content: Text(isEditing ? 'Quiz modifié' : 'Quiz créé'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -223,7 +223,7 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                     ),
                   ]),
                   const SizedBox(height: 24),
-                  _buildSection('Reponses', [
+                  _buildSection('Réponses', [
                     ..._answerControllers.asMap().entries.map((entry) {
                       final index = entry.key;
                       final controller = entry.value;
@@ -242,7 +242,7 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                               child: TextFormField(
                                 controller: controller,
                                 decoration: InputDecoration(
-                                  labelText: 'Reponse ${index + 1}',
+                                  labelText: 'Réponse ${index + 1}',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -280,7 +280,7 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                           });
                         },
                         icon: const Icon(Icons.add),
-                        label: const Text('Ajouter une reponse'),
+                        label: const Text('Ajouter une réponse'),
                       ),
                     const SizedBox(height: 8),
                     Container(
@@ -294,7 +294,7 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                           Icon(Icons.info_outline, color: AppColors.success),
                           SizedBox(width: 8),
                           Text(
-                            'Selectionnez la bonne reponse avec le bouton radio',
+                            'Sélectionnez la bonne réponse avec le bouton radio',
                             style: TextStyle(color: AppColors.success),
                           ),
                         ],
@@ -305,7 +305,7 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                   _buildSection('Explication', [
                     _buildTextField(
                       controller: _explanationController,
-                      label: 'Explication (affichee apres la reponse)',
+                      label: 'Explication (affichée après la réponse)',
                       maxLines: 3,
                     ),
                   ]),
@@ -356,7 +356,7 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Text(isEditing ? 'Enregistrer' : 'Creer'),
+                            : Text(isEditing ? 'Enregistrer' : 'Créer'),
                       ),
                     ],
                   ),
@@ -410,16 +410,16 @@ class _QuizFormScreenState extends State<QuizFormScreen> {
     final categories = {
       QuizCategory.flora: 'Flore',
       QuizCategory.fauna: 'Faune',
-      QuizCategory.ecology: 'Ecologie',
+      QuizCategory.ecology: 'Écologie',
       QuizCategory.history: 'Histoire',
-      QuizCategory.geography: 'Geographie',
-      QuizCategory.safety: 'Securite',
+      QuizCategory.geography: 'Géographie',
+      QuizCategory.safety: 'Sécurité',
     };
 
     return DropdownButtonFormField<QuizCategory?>(
       value: _category,
       decoration: InputDecoration(
-        labelText: 'Categorie',
+        labelText: 'Catégorie',
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       items: [

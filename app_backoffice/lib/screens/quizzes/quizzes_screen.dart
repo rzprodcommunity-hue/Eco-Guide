@@ -47,8 +47,14 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
   List<QuestionDraft> _questions = [QuestionDraft()];
 
   QuizCategory _selectedCategory = QuizCategory.flora;
-  String _selectedTrail = 'None';
   bool _isSaving = false;
+
+  // Client-side search / filter / pagination state for the quizzes list.
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  QuizCategory? _filterCategory; // null => 'Toutes'
+  int _quizPage = 0;
+  static const int _quizPageSize = 5;
 
   @override
   void initState() {
@@ -61,10 +67,28 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
   @override
   void dispose() {
     _pointsController.dispose();
+    _searchController.dispose();
     for (var q in _questions) {
       q.dispose();
     }
     super.dispose();
+  }
+
+  /// Applies the search query and category filter (client-side) over the full
+  /// list of quizzes loaded in the provider.
+  List<QuizModel> _filteredQuizzes(QuizzesProvider provider) {
+    final query = _searchQuery.trim().toLowerCase();
+    return provider.quizzes.where((q) {
+      final matchesCategory =
+          _filterCategory == null || q.category == _filterCategory;
+      if (!matchesCategory) return false;
+      if (query.isEmpty) return true;
+      final inQuestion = q.question.toLowerCase().contains(query);
+      final inCategory =
+          (q.category?.name.toLowerCase().contains(query) ?? false) ||
+              q.categoryLabel.toLowerCase().contains(query);
+      return inQuestion || inCategory;
+    }).toList();
   }
 
   void _addQuestionBlock() {
@@ -91,7 +115,6 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       _questions = [QuestionDraft()];
       _pointsController.text = '50';
       _selectedCategory = QuizCategory.flora;
-      _selectedTrail = 'None';
     });
   }
 
@@ -157,7 +180,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Photo uploaded!'),
+            content: Text('Photo téléchargée !'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -167,7 +190,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upload error: $e'),
+            content: Text('Erreur de téléchargement : $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -250,8 +273,8 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
             SnackBar(
               content: Text(
                 _editingId != null
-                    ? 'Quiz updated!'
-                    : '${_questions.length} Question(s) created!',
+                    ? 'Quiz mis à jour !'
+                    : '${_questions.length} question(s) créée(s) !',
               ),
               backgroundColor: AppColors.success,
             ),
@@ -262,7 +285,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(provider.error ?? 'Failed to save completely'),
+              content: Text(provider.error ?? 'Échec de l\'enregistrement complet'),
               backgroundColor: AppColors.error,
             ),
           );
@@ -284,21 +307,53 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
   void _deleteQuiz(QuizModel quiz) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Quiz'),
-        content: const Text('Are you sure you want to delete this quiz?'),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.error,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('Supprimer le quiz'),
+          ],
+        ),
+        content: const Text(
+          'Êtes-vous sûr de vouloir supprimer ce quiz ? Cette action est irréversible.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annuler'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await context.read<QuizzesProvider>().deleteQuiz(quiz.id);
+              Navigator.pop(dialogContext);
+              final success =
+                  await context.read<QuizzesProvider>().deleteQuiz(quiz.id);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(success ? 'Quiz supprimé' : 'Échec de la suppression'),
+                  backgroundColor:
+                      success ? AppColors.success : AppColors.error,
+                ),
+              );
             },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Delete'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -315,7 +370,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Quiz Management',
+          'Gestion des quiz',
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
@@ -324,7 +379,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Create and manage educational challenges for hikers.',
+          'Créez et gérez des défis éducatifs pour les randonneurs.',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             fontSize: 14,
@@ -336,7 +391,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
     final createButton = ElevatedButton.icon(
       onPressed: _clearForm,
       icon: const Icon(Icons.add, size: 18),
-      label: const Text('Create New Quiz'),
+      label: const Text('Créer un nouveau quiz'),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.success,
         foregroundColor: Colors.white,
@@ -421,7 +476,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Quiz Builder',
+                'Gestion des quiz',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -429,23 +484,13 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Center(
-                child: Text(
-                  'General Information',
-                  style: TextStyle(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              
               _ResponsiveTriRow(
                 isCompact: isCompact,
                 spacing: 20,
                 children: [
                   _buildLabeledField(
-                    'Category',
+                    'Catégorie',
                     DropdownButtonFormField<QuizCategory>(
                       value: _selectedCategory,
                       isExpanded: true,
@@ -462,30 +507,13 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                     ),
                   ),
                   _buildLabeledField(
-                    'Associated Trail (Optional)',
-                    DropdownButtonFormField<String>(
-                      value: _selectedTrail,
-                      isExpanded: true,
-                      decoration: _fieldDecoration(),
-                      items: const [
-                        DropdownMenuItem(value: 'None', child: Text('None')),
-                        DropdownMenuItem(
-                          value: 'Blueberry Loop',
-                          child: Text('Blueberry Loop'),
-                        ),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _selectedTrail = v ?? 'None'),
-                    ),
-                  ),
-                  _buildLabeledField(
-                    'Reward Points',
+                    'Points de récompense',
                     TextFormField(
                       controller: _pointsController,
                       keyboardType: TextInputType.number,
                       decoration: _fieldDecoration(),
                       validator: (v) =>
-                          v?.isEmpty == true ? 'Required' : null,
+                          v?.isEmpty == true ? 'Requis' : null,
                     ),
                   ),
                 ],
@@ -515,7 +543,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                         size: 16,
                       ),
                       label: const Text(
-                        'Add Question',
+                        'Ajouter une question',
                         style: TextStyle(
                           color: AppColors.success,
                           fontSize: 13,
@@ -540,7 +568,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                   TextButton(
                     onPressed: _clearForm,
                     child: const Text(
-                      'Discard Draft',
+                      'Réinitialiser le formulaire',
                       style: TextStyle(
                         color: AppColors.success,
                         fontWeight: FontWeight.bold,
@@ -572,7 +600,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                             ),
                           )
                         : Text(
-                            _editingId == null ? 'Publish Quiz' : 'Update Quiz',
+                            _editingId == null ? 'Publier le quiz' : 'Mettre à jour le quiz',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                   ),
@@ -686,7 +714,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
-                  'Question Details',
+                  'Détails de la question',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -743,8 +771,8 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
   Widget _buildQuestionTextField(QuestionDraft q) {
     return TextFormField(
       controller: q.questionCtrl,
-      decoration: _fieldDecoration(hintText: 'Enter question text...'),
-      validator: (v) => v?.trim().isEmpty == true ? 'Required' : null,
+      decoration: _fieldDecoration(hintText: 'Saisissez le texte de la question...'),
+      validator: (v) => v?.trim().isEmpty == true ? 'Requis' : null,
     );
   }
 
@@ -752,7 +780,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
     final correct = TextFormField(
       controller: q.correctCtrl,
       decoration: InputDecoration(
-        hintText: 'Correct Answer...',
+        hintText: 'Bonne réponse...',
         fillColor: Theme.of(context).cardColor,
         filled: true,
         prefixIcon: const Icon(
@@ -772,11 +800,11 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
     );
     final d1 = TextFormField(
       controller: q.distractor1Ctrl,
-      decoration: _fieldDecoration(hintText: 'Distractor 1'),
+      decoration: _fieldDecoration(hintText: 'Mauvaise réponse 1'),
     );
     final d2 = TextFormField(
       controller: q.distractor2Ctrl,
-      decoration: _fieldDecoration(hintText: 'Distractor 2'),
+      decoration: _fieldDecoration(hintText: 'Mauvaise réponse 2'),
     );
 
     if (stacked) {
@@ -862,7 +890,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Add\nPhoto',
+                              'Ajouter\nune photo',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 12,
@@ -877,6 +905,15 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
   }
 
   Widget _buildInsightsCard(QuizzesProvider provider) {
+    // Real statistics derived from the loaded quizzes.
+    final distinctCategories = provider.quizzes
+        .map((q) => q.category)
+        .whereType<QuizCategory>()
+        .toSet()
+        .length;
+    final totalPoints = provider.quizzes
+        .fold<int>(0, (sum, q) => sum + q.points);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
@@ -887,59 +924,27 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Quiz Insights',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 24),
+          // const Text(
+          //   'Statistiques des quiz',
+          //   style: TextStyle(
+          //     color: Colors.white,
+          //     fontSize: 16,
+          //     fontWeight: FontWeight.bold,
+          //   ),
+          // ),
+          // const SizedBox(height: 24),
           Row(
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      '${provider.total}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Active Quizzes',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
+                child: _buildInsightStat('${provider.total}', 'Questions'),
               ),
-              Container(
-                width: 1,
-                height: 40,
-                color: Colors.white.withOpacity(0.2),
-              ),
+              _buildInsightDivider(),
               Expanded(
-                child: Column(
-                  children: const [
-                    Text(
-                      '1.2k',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Completions',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
+                child: _buildInsightStat('$distinctCategories', 'Catégories'),
+              ),
+              _buildInsightDivider(),
+              Expanded(
+                child: _buildInsightStat('$totalPoints', 'Points total'),
               ),
             ],
           ),
@@ -948,20 +953,74 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
     );
   }
 
+  Widget _buildInsightStat(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInsightDivider() {
+    return Container(
+      width: 1,
+      height: 40,
+      color: Colors.white.withOpacity(0.2),
+    );
+  }
+
+  Widget _quizIconFallback() => Container(
+        width: 44,
+        height: 44,
+        color: AppColors.success.withValues(alpha: 0.1),
+        child: const Icon(Icons.help_outline, color: AppColors.success),
+      );
+
   Widget _buildRecentQuizzes(QuizzesProvider provider) {
     final isCompact = Responsive.isCompact(context);
     if (provider.isLoading && provider.quizzes.isEmpty)
       return const Center(child: CircularProgressIndicator());
 
+    // Apply search + category filter client-side over the full list.
+    final filtered = _filteredQuizzes(provider);
+
+    // Clamp the current page so it stays within bounds after filtering.
+    final totalItems = filtered.length;
+    final pageCount =
+        totalItems == 0 ? 1 : ((totalItems - 1) ~/ _quizPageSize) + 1;
+    if (_quizPage > pageCount - 1) _quizPage = pageCount - 1;
+    if (_quizPage < 0) _quizPage = 0;
+
+    final startIndex = _quizPage * _quizPageSize;
+    final pageItems =
+        filtered.skip(startIndex).take(_quizPageSize).toList();
+
+    final rangeStart = totalItems == 0 ? 0 : startIndex + 1;
+    final rangeEnd =
+        (startIndex + pageItems.length).clamp(0, totalItems);
+
     // On compact the list must not scroll on its own — otherwise it fights
     // the parent page ListView and the scroll gets stuck. Let it shrink-wrap
     // so the parent handles all scrolling. On desktop it keeps its own scroll.
-    final Widget recentList = provider.quizzes.isEmpty
+    final Widget recentList = pageItems.isEmpty
         ? Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: Text(
-                'No quizzes found.',
+                'Aucun quiz trouvé.',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
@@ -972,11 +1031,11 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                   shrinkWrap: isCompact,
                   physics:
                       isCompact ? const NeverScrollableScrollPhysics() : null,
-                  itemCount: provider.quizzes.length,
+                  itemCount: pageItems.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 16),
                   itemBuilder: (context, index) {
-                    final quiz = provider.quizzes[index];
+                    final quiz = pageItems[index];
                     return Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -995,17 +1054,19 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.help_outline,
-                              color: AppColors.success,
-                            ),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child:
+                                (quiz.imageUrl != null && quiz.imageUrl!.isNotEmpty)
+                                    ? Image.network(
+                                        quiz.imageUrl!,
+                                        width: 44,
+                                        height: 44,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            _quizIconFallback(),
+                                      )
+                                    : _quizIconFallback(),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -1038,7 +1099,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                                       ),
                                       child: Text(
                                         quiz.category?.name.toUpperCase() ??
-                                            'NONE',
+                                            'AUCUNE',
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
@@ -1048,7 +1109,7 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      '${quiz.points} Points',
+                                      '${quiz.points} points',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
@@ -1093,32 +1154,146 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Text(
+        //   'Quiz récents',
+        //   style: TextStyle(
+        //     fontSize: 16,
+        //     fontWeight: FontWeight.bold,
+        //     color: Theme.of(context).colorScheme.onSurface,
+        //   ),
+        // ),
+        // const SizedBox(height: 12),
+        // Search field.
+        TextField(
+          controller: _searchController,
+          decoration: _fieldDecoration(
+            hintText: 'Rechercher un quiz...',
+            prefixIcon: Icon(
+              Icons.search,
+              size: 20,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+          onChanged: (value) => setState(() {
+            _searchQuery = value;
+            _quizPage = 0;
+          }),
+        ),
+        const SizedBox(height: 12),
+        // Category filter chips ('Toutes' + one per category).
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            Text(
-              'Recent Quizzes',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
+            _buildCategoryChip(null, 'Toutes'),
+            ...QuizCategory.values.map(
+              (cat) => _buildCategoryChip(cat, _categoryLabel(cat)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        isCompact ? recentList : Expanded(child: recentList),
+        const SizedBox(height: 12),
+        _buildPaginationFooter(
+          rangeStart: rangeStart,
+          rangeEnd: rangeEnd,
+          total: totalItems,
+          pageCount: pageCount,
+        ),
+      ],
+    );
+  }
+
+  String _categoryLabel(QuizCategory cat) {
+    switch (cat) {
+      case QuizCategory.flora:
+        return 'Flore';
+      case QuizCategory.fauna:
+        return 'Faune';
+      case QuizCategory.ecology:
+        return 'Écologie';
+      case QuizCategory.history:
+        return 'Histoire';
+      case QuizCategory.geography:
+        return 'Géographie';
+      case QuizCategory.safety:
+        return 'Sécurité';
+    }
+  }
+
+  Widget _buildCategoryChip(QuizCategory? category, String label) {
+    final selected = _filterCategory == category;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => setState(() {
+        _filterCategory = category;
+        _quizPage = 0;
+      }),
+      showCheckmark: false,
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: selected
+            ? Colors.white
+            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+      ),
+      selectedColor: AppColors.success,
+      backgroundColor: Theme.of(context).cardColor,
+      side: BorderSide(
+        color: selected ? AppColors.success : Theme.of(context).dividerColor,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+    );
+  }
+
+  Widget _buildPaginationFooter({
+    required int rangeStart,
+    required int rangeEnd,
+    required int total,
+    required int pageCount,
+  }) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final canPrev = _quizPage > 0;
+    final canNext = _quizPage < pageCount - 1;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(
+          child: Text(
+            'Affichage $rangeStart-$rangeEnd sur $total',
+            style: TextStyle(
+              fontSize: 12,
+              color: onSurface.withValues(alpha: 0.6),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        Row(
+          children: [
+            TextButton.icon(
+              onPressed: canPrev ? () => setState(() => _quizPage--) : null,
+              icon: const Icon(Icons.chevron_left, size: 18),
+              label: const Text('Précédent'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.success,
+                disabledForegroundColor: onSurface.withValues(alpha: 0.3),
               ),
             ),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                'View All',
-                style: TextStyle(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
+            const SizedBox(width: 4),
+            TextButton.icon(
+              onPressed: canNext ? () => setState(() => _quizPage++) : null,
+              icon: const Icon(Icons.chevron_right, size: 18),
+              label: const Text('Suivant'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.success,
+                disabledForegroundColor: onSurface.withValues(alpha: 0.3),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        isCompact ? recentList : Expanded(child: recentList),
       ],
     );
   }

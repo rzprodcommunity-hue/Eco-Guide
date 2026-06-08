@@ -1,8 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 import '../../core/providers/users_provider.dart';
+import '../../core/providers/sos_alerts_provider.dart';
 import '../../core/models/user_model.dart';
+import '../../core/models/sos_alert_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/responsive.dart';
 
@@ -15,12 +20,16 @@ class UsersScreen extends StatefulWidget {
 
 class _UsersScreenState extends State<UsersScreen> {
   final _searchController = TextEditingController();
+  int _userPage = 0;
+  static const int _userPageSize = 10;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UsersProvider>().loadUsers();
+      // Load SOS alerts so we can show each user's SOS + messages.
+      context.read<SosAlertsProvider>().loadAlerts();
     });
   }
 
@@ -30,108 +39,102 @@ class _UsersScreenState extends State<UsersScreen> {
     super.dispose();
   }
 
-  void _showEditDialog(UserModel user, UsersProvider provider) {
-    String selectedRole = user.role;
-    bool isActive = user.isActive;
+  /// Shows the SOS alerts + messages emitted by [user] (read from the loaded
+  /// SOS alerts, matched by userId).
+  void _showUserSos(UserModel user) {
+    final alerts = context
+        .read<SosAlertsProvider>()
+        .alerts
+        .where((a) => a.userId == user.id)
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text('Modifier ${user.fullName}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: selectedRole.toLowerCase(),
-                decoration: const InputDecoration(labelText: 'Role'),
-                items: const [
-                  DropdownMenuItem(value: 'user', child: Text('Hiker (User)')),
-                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                  DropdownMenuItem(value: 'guide', child: Text('Guide')),
-                  DropdownMenuItem(value: 'artisan', child: Text('Artisan')),
-                ],
-                onChanged: (v) =>
-                    setDialogState(() => selectedRole = v ?? 'user'),
-              ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('Compte actif'),
-                value: isActive,
-                onChanged: (v) => setDialogState(() => isActive = v),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Annuler',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await provider.updateUser(user.id, {
-                  'role': selectedRole,
-                  'isActive': isActive,
-                });
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('User updated'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Enregistrer'),
-            ),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.sos, color: AppColors.error, size: 22),
+            const SizedBox(width: 10),
+            Expanded(child: Text('SOS & messages — ${user.fullName}')),
           ],
         ),
-      ),
-    );
-  }
-
-  void _confirmBanUser(UserModel user, UsersProvider provider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Ban User'),
-        content: Text(
-          'Are you sure you want to ${user.isActive ? 'ban' : 'unban'} ${user.fullName}?',
+        content: SizedBox(
+          width: 460,
+          child: alerts.isEmpty
+              ? const Text(
+                  'Aucune alerte SOS enregistrée pour cet utilisateur.')
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: alerts.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 16,
+                    color:
+                        Theme.of(context).dividerColor.withValues(alpha: 0.4),
+                  ),
+                  itemBuilder: (c, i) {
+                    final SosAlertModel a = alerts[i];
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          a.isResolved
+                              ? Icons.check_circle
+                              : Icons.warning_amber_rounded,
+                          color: a.isResolved
+                              ? AppColors.success
+                              : AppColors.error,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                (a.message != null && a.message!.isNotEmpty)
+                                    ? a.message!
+                                    : '(Aucun message)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${DateFormat('dd/MM/yyyy à HH:mm').format(a.createdAt)} · ${a.isResolved ? 'Résolu' : 'Actif'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                              ),
+                              Text(
+                                '${a.latitude.toStringAsFixed(5)}, ${a.longitude.toStringAsFixed(5)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.45),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await provider.updateUser(user.id, {'isActive': !user.isActive});
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(user.isActive ? 'Ban User' : 'Unban User'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
           ),
         ],
       ),
@@ -142,22 +145,45 @@ class _UsersScreenState extends State<UsersScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<UsersProvider>();
 
-    // Calculate approx stats from current page for mockup purposes
-    final activeUsersCount = provider.users.where((u) => u.isActive).length;
-    final newerUsersCount = provider.users
-        .where((u) => DateTime.now().difference(u.createdAt).inDays <= 7)
+    // Dynamic stats computed from the loaded users.
+    final now = DateTime.now();
+    final newWeekCount = provider.users
+        .where((u) => now.difference(u.createdAt).inDays <= 7)
+        .length;
+    final newMonthCount = provider.users
+        .where((u) => now.difference(u.createdAt).inDays <= 30)
         .length;
 
     final isMobile = Responsive.isMobile(context);
     final isCompact = Responsive.isCompact(context);
+
+    // Client-side filtering across all loaded users
+    final q = _searchController.text.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? provider.users
+        : provider.users
+            .where((u) =>
+                u.fullName.toLowerCase().contains(q) ||
+                u.email.toLowerCase().contains(q))
+            .toList();
+
+    // Clamp current page and compute the visible page slice
+    final pageCount = (filtered.length / _userPageSize).ceil();
+    if (pageCount > 0 && _userPage > pageCount - 1) {
+      _userPage = pageCount - 1;
+    }
+    if (_userPage < 0) _userPage = 0;
+    final pageItems =
+        filtered.skip(_userPage * _userPageSize).take(_userPageSize).toList();
 
     final searchField = SizedBox(
       width: isMobile ? double.infinity : 250,
       height: 40,
       child: TextField(
         controller: _searchController,
+        onChanged: (_) => setState(() => _userPage = 0),
         decoration: InputDecoration(
-          hintText: 'Search by name or email...',
+          hintText: 'Rechercher par nom ou e-mail...',
           hintStyle: const TextStyle(
             color: AppColors.textHint,
             fontSize: 13,
@@ -183,14 +209,14 @@ class _UsersScreenState extends State<UsersScreen> {
     );
 
     final exportButton = OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: () => _exportCsv(filtered),
       icon: Icon(
         Icons.download,
         size: 16,
         color: Theme.of(context).colorScheme.onSurface,
       ),
       label: Text(
-        'Export CSV',
+        'Exporter CSV',
         style: TextStyle(
           color: Theme.of(context).colorScheme.onSurface,
           fontSize: 13,
@@ -214,7 +240,7 @@ class _UsersScreenState extends State<UsersScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'User Management',
+          'Gestion des utilisateurs',
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
@@ -223,7 +249,7 @@ class _UsersScreenState extends State<UsersScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Manage hiker accounts, roles, and access permissions',
+          'Gérez les comptes des randonneurs et les autorisations d\'accès',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             fontSize: 14,
@@ -270,21 +296,11 @@ class _UsersScreenState extends State<UsersScreen> {
           if (isMobile)
             Column(
               children: [
-                _buildStatCard(context, 'Total Users', '${provider.total}', null),
+                _buildStatCard(context, 'Total des utilisateurs', '${provider.total}', null),
                 const SizedBox(height: 12),
-                _buildStatCard(
-                  context,
-                  'Active Now',
-                  '${provider.total > 0 ? provider.total - 2 : 0}',
-                  '+12%',
-                ),
+                _buildStatCard(context, 'Nouveaux cette semaine', '$newWeekCount', null),
                 const SizedBox(height: 12),
-                _buildStatCard(
-                  context,
-                  'New This Week',
-                  '${newerUsersCount > 0 ? newerUsersCount : 42}',
-                  null,
-                ),
+                _buildStatCard(context, 'Nouveaux ce mois', '$newMonthCount', null),
               ],
             )
           else
@@ -292,25 +308,17 @@ class _UsersScreenState extends State<UsersScreen> {
               children: [
                 Expanded(
                   child: _buildStatCard(
-                      context, 'Total Users', '${provider.total}', null),
+                      context, 'Total des utilisateurs', '${provider.total}', null),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: _buildStatCard(
-                    context,
-                    'Active Now',
-                    '${provider.total > 0 ? provider.total - 2 : 0}',
-                    '+12%',
-                  ),
+                      context, 'Nouveaux cette semaine', '$newWeekCount', null),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: _buildStatCard(
-                    context,
-                    'New This Week',
-                    '${newerUsersCount > 0 ? newerUsersCount : 42}',
-                    null,
-                  ),
+                      context, 'Nouveaux ce mois', '$newMonthCount', null),
                 ),
               ],
             ),
@@ -350,12 +358,12 @@ class _UsersScreenState extends State<UsersScreen> {
                       ),
                     ),
                   )
-                else if (provider.users.isEmpty)
+                else if (filtered.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(40),
                     child: Center(
                       child: Text(
-                        'No users found.',
+                        'Aucun utilisateur trouvé.',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
@@ -363,11 +371,11 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
                   )
                 else
-                  _buildTable(provider),
+                  _buildTable(pageItems),
 
                 // Pagination Footer
-                if (!provider.isLoading && provider.users.isNotEmpty)
-                  _buildPaginationFooter(provider),
+                if (!provider.isLoading && filtered.isNotEmpty)
+                  _buildPaginationFooter(filtered),
               ],
             ),
           ),
@@ -441,219 +449,155 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  Widget _buildTable(UsersProvider provider) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        horizontalMargin: 24,
-        columnSpacing: 40,
-        headingRowColor: WidgetStateProperty.all(Colors.transparent),
-        dividerThickness: 1,
-        dataRowMaxHeight: 76,
-        dataRowMinHeight: 76,
-        columns: [
-          DataColumn(
-            label: Text(
-              'User Details',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+  Widget _buildTable(List<UserModel> pageItems) {
+    return Column(
+      children: [
+        // Header (full width)
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
               ),
             ),
           ),
-          DataColumn(
-            label: Text(
-              'Role',
+          child: Row(
+            children: [
+              Expanded(
+                  flex: 5,
+                  child: _userColHeader('Détails de l\'utilisateur')),
+              Expanded(flex: 3, child: _userColHeader('Date d\'inscription')),
+              SizedBox(width: 130, child: _userColHeader('SOS & messages')),
+            ],
+          ),
+        ),
+        ...pageItems.map(_buildUserRow),
+      ],
+    );
+  }
+
+  Widget _userColHeader(String label) => Text(
+        label,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+        ),
+      );
+
+  Widget _buildUserRow(UserModel user) {
+    final initials = _getInitials(user.fullName);
+    final color = _getAvatarColor(user.fullName);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // User details (fills available width)
+          Expanded(
+            flex: 5,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.2),
+                  radius: 20,
+                  backgroundImage: user.avatarUrl != null
+                      ? NetworkImage(user.avatarUrl!)
+                      : null,
+                  child: user.avatarUrl == null
+                      ? Text(initials,
+                          style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14))
+                      : null,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(user.fullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: Theme.of(context).colorScheme.onSurface)),
+                      const SizedBox(height: 4),
+                      Text(user.email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Joined date
+          Expanded(
+            flex: 3,
+            child: Text(
+              DateFormat('dd/MM/yyyy').format(user.createdAt),
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w600,
                 fontSize: 13,
+                color:
+                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ),
-          DataColumn(
-            label: Text(
-              'Status',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          DataColumn(
-            label: Text(
-              'Joined Date',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          DataColumn(
-            label: Text(
-              'Actions',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+          // SOS & messages action
+          SizedBox(
+            width: 130,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => _showUserSos(user),
+                icon: const Icon(Icons.sos, size: 16, color: AppColors.error),
+                label: Text(
+                  'Voir',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Theme.of(context).dividerColor),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
               ),
             ),
           ),
         ],
-        rows: provider.users.map((user) {
-          final initials = _getInitials(user.fullName);
-          final color = _getAvatarColor(user.fullName);
-
-          return DataRow(
-            cells: [
-              // User Details
-              DataCell(
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: color.withOpacity(0.2),
-                      radius: 20,
-                      backgroundImage: user.avatarUrl != null
-                          ? NetworkImage(user.avatarUrl!)
-                          : null,
-                      child: user.avatarUrl == null
-                          ? Text(
-                              initials,
-                              style: TextStyle(
-                                color: color,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 14),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user.fullName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          user.email,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Role
-              DataCell(
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    border: Border.all(color: Theme.of(context).dividerColor),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _formatRole(user.role),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-              ),
-              // Status
-              DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: user.isActive
-                            ? AppColors.success
-                            : Colors.grey[400],
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      user.isActive ? 'Active' : 'Inactive',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Joined Date
-              DataCell(
-                Text(
-                  DateFormat('MMM dd, yyyy').format(user.createdAt),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              // Actions
-              DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        Icons.edit,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                      onPressed: () => _showEditDialog(user, provider),
-                      tooltip: 'Edit',
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.block,
-                        size: 18,
-                        color: AppColors.error,
-                      ),
-                      onPressed: () => _confirmBanUser(user, provider),
-                      tooltip: user.isActive ? 'Ban' : 'Unban',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        }).toList(),
       ),
     );
   }
 
-  Widget _buildPaginationFooter(UsersProvider provider) {
-    int startIdx = ((provider.currentPage - 1) * 10) + 1;
-    int endIdx = (startIdx + provider.users.length) - 1;
-    if (provider.total == 0) {
-      startIdx = 0;
-      endIdx = 0;
-    }
+  Widget _buildPaginationFooter(List<UserModel> filtered) {
+    final total = filtered.length;
+    final pageCount = (total / _userPageSize).ceil();
+    final currentPage = pageCount == 0 ? 0 : _userPage.clamp(0, pageCount - 1);
+
+    int startIdx = total == 0 ? 0 : (currentPage * _userPageSize) + 1;
+    int endIdx =
+        total == 0 ? 0 : ((currentPage + 1) * _userPageSize).clamp(0, total);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -668,7 +612,7 @@ class _UsersScreenState extends State<UsersScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Showing $startIdx-$endIdx of ${NumberFormat("#,###").format(provider.total)} users',
+            'Affichage de $startIdx-$endIdx sur ${NumberFormat("#,###").format(total)} utilisateurs',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 13,
@@ -678,40 +622,25 @@ class _UsersScreenState extends State<UsersScreen> {
             children: [
               _buildPageButton(
                 icon: Icons.chevron_left,
-                onPressed: provider.currentPage > 1
-                    ? () => provider.loadUsers(page: provider.currentPage - 1)
+                onPressed: currentPage > 0
+                    ? () => setState(() => _userPage = currentPage - 1)
                     : null,
               ),
-              const SizedBox(width: 8),
-              // Small pagination numbers (approx for mockup)
-              if (provider.totalPages > 0) ...[
-                _buildPageNumber(
-                  1,
-                  provider.currentPage == 1,
-                  () => provider.loadUsers(page: 1),
+              const SizedBox(width: 12),
+              Text(
+                'Page ${pageCount == 0 ? 0 : currentPage + 1} / $pageCount',
+                style: TextStyle(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
-                if (provider.totalPages > 1) ...[
-                  const SizedBox(width: 4),
-                  _buildPageNumber(
-                    2,
-                    provider.currentPage == 2,
-                    () => provider.loadUsers(page: 2),
-                  ),
-                ],
-                if (provider.totalPages > 2) ...[
-                  const SizedBox(width: 4),
-                  _buildPageNumber(
-                    3,
-                    provider.currentPage == 3,
-                    () => provider.loadUsers(page: 3),
-                  ),
-                ],
-              ],
-              const SizedBox(width: 8),
+              ),
+              const SizedBox(width: 12),
               _buildPageButton(
                 icon: Icons.chevron_right,
-                onPressed: provider.currentPage < provider.totalPages
-                    ? () => provider.loadUsers(page: provider.currentPage + 1)
+                onPressed: currentPage < pageCount - 1
+                    ? () => setState(() => _userPage = currentPage + 1)
                     : null,
               ),
             ],
@@ -743,40 +672,46 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  Widget _buildPageNumber(int page, bool isSelected, VoidCallback onPressed) {
-    return InkWell(
-      onTap: isSelected ? null : onPressed,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.success : Colors.transparent,
-          border: isSelected
-              ? null
-              : Border.all(color: Theme.of(context).dividerColor),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          '$page',
-          style: TextStyle(
-            color: isSelected
-                ? Colors.white
-                : Theme.of(context).colorScheme.onSurface,
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          ),
-        ),
-      ),
-    );
+  String _csvEscape(String value) {
+    if (value.contains(',') || value.contains('"') || value.contains('\n')) {
+      return '"${value.replaceAll('"', '""')}"';
+    }
+    return value;
   }
 
-  String _formatRole(String role) {
-    if (role.toLowerCase() == 'user') return 'Hiker';
-    if (role.isEmpty) return 'Hiker';
-    // Capitalize first letter
-    return role[0].toUpperCase() + role.substring(1).toLowerCase();
+  void _exportCsv(List<UserModel> users) {
+    final buffer = StringBuffer();
+    buffer.writeln('Nom,E-mail,Statut,Inscription');
+    for (final user in users) {
+      final nom = _csvEscape(user.fullName);
+      final email = _csvEscape(user.email);
+      final statut = user.isActive ? 'Actif' : 'Inactif';
+      final date = DateFormat('dd/MM/yyyy').format(user.createdAt);
+      buffer.writeln('$nom,$email,$statut,$date');
+    }
+    final csv = buffer.toString();
+
+    if (kIsWeb) {
+      final blob = web.Blob(
+        [csv.toJS].toJS,
+        web.BlobPropertyBag(type: 'text/csv'),
+      );
+      final url = web.URL.createObjectURL(blob);
+      final anchor = web.HTMLAnchorElement()
+        ..href = url
+        ..download = 'utilisateurs.csv';
+      anchor.click();
+      web.URL.revokeObjectURL(url);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Export CSV généré'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
   }
 
   String _getInitials(String name) {

@@ -29,8 +29,15 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   final _addressController = TextEditingController();
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
-  ServiceCategory _category = ServiceCategory.accommodation;
+  ServiceCategory _category = ServiceCategory.guide;
   String? _editingId;
+
+  // Client-side search / filter / pagination
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  ServiceCategory? _filterCategory; // null = Toutes
+  int _svcPage = 0;
+  static const int _svcPageSize = 5;
   String? _imageUrl;
   bool _isUploadingImage = false;
   LatLng _selectedLocation = const LatLng(
@@ -63,6 +70,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     _longitudeController.dispose();
     _mapSearchController.dispose();
     _mapController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -210,7 +218,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       _addressController.clear();
       _latitudeController.clear();
       _longitudeController.clear();
-      _category = ServiceCategory.accommodation;
+      _category = ServiceCategory.guide;
       _imageUrl = null;
       _selectedLocation = const LatLng(31.6295, -7.9811);
     });
@@ -300,7 +308,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Upload',
+                        'Téléverser',
                         style: TextStyle(
                           color: AppColors.success,
                           fontWeight: FontWeight.w600,
@@ -345,7 +353,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Image uploadee avec succes'),
+            content: Text('Image téléversée avec succès'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -355,7 +363,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur upload: $e'),
+            content: Text('Erreur de téléversement : $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -402,7 +410,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _editingId != null ? 'Business updated' : 'Business created',
+            _editingId != null
+                ? 'Établissement mis à jour'
+                : 'Établissement créé',
           ),
           backgroundColor: AppColors.success,
         ),
@@ -411,7 +421,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     } else if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(provider.error ?? 'Failed to save business'),
+          content: Text(provider.error ?? "Échec de l'enregistrement de l'établissement"),
           backgroundColor: AppColors.error,
         ),
       );
@@ -422,17 +432,17 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text('Are you sure you want to delete ${service.name}?'),
+        title: const Text('Confirmer la suppression'),
+        content: Text('Voulez-vous vraiment supprimer ${service.name} ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuler'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Delete'),
+            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -441,6 +451,36 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     if (confirm == true && mounted) {
       await context.read<LocalServicesProvider>().deleteService(service.id);
     }
+  }
+
+  // Human-readable French label for a category (used in dropdown + filter).
+  String _categoryLabel(ServiceCategory c) {
+    switch (c) {
+      case ServiceCategory.guide:
+        return 'Guide';
+      case ServiceCategory.artisan:
+        return 'Artisan';
+      case ServiceCategory.restaurant:
+        return 'Café/Restaurant';
+      case ServiceCategory.transport:
+        return 'Transport';
+      case ServiceCategory.equipment:
+        return 'Équipement';
+    }
+  }
+
+  // Client-side filtered list (search by name OR category label + category filter).
+  List<LocalServiceModel> _filteredServices(LocalServicesProvider provider) {
+    final query = _searchQuery.trim().toLowerCase();
+    return provider.services.where((svc) {
+      final matchesCategory =
+          _filterCategory == null || svc.category == _filterCategory;
+      if (!matchesCategory) return false;
+      if (query.isEmpty) return true;
+      final name = svc.name.toLowerCase();
+      final label = _categoryLabel(svc.category).toLowerCase();
+      return name.contains(query) || label.contains(query);
+    }).toList();
   }
 
   @override
@@ -453,7 +493,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Local Economy Directory',
+          'Annuaire de l\'économie locale',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -462,7 +502,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Manage local guides, artisans, and eco-lodges supporting the trail network.',
+          'Gérez les guides locaux, les artisans et les éco-lodges qui soutiennent le réseau de sentiers.',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
@@ -473,7 +513,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
     final addButton = ElevatedButton.icon(
       onPressed: _resetForm,
       icon: const Icon(Icons.add),
-      label: const Text('Add New Business'),
+      label: const Text('Ajouter un établissement'),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.success,
         foregroundColor: Colors.white,
@@ -509,46 +549,37 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
           SizedBox(height: isCompact ? 20 : 32),
           _buildStatsCards(provider),
           const SizedBox(height: 24),
-          if (isCompact)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildFormCard(provider.isLoading),
-                const SizedBox(height: 24),
-                _buildTableCard(provider),
-              ],
-            )
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: _buildFormCard(provider.isLoading)),
-                const SizedBox(width: 24),
-                Expanded(flex: 3, child: _buildTableCard(provider)),
-              ],
-            ),
+          // Full-width single column: form card, then services list below.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildFormCard(provider.isLoading),
+              const SizedBox(height: 24),
+              _buildTableCard(provider),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _buildStatsCards(LocalServicesProvider provider) {
-    final total = provider.total;
+    final services = provider.services;
     int guides = 0;
-    int lodges = 0;
     int artisans = 0;
+    int restaurants = 0;
 
-    for (var svc in provider.services) {
+    for (var svc in services) {
       if (svc.category == ServiceCategory.guide) guides++;
-      if (svc.category == ServiceCategory.accommodation) lodges++;
       if (svc.category == ServiceCategory.artisan) artisans++;
+      if (svc.category == ServiceCategory.restaurant) restaurants++;
     }
 
     final cards = [
-      _buildStatCard('Total Partners', total.toString(), '+12%', true),
-      _buildStatCard('Active Guides', guides.toString(), '+4%', true),
-      _buildStatCard('Eco-Lodges', lodges.toString(), 'Stable', false),
-      _buildStatCard('Artisans', artisans.toString(), '+2', true),
+      _buildStatCard('Total des partenaires', services.length.toString(), null),
+      _buildStatCard('Guides', guides.toString(), null),
+      _buildStatCard('Artisans', artisans.toString(), null),
+      _buildStatCard('Restaurants', restaurants.toString(), null),
     ];
     final crossAxisCount =
         Responsive.value(context, mobile: 2, tablet: 2, desktop: 4);
@@ -573,8 +604,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   Widget _buildStatCard(
     String title,
     String value,
-    String change,
-    bool isPositive,
+    String? change,
   ) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -604,29 +634,25 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isPositive
-                      ? AppColors.success.withOpacity(0.1)
-                      : Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  change,
-                  style: TextStyle(
-                    color: isPositive
-                        ? AppColors.success
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+              if (change != null) ...[
+                const SizedBox(width: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    change,
+                    style: const TextStyle(
+                      color: AppColors.success,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ],
@@ -648,7 +674,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Business Details',
+              'Détails de l\'établissement',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
@@ -659,10 +685,10 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   child: TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      labelText: 'Business Name',
+                      labelText: 'Nom de l\'établissement',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                    validator: (v) => v?.isEmpty == true ? 'Requis' : null,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -672,18 +698,14 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     value: _category,
                     isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Category',
+                      labelText: 'Catégorie',
                       border: OutlineInputBorder(),
                     ),
                     items: ServiceCategory.values.map((c) {
-                      String label = c.name;
-                      if (c == ServiceCategory.accommodation)
-                        label = 'Eco-Lodge';
-                      if (c == ServiceCategory.guide) label = 'Guide';
-                      if (c == ServiceCategory.artisan) label = 'Artisan';
-                      if (c == ServiceCategory.restaurant)
-                        label = 'Cafe/Restaurant';
-                      return DropdownMenuItem(value: c, child: Text(label));
+                      return DropdownMenuItem(
+                        value: c,
+                        child: Text(_categoryLabel(c)),
+                      );
                     }).toList(),
                     onChanged: (v) => setState(() => _category = v!),
                   ),
@@ -698,7 +720,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   child: TextFormField(
                     controller: _contactController,
                     decoration: const InputDecoration(
-                      labelText: 'Phone or Email',
+                      labelText: 'Téléphone ou e-mail',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -709,7 +731,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                   child: TextFormField(
                     controller: _websiteController,
                     decoration: const InputDecoration(
-                      labelText: 'Website',
+                      labelText: 'Site web',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -727,12 +749,12 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Business Photo',
+              'Photo de l\'établissement',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
-              'Upload a cover photo (shown in the list)',
+              'Téléversez une photo de couverture (affichée dans la liste)',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 fontSize: 13,
@@ -742,7 +764,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             _buildPhotoSection(),
             const SizedBox(height: 24),
             const Text(
-              'Location',
+              'Emplacement',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
@@ -801,7 +823,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 200,
+              height: 320,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Stack(
@@ -870,7 +892,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             TextFormField(
               controller: _addressController,
               decoration: const InputDecoration(
-                labelText: 'Address',
+                labelText: 'Adresse',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -907,7 +929,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 TextButton(
                   onPressed: _resetForm,
                   child: const Text(
-                    'Cancel',
+                    'Annuler',
                     style: TextStyle(color: AppColors.success),
                   ),
                 ),
@@ -922,7 +944,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     ),
                   ),
                   child: Text(
-                    _editingId != null ? 'Update Business' : 'Save Business',
+                    _editingId != null
+                        ? 'Mettre à jour'
+                        : 'Enregistrer l\'établissement',
                   ),
                 ),
               ],
@@ -934,6 +958,18 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   }
 
   Widget _buildTableCard(LocalServicesProvider provider) {
+    final filtered = _filteredServices(provider);
+    final totalFiltered = filtered.length;
+    final totalPages =
+        totalFiltered == 0 ? 1 : ((totalFiltered - 1) ~/ _svcPageSize) + 1;
+    // Clamp current page within bounds (filter/search may have shrunk the list).
+    final currentPage = _svcPage.clamp(0, totalPages - 1);
+    final startIndex = currentPage * _svcPageSize;
+    final pageItems =
+        filtered.skip(startIndex).take(_svcPageSize).toList();
+    final rangeStart = totalFiltered == 0 ? 0 : startIndex + 1;
+    final rangeEnd = startIndex + pageItems.length;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -947,8 +983,9 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             children: [
               Expanded(
                 child: TextField(
+                  controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search directory...',
+                    hintText: 'Rechercher par nom ou catégorie...',
                     prefixIcon: Icon(
                       Icons.search,
                       color: Theme.of(context)
@@ -963,24 +1000,44 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                      _svcPage = 0;
+                    });
+                  },
                 ),
               ),
               const SizedBox(width: 16),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   border: Border.all(color: Theme.of(context).dividerColor),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Row(
-                  children: [
-                    Text('Filter'),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_drop_down),
-                  ],
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<ServiceCategory?>(
+                    value: _filterCategory,
+                    hint: const Text('Toutes'),
+                    items: [
+                      const DropdownMenuItem<ServiceCategory?>(
+                        value: null,
+                        child: Text('Toutes'),
+                      ),
+                      ...ServiceCategory.values.map(
+                        (c) => DropdownMenuItem<ServiceCategory?>(
+                          value: c,
+                          child: Text(_categoryLabel(c)),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _filterCategory = value;
+                        _svcPage = 0;
+                      });
+                    },
+                  ),
                 ),
               ),
             ],
@@ -993,21 +1050,21 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                 child: CircularProgressIndicator(),
               ),
             )
-          else if (provider.services.isEmpty)
+          else if (pageItems.isEmpty)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
-                child: Text('No businesses found.'),
+                child: Text('Aucun établissement trouvé.'),
               ),
             )
           else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: provider.services.length,
+              itemCount: pageItems.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
-                final service = provider.services[index];
+                final service = pageItems[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Row(
@@ -1085,7 +1142,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              service.category.name.toUpperCase(),
+                              _categoryLabel(service.category).toUpperCase(),
                               style: TextStyle(
                                 color: AppColors.success,
                                 fontSize: 10,
@@ -1178,7 +1235,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Showing ${provider.services.length} of ${provider.total} entries',
+                'Affichage $rangeStart-$rangeEnd sur $totalFiltered',
                 style: TextStyle(
                   color: Theme.of(context)
                       .colorScheme
@@ -1189,14 +1246,14 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
               ),
               Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: provider.currentPage > 1
-                        ? () => provider.loadServices(
-                            page: provider.currentPage - 1,
-                          )
+                  TextButton.icon(
+                    icon: const Icon(Icons.chevron_left, size: 18),
+                    label: const Text('Précédent'),
+                    onPressed: currentPage > 0
+                        ? () => setState(() => _svcPage = currentPage - 1)
                         : null,
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     width: 32,
                     height: 32,
@@ -1206,19 +1263,19 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      provider.currentPage.toString(),
+                      '${currentPage + 1}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    onPressed: provider.currentPage < provider.totalPages
-                        ? () => provider.loadServices(
-                            page: provider.currentPage + 1,
-                          )
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.chevron_right, size: 18),
+                    label: const Text('Suivant'),
+                    onPressed: currentPage < totalPages - 1
+                        ? () => setState(() => _svcPage = currentPage + 1)
                         : null,
                   ),
                 ],

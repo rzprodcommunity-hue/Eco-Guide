@@ -25,7 +25,7 @@ class PoisProvider extends ChangeNotifier {
     try {
       final response = await PoiService.getPois(
         page: page,
-        limit: 10,
+        limit: 1000,
         type: type,
         trailId: trailId,
       );

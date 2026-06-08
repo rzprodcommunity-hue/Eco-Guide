@@ -42,11 +42,18 @@ class _PoisScreenState extends State<PoisScreen> {
   ); // Default to Ottawa
   String? _mediaUrl;
   Uint8List? _pickedImageBytes;
+  String? _videoUrl;
+  bool _isUploadingVideo = false;
 
   // Associated trail (a POI belongs to at most ONE trail).
   String? _selectedTrailId;
   List<TrailModel> _trails = [];
   bool _isLoadingTrails = false;
+
+  // Existing-markers list: client-side pagination (5 per page).
+  static const int _markerPageSize = 5;
+  int _markerPage = 0;
+  final GlobalKey _formSectionKey = GlobalKey();
 
   // Map controls (search + my location)
   final MapController _mapController = MapController();
@@ -145,6 +152,7 @@ class _PoisScreenState extends State<PoisScreen> {
       _isActive = true;
       _mediaUrl = null;
       _pickedImageBytes = null;
+      _videoUrl = null;
       _formKey.currentState?.reset();
     });
   }
@@ -162,7 +170,31 @@ class _PoisScreenState extends State<PoisScreen> {
       _isActive = poi.isActive;
       _mediaUrl = poi.mediaUrl;
       _pickedImageBytes = null;
+      _videoUrl = (poi.videoUrls != null && poi.videoUrls!.isNotEmpty)
+          ? poi.videoUrls!.first
+          : null;
     });
+
+    // Bring the form into view so the admin sees the populated fields.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_formSectionKey.currentContext != null) {
+        Scrollable.ensureVisible(
+          _formSectionKey.currentContext!,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Modification de « ${poi.name} » — modifiez puis enregistrez.',
+          ),
+          backgroundColor: AppColors.primary,
+        ),
+      );
   }
 
   Future<void> _deletePoi(PoiModel poi) async {
@@ -185,17 +217,17 @@ class _PoisScreenState extends State<PoisScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            const Text('Delete Marker'),
+            const Text('Supprimer le marqueur'),
           ],
         ),
         content: Text(
-          'Are you sure you want to delete "${poi.name}"? This action cannot be undone.',
+          'Êtes-vous sûr de vouloir supprimer "${poi.name}" ? Cette action est irréversible.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
             child: Text(
-              'Cancel',
+              'Annuler',
               style: TextStyle(
                 color: Theme.of(c).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
@@ -207,21 +239,36 @@ class _PoisScreenState extends State<PoisScreen> {
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Delete'),
+            child: const Text('Supprimer'),
           ),
         ],
       ),
     );
     if (confirm == true && mounted) {
-      final success = await context.read<PoisProvider>().deletePoi(poi.id);
-      if (success && mounted) {
+      final provider = context.read<PoisProvider>();
+      final success = await provider.deletePoi(poi.id);
+      if (!mounted) return;
+      if (success) {
         if (_editingPoi?.id == poi.id) _resetForm();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Marker deleted'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Marqueur supprimé'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+      } else {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                'Échec de la suppression : ${provider.error ?? 'erreur inconnue'}',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
       }
     }
   }
@@ -262,7 +309,7 @@ class _PoisScreenState extends State<PoisScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upload error: $e'),
+            content: Text('Erreur de téléversement : $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -270,8 +317,91 @@ class _PoisScreenState extends State<PoisScreen> {
     }
   }
 
+  Future<void> _pickAndUploadVideo() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['mp4'],
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return;
+
+    final file = result.files.single;
+    if (!file.name.toLowerCase().endsWith('.mp4')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Format invalide'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+    if (file.bytes!.length > 100 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('La vidéo dépasse 100 Mo'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isUploadingVideo = true);
+    try {
+      final url = await SupabaseStorageService.uploadVideo(
+        fileName: file.name,
+        bytes: file.bytes!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _videoUrl = url;
+        _isUploadingVideo = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vidéo téléversée avec succès !'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingVideo = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur de téléversement : $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   Future<void> _savePoi() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      // Validation failed: bring the form back into view and show an error.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_formSectionKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _formSectionKey.currentContext!,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Veuillez corriger les champs en rouge avant d\'enregistrer.',
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      return;
+    }
     setState(() => _isSaving = true);
 
     try {
@@ -286,6 +416,10 @@ class _PoisScreenState extends State<PoisScreen> {
         'longitude': _location.longitude,
         'isActive': _isActive,
       };
+
+      // Video belongs to the POI. An empty list correctly clears it; it is not
+      // null so api_service keeps it in the payload.
+      data['videoUrls'] = _videoUrl != null ? [_videoUrl] : <String>[];
 
       if (_mediaUrl != null && _mediaUrl!.isNotEmpty) {
         data['mediaUrl'] = _mediaUrl;
@@ -326,8 +460,8 @@ class _PoisScreenState extends State<PoisScreen> {
           SnackBar(
             content: Text(
               _editingPoi != null
-                  ? 'POI updated successfully!'
-                  : 'POI created successfully!',
+                  ? 'Point d\'intérêt mis à jour avec succès !'
+                  : 'Point d\'intérêt créé avec succès !',
             ),
             backgroundColor: AppColors.success,
           ),
@@ -336,7 +470,7 @@ class _PoisScreenState extends State<PoisScreen> {
       } else if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.error ?? 'Failed to save'),
+            content: Text(provider.error ?? 'Échec de l\'enregistrement'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -366,7 +500,7 @@ class _PoisScreenState extends State<PoisScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Points of Interest Management',
+          'Gestion des points d\'intérêt',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -375,7 +509,7 @@ class _PoisScreenState extends State<PoisScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Manage markers, educational content, and geographic assets',
+          'Gérez les marqueurs, le contenu éducatif et les ressources géographiques',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             fontSize: 14,
@@ -387,7 +521,7 @@ class _PoisScreenState extends State<PoisScreen> {
     final addButton = ElevatedButton.icon(
       onPressed: _resetForm,
       icon: const Icon(Icons.add, size: 18),
-      label: const Text('Add New POI'),
+      label: const Text('Ajouter un point d\'intérêt'),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -428,40 +562,24 @@ class _PoisScreenState extends State<PoisScreen> {
             ),
           const SizedBox(height: 24),
 
-          // ── Search & Category Filters ──
-          _buildSearchAndFilters(provider),
-          const SizedBox(height: 24),
-
-          // ── Main Content Area ──
-          if (isCompact)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildMapCard(),
-                const SizedBox(height: 24),
-                _buildPoiDetailsForm(),
-                const SizedBox(height: 24),
-                _buildExistingMarkers(provider),
-              ],
-            )
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 13,
-                  child: Column(
-                    children: [
-                      _buildMapCard(),
-                      const SizedBox(height: 24),
-                      _buildPoiDetailsForm(),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(flex: 8, child: _buildExistingMarkers(provider)),
-              ],
-            ),
+          // ── Main Content Area (single full-width column — no empty side
+          // space; the filters sit directly above the markers list) ──
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildMapCard(),
+              const SizedBox(height: 24),
+              KeyedSubtree(
+                key: _formSectionKey,
+                child: _buildPoiDetailsForm(),
+              ),
+              const SizedBox(height: 24),
+              // Filters directly above the markers list.
+              _buildSearchAndFilters(provider),
+              const SizedBox(height: 16),
+              _buildExistingMarkers(provider),
+            ],
+          ),
         ],
       ),
     );
@@ -469,12 +587,12 @@ class _PoisScreenState extends State<PoisScreen> {
 
   Widget _buildSearchAndFilters(PoisProvider provider) {
     final categories = [
-      {'label': 'All', 'value': null, 'icon': Icons.apps},
-      {'label': 'Fauna', 'value': 'fauna', 'icon': Icons.pets},
-      {'label': 'Flora', 'value': 'flora', 'icon': Icons.eco},
-      {'label': 'Heritage', 'value': 'historical', 'icon': Icons.account_balance},
-      {'label': 'Viewpoint', 'value': 'viewpoint', 'icon': Icons.visibility},
-      {'label': 'Water', 'value': 'water', 'icon': Icons.waves},
+      {'label': 'Tous', 'value': null, 'icon': Icons.apps},
+      {'label': 'Faune', 'value': 'fauna', 'icon': Icons.pets},
+      {'label': 'Flore', 'value': 'flora', 'icon': Icons.eco},
+      {'label': 'Patrimoine', 'value': 'historical', 'icon': Icons.account_balance},
+      {'label': 'Point de vue', 'value': 'viewpoint', 'icon': Icons.visibility},
+      {'label': 'Eau', 'value': 'water', 'icon': Icons.waves},
       {'label': 'Danger', 'value': 'danger', 'icon': Icons.report_problem},
     ];
 
@@ -483,9 +601,9 @@ class _PoisScreenState extends State<PoisScreen> {
       children: [
         TextField(
           controller: _searchController,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) => setState(() => _markerPage = 0),
           decoration: InputDecoration(
-            hintText: 'Search markers by name or category...',
+            hintText: 'Rechercher des marqueurs par nom ou catégorie...',
             hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
             prefixIcon: const Icon(Icons.search, color: AppColors.textHint, size: 20),
             suffixIcon: _searchController.text.isNotEmpty
@@ -493,7 +611,7 @@ class _PoisScreenState extends State<PoisScreen> {
                     icon: const Icon(Icons.close, size: 18, color: AppColors.textHint),
                     onPressed: () {
                       _searchController.clear();
-                      setState(() {});
+                      setState(() => _markerPage = 0);
                     },
                   )
                 : null,
@@ -531,7 +649,10 @@ class _PoisScreenState extends State<PoisScreen> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(24),
                     onTap: () {
-                      setState(() => _selectedFilter = cat['value'] as String?);
+                      setState(() {
+                        _selectedFilter = cat['value'] as String?;
+                        _markerPage = 0;
+                      });
                       provider.loadPois(type: _selectedFilter);
                     },
                     child: Container(
@@ -921,44 +1042,6 @@ class _PoisScreenState extends State<PoisScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(
-                    'POI Details',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Active',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    SizedBox(
-                      height: 24,
-                      child: Switch(
-                        value: _isActive,
-                        onChanged: (v) => setState(() => _isActive = v),
-                        activeColor: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
             isCompact
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -992,7 +1075,7 @@ class _PoisScreenState extends State<PoisScreen> {
               controller: _descriptionController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Educational details about this point...',
+                hintText: 'Détails éducatifs sur ce point...',
                 hintStyle: const TextStyle(
                   color: AppColors.textHint,
                   fontSize: 14,
@@ -1018,7 +1101,7 @@ class _PoisScreenState extends State<PoisScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Gallery Images',
+                  'Images de la galerie',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -1048,7 +1131,7 @@ class _PoisScreenState extends State<PoisScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : Text(_editingPoi != null ? 'Update POI' : 'Save POI'),
+                      : Text(_editingPoi != null ? 'Mettre à jour' : 'Enregistrer'),
                 ),
               ],
             ),
@@ -1083,7 +1166,7 @@ class _PoisScreenState extends State<PoisScreen> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                'Upload',
+                                'Téléverser',
                                 style: TextStyle(
                                   color: AppColors.textHint,
                                   fontSize: 11,
@@ -1151,6 +1234,91 @@ class _PoisScreenState extends State<PoisScreen> {
                 ],
               ],
             ),
+            const SizedBox(height: 24),
+            Text(
+              'Vidéo du POI (MP4, max 100 Mo)',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_videoUrl != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.videocam_outlined,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _videoUrl!,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => setState(() => _videoUrl = null),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: AppColors.error,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              OutlinedButton.icon(
+                onPressed: _isUploadingVideo ? null : _pickAndUploadVideo,
+                icon: _isUploadingVideo
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.video_call_outlined, size: 20),
+                label: const Text('Ajouter une vidéo'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1162,7 +1330,7 @@ class _PoisScreenState extends State<PoisScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'POI Name',
+          'Nom du point d\'intérêt',
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
@@ -1173,7 +1341,7 @@ class _PoisScreenState extends State<PoisScreen> {
         TextFormField(
           controller: _nameController,
           decoration: InputDecoration(
-            hintText: 'e.g. Ancient Oak Grove',
+            hintText: 'ex. Vieille chênaie',
             hintStyle: const TextStyle(
               color: AppColors.textHint,
               fontSize: 14,
@@ -1191,7 +1359,7 @@ class _PoisScreenState extends State<PoisScreen> {
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          validator: (v) => v!.isEmpty ? 'Required' : null,
+          validator: (v) => v!.isEmpty ? 'Requis' : null,
         ),
       ],
     );
@@ -1202,7 +1370,7 @@ class _PoisScreenState extends State<PoisScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Category',
+          'Catégorie',
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
@@ -1329,11 +1497,25 @@ class _PoisScreenState extends State<PoisScreen> {
 
   Widget _buildExistingMarkers(PoisProvider provider) {
     final activeCount = provider.pois.where((p) => p.isActive).length;
-    final filtered = _searchController.text.isEmpty
+    final query = _searchController.text.trim().toLowerCase();
+    final filtered = query.isEmpty
         ? provider.pois
         : provider.pois
-            .where((p) => p.name.toLowerCase().contains(_searchController.text.toLowerCase()))
+            .where((p) =>
+                p.name.toLowerCase().contains(query) ||
+                _getTypeLabel(p.type).toLowerCase().contains(query))
             .toList();
+    // Client-side pagination (5 per page).
+    final pageCount =
+        filtered.isEmpty ? 1 : (filtered.length / _markerPageSize).ceil();
+    if (_markerPage > pageCount - 1) _markerPage = pageCount - 1;
+    if (_markerPage < 0) _markerPage = 0;
+    final pageItems = filtered
+        .skip(_markerPage * _markerPageSize)
+        .take(_markerPageSize)
+        .toList();
+    final rangeStart = filtered.isEmpty ? 0 : _markerPage * _markerPageSize + 1;
+    final rangeEnd = _markerPage * _markerPageSize + pageItems.length;
 
     return Container(
       decoration: BoxDecoration(
@@ -1357,7 +1539,7 @@ class _PoisScreenState extends State<PoisScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Existing Markers',
+                      'Marqueurs existants',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -1388,12 +1570,8 @@ class _PoisScreenState extends State<PoisScreen> {
                   runSpacing: 4,
                   children: [
                     _buildStatChip(
-                      label: '$activeCount active',
+                      label: '$activeCount actif(s)',
                       color: AppColors.success,
-                    ),
-                    _buildStatChip(
-                      label: '${provider.pois.length - activeCount} draft',
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ],
                 ),
@@ -1402,14 +1580,15 @@ class _PoisScreenState extends State<PoisScreen> {
           ),
           Divider(height: 1, color: Theme.of(context).dividerColor.withValues(alpha: 0.4)),
           // List
-          SizedBox(
-            height: 620,
-            child: provider.isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )
-                : filtered.isEmpty
-                ? Center(
+          if (provider.isLoading)
+            const SizedBox(
+              height: 200,
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            )
+          else if (filtered.isEmpty)
+            Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -1417,7 +1596,7 @@ class _PoisScreenState extends State<PoisScreen> {
                             size: 48, color: AppColors.textHint),
                         const SizedBox(height: 12),
                         Text(
-                          'No markers found',
+                          'Aucun marqueur trouvé',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -1426,7 +1605,7 @@ class _PoisScreenState extends State<PoisScreen> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Try adjusting your search or filters',
+                          'Essayez d\'ajuster votre recherche ou vos filtres',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textHint,
@@ -1435,11 +1614,14 @@ class _PoisScreenState extends State<PoisScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
+          else
+            ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: filtered.length,
+                    itemCount: pageItems.length,
                     itemBuilder: (context, index) {
-                      final poi = filtered[index];
+                      final poi = pageItems[index];
                       final isSelected = _editingPoi?.id == poi.id;
                       final typeColor = _getTypeColor(poi.type);
                       final typeIcon = _getTypeIcon(poi.type);
@@ -1562,7 +1744,7 @@ class _PoisScreenState extends State<PoisScreen> {
                                                 ),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  poi.isActive ? 'Active' : 'Draft',
+                                                  poi.isActive ? 'Actif' : 'Inactif',
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w600,
@@ -1602,7 +1784,6 @@ class _PoisScreenState extends State<PoisScreen> {
                       );
                     },
                   ),
-          ),
           Divider(height: 1, color: Theme.of(context).dividerColor.withValues(alpha: 0.4)),
           // Pagination
           Padding(
@@ -1611,7 +1792,9 @@ class _PoisScreenState extends State<PoisScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Showing ${filtered.length} of ${provider.pois.length} markers',
+                  filtered.isEmpty
+                      ? 'Aucun marqueur'
+                      : 'Affichage $rangeStart-$rangeEnd sur ${filtered.length} marqueur(s)',
                   style: const TextStyle(
                     color: AppColors.textHint,
                     fontSize: 12,
@@ -1621,16 +1804,13 @@ class _PoisScreenState extends State<PoisScreen> {
                   children: [
                     _buildPageButton(
                       icon: Icons.chevron_left,
-                      enabled: provider.currentPage > 1,
-                      onTap: () => provider.loadPois(
-                        page: provider.currentPage - 1,
-                        type: _selectedFilter,
-                      ),
+                      enabled: _markerPage > 0,
+                      onTap: () => setState(() => _markerPage--),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
-                        'Page ${provider.currentPage} / ${provider.totalPages == 0 ? 1 : provider.totalPages}',
+                        'Page ${_markerPage + 1} / $pageCount',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           fontSize: 13,
@@ -1640,11 +1820,8 @@ class _PoisScreenState extends State<PoisScreen> {
                     ),
                     _buildPageButton(
                       icon: Icons.chevron_right,
-                      enabled: provider.currentPage < provider.totalPages,
-                      onTap: () => provider.loadPois(
-                        page: provider.currentPage + 1,
-                        type: _selectedFilter,
-                      ),
+                      enabled: _markerPage < pageCount - 1,
+                      onTap: () => setState(() => _markerPage++),
                     ),
                   ],
                 ),
@@ -1785,21 +1962,21 @@ class _PoisScreenState extends State<PoisScreen> {
   String _getTypeLabel(PoiType type) {
     switch (type) {
       case PoiType.historical:
-        return 'Heritage';
+        return 'Patrimoine';
       case PoiType.flora:
-        return 'Flora';
+        return 'Flore';
       case PoiType.fauna:
-        return 'Fauna';
+        return 'Faune';
       case PoiType.viewpoint:
-        return 'Viewpoint';
+        return 'Point de vue';
       case PoiType.water:
-        return 'Water';
+        return 'Eau';
       case PoiType.camping:
         return 'Camping';
       case PoiType.danger:
         return 'Danger';
       case PoiType.rest_area:
-        return 'Rest Area';
+        return 'Aire de repos';
       case PoiType.information:
         return 'Information';
     }

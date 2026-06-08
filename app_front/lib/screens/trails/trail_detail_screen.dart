@@ -2,11 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:chewie/chewie.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
 import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/error_banner.dart';
 import '../../core/widgets/fullscreen_image_viewer.dart';
@@ -267,11 +265,6 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
                     children: [
                       const SizedBox(height: 20),
                       _buildStatsCard(),
-                      if (widget.trail.videoUrl != null &&
-                          widget.trail.videoUrl!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 32),
-                        _buildVideoSection(),
-                      ],
                       const SizedBox(height: 32),
                       _buildAboutSection(),
                       const SizedBox(height: 32),
@@ -652,27 +645,6 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
             fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVideoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Vidéo du sentier',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: _TrailVideoPlayer(url: widget.trail.videoUrl!.trim()),
         ),
       ],
     );
@@ -2184,115 +2156,6 @@ class _TrailSosButtonState extends State<_TrailSosButton>
           );
         },
       ),
-    );
-  }
-}
-
-/// Lazily-initialized network video player used in the trail detail screen.
-/// Wraps [VideoPlayerController] + [ChewieController], shows a loader while
-/// initializing and a graceful placeholder on failure.
-class _TrailVideoPlayer extends StatefulWidget {
-  final String url;
-
-  const _TrailVideoPlayer({required this.url});
-
-  @override
-  State<_TrailVideoPlayer> createState() => _TrailVideoPlayerState();
-}
-
-class _TrailVideoPlayerState extends State<_TrailVideoPlayer> {
-  VideoPlayerController? _videoController;
-  ChewieController? _chewieController;
-  bool _initializing = true;
-  bool _hasError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
-
-  Future<void> _initialize() async {
-    try {
-      final controller = VideoPlayerController.networkUrl(
-        Uri.parse(widget.url),
-      );
-      _videoController = controller;
-      await controller.initialize();
-      if (!mounted) {
-        controller.dispose();
-        return;
-      }
-      _chewieController = ChewieController(
-        videoPlayerController: controller,
-        autoPlay: false,
-        looping: false,
-        aspectRatio: controller.value.aspectRatio,
-      );
-      setState(() => _initializing = false);
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _initializing = false;
-          _hasError = true;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _chewieController?.dispose();
-    _videoController?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (_initializing) {
-      return AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Container(
-          color: theme.cardColor,
-          child: const Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    if (_hasError || _chewieController == null) {
-      return AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Container(
-          color: theme.cardColor,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.videocam_off_outlined,
-                  size: 36,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Vidéo indisponible',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return AspectRatio(
-      aspectRatio: _videoController!.value.aspectRatio,
-      child: Chewie(controller: _chewieController!),
     );
   }
 }

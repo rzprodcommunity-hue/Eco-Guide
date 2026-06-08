@@ -18,19 +18,50 @@ class SosAlertsScreen extends StatefulWidget {
 }
 
 class _SosAlertsScreenState extends State<SosAlertsScreen> {
-  bool _showActiveOnly = true;
+  // 'toutes' | 'actives' | 'resolues'
+  String _statusFilter = 'actives';
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SosAlertsProvider>().loadAlerts(activeOnly: _showActiveOnly);
+      context.read<SosAlertsProvider>().loadAlerts(activeOnly: false);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<SosAlertModel> _applyFilters(List<SosAlertModel> alerts) {
+    Iterable<SosAlertModel> result = alerts;
+
+    if (_statusFilter == 'actives') {
+      result = result.where((a) => !a.isResolved);
+    } else if (_statusFilter == 'resolues') {
+      result = result.where((a) => a.isResolved);
+    }
+
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      result = result.where((a) {
+        final message = (a.message ?? '').toLowerCase();
+        final userId = a.userId.toLowerCase();
+        return message.contains(query) || userId.contains(query);
+      });
+    }
+
+    return result.toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SosAlertsProvider>();
+    final filteredAlerts = _applyFilters(provider.alerts);
 
     final infoChildren = <Widget>[
       if (provider.isAlarmPlaying)
@@ -84,7 +115,7 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
           ),
         ),
       Text(
-        '${provider.alerts.length} alertes au total',
+        '${filteredAlerts.length} affichee(s) sur ${provider.alerts.length} au total',
         style: TextStyle(
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
           fontSize: 16,
@@ -92,23 +123,68 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
       ),
     ];
 
-    final controls = Row(
-      mainAxisSize: MainAxisSize.min,
+    final statusFilter = Wrap(
+      spacing: 8,
       children: [
-        const Text('Actives uniquement'),
-        const SizedBox(width: 8),
-        Switch(
-          value: _showActiveOnly,
-          onChanged: (value) {
-            setState(() => _showActiveOnly = value);
-            provider.loadAlerts(activeOnly: value);
-          },
-          activeColor: AppColors.primary,
+        ChoiceChip(
+          label: const Text('Toutes'),
+          selected: _statusFilter == 'toutes',
+          onSelected: (_) => setState(() => _statusFilter = 'toutes'),
+          selectedColor: AppColors.primary.withOpacity(0.2),
         ),
-        const SizedBox(width: 16),
+        ChoiceChip(
+          label: const Text('Actives'),
+          selected: _statusFilter == 'actives',
+          onSelected: (_) => setState(() => _statusFilter = 'actives'),
+          selectedColor: AppColors.error.withOpacity(0.2),
+        ),
+        ChoiceChip(
+          label: const Text('Resolues'),
+          selected: _statusFilter == 'resolues',
+          onSelected: (_) => setState(() => _statusFilter = 'resolues'),
+          selectedColor: AppColors.success.withOpacity(0.2),
+        ),
+      ],
+    );
+
+    final searchField = SizedBox(
+      width: 240,
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) => setState(() => _searchQuery = value),
+        decoration: InputDecoration(
+          hintText: 'Rechercher (message ou ID)',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+
+    final controls = Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        statusFilter,
+        searchField,
         IconButton(
-          onPressed: () =>
-              provider.loadAlerts(activeOnly: _showActiveOnly),
+          onPressed: () => provider.loadAlerts(activeOnly: false),
           icon: const Icon(Icons.refresh),
           tooltip: 'Rafraichir',
         ),
@@ -139,9 +215,9 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
           Expanded(
             child: provider.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : provider.alerts.isEmpty
+                : filteredAlerts.isEmpty
                 ? _buildEmptyState()
-                : _buildAlertsList(provider),
+                : _buildAlertsList(filteredAlerts, provider),
           ),
         ],
       ),
@@ -169,8 +245,12 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _showActiveOnly
+            _searchQuery.trim().isNotEmpty
+                ? 'Aucune alerte ne correspond a la recherche'
+                : _statusFilter == 'actives'
                 ? 'Aucune alerte active en ce moment'
+                : _statusFilter == 'resolues'
+                ? 'Aucune alerte resolue'
                 : 'Aucune alerte enregistree',
             style: TextStyle(
               color: Theme.of(
@@ -183,12 +263,30 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
     );
   }
 
-  Widget _buildAlertsList(SosAlertsProvider provider) {
-    return ListView.builder(
-      itemCount: provider.alerts.length,
-      itemBuilder: (context, index) {
-        final alert = provider.alerts[index];
-        return _buildAlertCard(alert, provider);
+  Widget _buildAlertsList(
+    List<SosAlertModel> alerts,
+    SosAlertsProvider provider,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 2 alerts per row on wide screens (web), 1 on narrow screens.
+        final twoPerRow = constraints.maxWidth >= 800;
+        const spacing = 16.0;
+        final itemWidth = twoPerRow
+            ? (constraints.maxWidth - spacing) / 2
+            : constraints.maxWidth;
+        return SingleChildScrollView(
+          child: Wrap(
+            spacing: spacing,
+            runSpacing: 0,
+            children: alerts
+                .map((alert) => SizedBox(
+                      width: itemWidth,
+                      child: _buildAlertCard(alert, provider),
+                    ))
+                .toList(),
+          ),
+        );
       },
     );
   }
@@ -274,23 +372,10 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
               children: [
                 _buildUserHeader(alert),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoItem(
-                        icon: Icons.badge_outlined,
-                        label: 'ID Utilisateur',
-                        value: alert.userId,
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildInfoItem(
-                        icon: Icons.phone,
-                        label: 'Contact d\'urgence',
-                        value: alert.emergencyContact ?? '-',
-                      ),
-                    ),
-                  ],
+                _buildInfoItem(
+                  icon: Icons.badge_outlined,
+                  label: 'ID Utilisateur',
+                  value: alert.userId,
                 ),
                 const SizedBox(height: 16),
                 _buildInfoItem(
@@ -472,7 +557,7 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             ),
           if (email != null && email.isNotEmpty)
             IconButton(
-              onPressed: () => _copyText(email, 'Email copie'),
+              onPressed: () => _copyText(email, 'E-mail copie'),
               icon: Icon(
                 Icons.copy,
                 size: 18,
@@ -480,7 +565,7 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                   context,
                 ).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
-              tooltip: 'Copier email',
+              tooltip: 'Copier l\'e-mail',
             ),
         ],
       ),
@@ -629,11 +714,19 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
             onPressed: () async {
               Navigator.pop(context);
               final success = await provider.resolveAlert(alert.id);
-              if (success && mounted) {
+              if (!mounted) return;
+              if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Alerte marquee comme resolue'),
+                    content: Text('Alerte resolue'),
                     backgroundColor: AppColors.success,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Echec : ${provider.error}'),
+                    backgroundColor: AppColors.error,
                   ),
                 );
               }
@@ -808,7 +901,7 @@ class _SosAlertsScreenState extends State<SosAlertsScreen> {
                           );
                         },
                         icon: const Icon(Icons.copy, size: 16),
-                        label: const Text('Copier coordonnees'),
+                        label: const Text('Copier'),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton.icon(

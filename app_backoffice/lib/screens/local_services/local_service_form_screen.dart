@@ -230,7 +230,7 @@ class _LocalServiceFormScreenState extends State<LocalServiceFormScreen> {
                         Expanded(
                           child: _buildTextField(
                             controller: _emailController,
-                            label: 'Email',
+                            label: 'E-mail',
                             keyboardType: TextInputType.emailAddress,
                           ),
                         ),
@@ -410,7 +410,6 @@ class _LocalServiceFormScreenState extends State<LocalServiceFormScreen> {
     final categories = {
       ServiceCategory.guide: 'Guide',
       ServiceCategory.artisan: 'Artisan',
-      ServiceCategory.accommodation: 'Hebergement',
       ServiceCategory.restaurant: 'Restaurant',
       ServiceCategory.transport: 'Transport',
       ServiceCategory.equipment: 'Equipement',

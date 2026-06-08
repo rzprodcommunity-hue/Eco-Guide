@@ -21,6 +21,7 @@ class PoiModel {
   final double longitude;
   final String? mediaUrl;
   final List<String>? additionalMediaUrls;
+  final List<String>? videoUrls;
   final String? audioGuideUrl;
   final String? trailId;
   final bool isActive;
@@ -38,6 +39,7 @@ class PoiModel {
     required this.longitude,
     this.mediaUrl,
     this.additionalMediaUrls,
+    this.videoUrls,
     this.audioGuideUrl,
     this.trailId,
     required this.isActive,
@@ -58,6 +60,9 @@ class PoiModel {
       mediaUrl: json['mediaUrl'],
       additionalMediaUrls: json['additionalMediaUrls'] != null
           ? List<String>.from(json['additionalMediaUrls'])
+          : null,
+      videoUrls: (json['videoUrls'] ?? json['video_urls']) is List
+          ? List<String>.from((json['videoUrls'] ?? json['video_urls']) as List)
           : null,
       audioGuideUrl: json['audioGuideUrl'],
       trailId: json['trailId'],

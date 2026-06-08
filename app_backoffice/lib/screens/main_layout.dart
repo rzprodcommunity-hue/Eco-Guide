@@ -134,6 +134,56 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
+  // ── Logout confirmation popup ─────────────────────────────────────────────
+
+  Future<void> _confirmLogout(AuthProvider authProvider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.logout, color: AppColors.error, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text('Déconnexion'),
+          ],
+        ),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Annuler',
+              style: TextStyle(
+                color:
+                    Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Se déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await authProvider.logout();
+      if (mounted) context.go('/login');
+    }
+  }
+
   // ── Sidebar ───────────────────────────────────────────────────────────────
 
   Widget _buildSidebar(
@@ -157,7 +207,7 @@ class _MainLayoutState extends State<MainLayout> {
               children: [
                 _buildNavItem(
                   icon: Icons.grid_view,
-                  label: 'Dashboard',
+                  label: 'Tableau de bord',
                   path: '/dashboard',
                   currentPath: currentPath,
                   isExpanded: isExpanded,
@@ -165,7 +215,7 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
                 _buildNavItem(
                   icon: Icons.route,
-                  label: 'Trail Management',
+                  label: 'Gestion des sentiers',
                   path: '/trails',
                   currentPath: currentPath,
                   isExpanded: isExpanded,
@@ -173,7 +223,7 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
                 _buildNavItem(
                   icon: Icons.location_on,
-                  label: 'Points of Interest',
+                  label: 'Points d\'intérêt',
                   path: '/pois',
                   currentPath: currentPath,
                   isExpanded: isExpanded,
@@ -181,7 +231,7 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
                 _buildNavItem(
                   icon: Icons.people,
-                  label: 'User Management',
+                  label: 'Gestion des utilisateurs',
                   path: '/users',
                   currentPath: currentPath,
                   isExpanded: isExpanded,
@@ -189,7 +239,7 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
                 _buildNavItem(
                   icon: Icons.quiz,
-                  label: 'Quiz Builder',
+                  label: 'Gestion des quiz',
                   path: '/quizzes',
                   currentPath: currentPath,
                   isExpanded: isExpanded,
@@ -197,7 +247,7 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
                 _buildNavItem(
                   icon: Icons.store,
-                  label: 'Local Economy',
+                  label: 'Économie locale',
                   path: '/local-services',
                   currentPath: currentPath,
                   isExpanded: isExpanded,
@@ -205,8 +255,32 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
                 _buildNavItem(
                   icon: Icons.warning,
-                  label: 'SOS Alerts',
+                  label: 'Alertes SOS',
                   path: '/sos-alerts',
+                  currentPath: currentPath,
+                  isExpanded: isExpanded,
+                  dark: dark,
+                ),
+                _buildNavItem(
+                  icon: Icons.contact_phone,
+                  label: 'Contacts d\'urgence',
+                  path: '/emergency-contacts',
+                  currentPath: currentPath,
+                  isExpanded: isExpanded,
+                  dark: dark,
+                ),
+                _buildNavItem(
+                  icon: Icons.school_outlined,
+                  label: 'Formation',
+                  path: '/formation',
+                  currentPath: currentPath,
+                  isExpanded: isExpanded,
+                  dark: dark,
+                ),
+                _buildNavItem(
+                  icon: Icons.mail_outline,
+                  label: 'Contact',
+                  path: '/contact',
                   currentPath: currentPath,
                   isExpanded: isExpanded,
                   dark: dark,
@@ -385,7 +459,7 @@ class _MainLayoutState extends State<MainLayout> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    authProvider.user?.fullName ?? 'Admin User',
+                    authProvider.user?.fullName ?? 'Administrateur',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: _navText(dark),
@@ -404,16 +478,13 @@ class _MainLayoutState extends State<MainLayout> {
               ),
             ),
             IconButton(
-              onPressed: () async {
-                await authProvider.logout();
-                if (mounted) context.go('/login');
-              },
+              onPressed: () => _confirmLogout(authProvider),
               icon: Icon(
                 Icons.logout,
                 color: _navMuted(dark),
                 size: 20,
               ),
-              tooltip: 'Deconnexion',
+              tooltip: 'Déconnexion',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
@@ -471,14 +542,17 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   String _getPageTitle(String path) {
-    if (path.startsWith('/dashboard')) return 'Dashboard';
-    if (path.startsWith('/trails')) return 'Trail Management';
-    if (path.startsWith('/pois')) return 'Points of Interest';
-    if (path.startsWith('/users')) return 'User Management';
-    if (path.startsWith('/quizzes')) return 'Quiz Builder';
-    if (path.startsWith('/local-services')) return 'Local Economy';
-    if (path.startsWith('/sos-alerts')) return 'SOS Alerts';
-    if (path.startsWith('/settings')) return 'Settings';
+    if (path.startsWith('/dashboard')) return 'Tableau de bord';
+    if (path.startsWith('/trails')) return 'Gestion des sentiers';
+    if (path.startsWith('/pois')) return 'Points d\'intérêt';
+    if (path.startsWith('/users')) return 'Gestion des utilisateurs';
+    if (path.startsWith('/quizzes')) return 'Gestion des quiz';
+    if (path.startsWith('/local-services')) return 'Économie locale';
+    if (path.startsWith('/sos-alerts')) return 'Alertes SOS';
+    if (path.startsWith('/emergency-contacts')) return 'Contacts d\'urgence';
+    if (path.startsWith('/formation')) return 'Formation';
+    if (path.startsWith('/contact')) return 'Contact';
+    if (path.startsWith('/settings')) return 'Paramètres';
     return 'Eco-Guide Admin';
   }
 }

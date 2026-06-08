@@ -25,7 +25,7 @@ class LocalServicesProvider extends ChangeNotifier {
     try {
       final response = await LocalServiceApiService.getServices(
         page: page,
-        limit: 10,
+        limit: 1000,
         category: category,
       );
       _services = response['services'] as List<LocalServiceModel>;

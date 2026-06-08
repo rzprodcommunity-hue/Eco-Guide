@@ -23,7 +23,7 @@ class QuizzesProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await QuizService.getQuizzes(page: page, limit: 10);
+      final response = await QuizService.getQuizzes(page: page, limit: 1000);
       _quizzes = response['quizzes'] as List<QuizModel>;
       final meta = response['meta'] as Map<String, dynamic>?;
       if (meta != null) {

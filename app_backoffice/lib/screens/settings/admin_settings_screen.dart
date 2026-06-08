@@ -13,8 +13,8 @@ class AdminSettingsScreen extends StatefulWidget {
 
 class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   String _mapProvider = 'OpenStreetMap (Terrain)';
-  String _ratingSystem = '5-Level Scale (International Standard)';
-  String _unitSystem = 'Metric (km, m)';
+  String _ratingSystem = 'Échelle à 5 niveaux (standard international)';
+  String _unitSystem = 'Métrique (km, m)';
   bool _requireApproval = false;
 
   final _latController = TextEditingController(text: '45.7640');
@@ -35,7 +35,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   void _saveChanges() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Parametres enregistres avec succes'),
+        content: Text('Paramètres enregistrés avec succès'),
         backgroundColor: AppColors.success,
       ),
     );
@@ -52,7 +52,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Admin Configuration',
+          'Configuration administrateur',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -61,7 +61,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Global system settings and platform customization for the Eco-Guide ecosystem.',
+          'Paramètres globaux du système et personnalisation de la plateforme pour l\'écosystème Eco-Guide.',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
@@ -79,13 +79,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                 Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             side: BorderSide(color: Theme.of(context).dividerColor),
           ),
-          child: const Text('Discard'),
+          child: const Text('Annuler'),
         ),
         const SizedBox(width: 16),
         ElevatedButton.icon(
           onPressed: _saveChanges,
           icon: const Icon(Icons.check),
-          label: const Text('Save All Changes'),
+          label: const Text('Enregistrer toutes les modifications'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,
             foregroundColor: Colors.white,
@@ -115,9 +115,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             ),
           SizedBox(height: isCompact ? 20 : 32),
           _buildCard(
-            title: 'Administrator Profile',
+            title: 'Profil administrateur',
             subtitle:
-                'Update your personal details and how you appear to other admins.',
+                'Mettez à jour vos informations personnelles et la façon dont vous apparaissez aux autres administrateurs.',
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -148,7 +148,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         ),
                         minimumSize: Size.zero,
                       ),
-                      child: const Text('Upload Photo'),
+                      child: const Text('Téléverser une photo'),
                     ),
                   ],
                 ),
@@ -160,17 +160,17 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         children: [
                           Expanded(
                             child: _buildTextField(
-                              label: 'Full Name',
-                              initialValue: user?.fullName ?? 'Admin User',
+                              label: 'Nom complet',
+                              initialValue: user?.fullName ?? 'Utilisateur administrateur',
                             ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: _buildTextField(
-                              label: 'Role',
+                              label: 'Rôle',
                               initialValue: user?.role == 'admin'
-                                  ? 'Super Administrator'
-                                  : 'Administrator',
+                                  ? 'Super administrateur'
+                                  : 'Administrateur',
                               enabled: false,
                             ),
                           ),
@@ -181,7 +181,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         children: [
                           Expanded(
                             child: _buildTextField(
-                              label: 'Email Address',
+                              label: 'Adresse e-mail',
                               initialValue:
                                   user?.email ?? 'admin@eco-guide.org',
                               icon: Icons.email_outlined,
@@ -190,7 +190,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: _buildTextField(
-                              label: 'Phone Number',
+                              label: 'Numéro de téléphone',
                               initialValue: '+212 6 12 34 56 78',
                               icon: Icons.phone_outlined,
                             ),
@@ -205,9 +205,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           ),
           const SizedBox(height: 24),
           _buildCard(
-            title: 'Platform Defaults',
+            title: 'Paramètres par défaut de la plateforme',
             subtitle:
-                'Configure standard behaviors for trail and POI creation.',
+                'Configurez les comportements standard pour la création de sentiers et de points d\'intérêt.',
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -216,7 +216,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Default Map Provider',
+                        'Fournisseur de carte par défaut',
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 8),
@@ -246,7 +246,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       ),
                       const SizedBox(height: 24),
                       const Text(
-                        'Difficulty Rating System',
+                        'Système de notation de la difficulté',
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 8),
@@ -263,8 +263,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         ),
                         items:
                             [
-                              '5-Level Scale (International Standard)',
-                              '3-Level Scale (Simple)',
+                              'Échelle à 5 niveaux (standard international)',
+                              'Échelle à 3 niveaux (simple)',
                             ].map((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
@@ -282,22 +282,22 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Measurement Units',
+                        'Unités de mesure',
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Radio<String>(
-                            value: 'Metric (km, m)',
+                            value: 'Métrique (km, m)',
                             groupValue: _unitSystem,
                             onChanged: (v) => setState(() => _unitSystem = v!),
                             activeColor: AppColors.primary,
                           ),
-                          const Text('Metric (km, m)'),
+                          const Text('Métrique (km, m)'),
                           const SizedBox(width: 24),
                           Radio<String>(
-                            value: 'Imperial (mi, ft)',
+                            value: 'Impérial (mi, ft)',
                             groupValue: _unitSystem,
                             onChanged: (v) => setState(() => _unitSystem = v!),
                             activeColor: AppColors.primary,
@@ -306,7 +306,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       ),
                       const SizedBox(height: 24),
                       const Text(
-                        'Auto-Publish Content',
+                        'Publication automatique du contenu',
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 8),
@@ -320,7 +320,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           ),
                           const SizedBox(width: 8),
                           const Text(
-                            'Require moderator approval for POI edits',
+                            'Exiger l\'approbation d\'un modérateur pour les modifications des points d\'intérêt',
                           ),
                         ],
                       ),
@@ -332,9 +332,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           ),
           const SizedBox(height: 24),
           _buildCard(
-            title: 'Map & Geographic Settings',
+            title: 'Paramètres cartographiques et géographiques',
             subtitle:
-                'Define the initial view and technical layers for the admin map tools.',
+                'Définissez la vue initiale et les couches techniques pour les outils cartographiques de l\'administration.',
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -344,7 +344,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Default Viewport',
+                        'Vue par défaut',
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 8),
@@ -369,7 +369,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       Row(
                         children: [
                           const Text(
-                            'Default Zoom Level',
+                            'Niveau de zoom par défaut',
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           Expanded(
@@ -387,17 +387,17 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       _buildCheckbox(
-                        'Show Topographic Contour Lines',
+                        'Afficher les courbes de niveau topographiques',
                         _showTopo,
                         (v) => setState(() => _showTopo = v!),
                       ),
                       _buildCheckbox(
-                        'Enable Trail Heatmap Layer',
+                        'Activer la couche de carte de chaleur des sentiers',
                         _showHeatmap,
                         (v) => setState(() => _showHeatmap = v!),
                       ),
                       _buildCheckbox(
-                        'Display Real-time Weather Overlays',
+                        'Afficher les superpositions météo en temps réel',
                         _showWeather,
                         (v) => setState(() => _showWeather = v!),
                       ),
@@ -464,7 +464,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Danger Zone',
+                          'Zone de danger',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: AppColors.error,
@@ -473,7 +473,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Deleting your organization account will purge all trails, user logs, and local directory data.',
+                          'La suppression du compte de votre organisation effacera tous les sentiers, les journaux des utilisateurs et les données de l\'annuaire local.',
                           style: TextStyle(
                             color: Theme.of(context)
                                 .colorScheme
@@ -492,7 +492,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     backgroundColor: AppColors.error,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Delete Organization Data'),
+                  child: const Text('Supprimer les données de l\'organisation'),
                 ),
               ],
             ),

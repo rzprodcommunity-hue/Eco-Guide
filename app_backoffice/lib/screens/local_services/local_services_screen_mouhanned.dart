@@ -23,7 +23,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
   final _addressController = TextEditingController();
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
-  ServiceCategory _category = ServiceCategory.accommodation;
+  ServiceCategory _category = ServiceCategory.guide;
   String? _editingId;
   LatLng _selectedLocation = const LatLng(
     31.6295,
@@ -80,7 +80,7 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
       _addressController.clear();
       _latitudeController.clear();
       _longitudeController.clear();
-      _category = ServiceCategory.accommodation;
+      _category = ServiceCategory.guide;
       _selectedLocation = const LatLng(31.6295, -7.9811);
     });
   }
@@ -238,7 +238,6 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
 
     for (var svc in provider.services) {
       if (svc.category == ServiceCategory.guide) guides++;
-      if (svc.category == ServiceCategory.accommodation) lodges++;
       if (svc.category == ServiceCategory.artisan) artisans++;
     }
 
@@ -382,8 +381,6 @@ class _LocalServicesScreenState extends State<LocalServicesScreen> {
                     ),
                     items: ServiceCategory.values.map((c) {
                       String label = c.name;
-                      if (c == ServiceCategory.accommodation)
-                        label = 'Eco-Lodge';
                       if (c == ServiceCategory.guide) label = 'Guide';
                       if (c == ServiceCategory.artisan) label = 'Artisan';
                       if (c == ServiceCategory.restaurant)

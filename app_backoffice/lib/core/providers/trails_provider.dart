@@ -42,7 +42,7 @@ class TrailsProvider extends ChangeNotifier {
     try {
       final response = await TrailService.getTrails(
         page: page,
-        limit: 10,
+        limit: 1000,
         difficulty: difficulty ?? _filterDifficulty,
         region: region,
         minDistance: _minDistance,

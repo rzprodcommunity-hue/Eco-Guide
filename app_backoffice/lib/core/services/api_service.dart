@@ -121,7 +121,11 @@ class ApiService {
 
     if (path.startsWith('/sos/alerts/') && path.endsWith('/resolve')) {
       final id = path.split('/')[3];
-      return _supabase.rpc('resolve_sos_alert', params: {'alert_id': id});
+      return _supabase
+          .from('sos_alerts')
+          .update({'status': 'resolved'})
+          .eq('id', id)
+          .select();
     }
 
     final segments = path.split('/').where((part) => part.isNotEmpty).toList();

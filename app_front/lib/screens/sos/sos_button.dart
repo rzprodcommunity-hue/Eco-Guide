@@ -13,6 +13,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/map_tile_url.dart';
 import '../../services/api_client.dart';
 import '../../services/sos_service.dart';
+import '../../services/emergency_contacts_service.dart';
 
 class SosButton extends StatelessWidget {
   const SosButton({super.key});
@@ -61,6 +62,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   StreamSubscription<Position>? _positionSubscription;
   final MapController _mapController = MapController();
   final TextEditingController _messageController = TextEditingController();
+  List<Map<String, dynamic>> _contacts = [];
 
   @override
   void initState() {
@@ -71,6 +73,17 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     )..repeat(reverse: true);
 
     _detectUserPosition();
+    _loadEmergencyContacts();
+  }
+
+  Future<void> _loadEmergencyContacts() async {
+    try {
+      final contacts = await EmergencyContactsService.fetchActive();
+      if (!mounted) return;
+      setState(() => _contacts = contacts);
+    } catch (e) {
+      debugPrint('Error loading emergency contacts: $e');
+    }
   }
 
   @override
@@ -931,28 +944,57 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(height: 16),
-        _buildContactItem(
-          icon: Icons.local_hospital,
-          title: context.watch<LocaleProvider>().t('sos.contact.mountain'),
-          subtitle: context.watch<LocaleProvider>().t('sos.contact.mountain.desc'),
-          number: '112',
-        ),
-        const SizedBox(height: 12),
-        _buildContactItem(
-          icon: Icons.park,
-          title: 'Poste des Gardes',
-          subtitle: 'Parc National Éco-Guide',
-          number: '112',
-        ),
-        const SizedBox(height: 12),
-        _buildContactItem(
-          icon: Icons.person,
-          title: 'Guide Référent',
-          subtitle: 'Jean Dupont (Votre expédition)',
-          number: '112',
-        ),
+        if (_contacts.isNotEmpty)
+          ..._buildDynamicContacts()
+        else
+          ..._buildFallbackContacts(),
       ],
     );
+  }
+
+  /// Builds the contact tiles from the Supabase-managed list.
+  List<Widget> _buildDynamicContacts() {
+    final widgets = <Widget>[];
+    for (var i = 0; i < _contacts.length; i++) {
+      if (i > 0) widgets.add(const SizedBox(height: 12));
+      final row = _contacts[i];
+      widgets.add(
+        _buildContactItem(
+          icon: Icons.local_hospital,
+          title: (row['name'] ?? '').toString(),
+          subtitle: (row['subtitle'] ?? '').toString(),
+          number: (row['phone'] ?? '112').toString(),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  /// Hardcoded fallback contacts shown when no contacts are available
+  /// (offline or none configured yet) so the page is never empty.
+  List<Widget> _buildFallbackContacts() {
+    return [
+      _buildContactItem(
+        icon: Icons.local_hospital,
+        title: context.watch<LocaleProvider>().t('sos.contact.mountain'),
+        subtitle: context.watch<LocaleProvider>().t('sos.contact.mountain.desc'),
+        number: '112',
+      ),
+      const SizedBox(height: 12),
+      _buildContactItem(
+        icon: Icons.park,
+        title: 'Poste des Gardes',
+        subtitle: 'Parc National Éco-Guide',
+        number: '112',
+      ),
+      const SizedBox(height: 12),
+      _buildContactItem(
+        icon: Icons.person,
+        title: 'Guide Référent',
+        subtitle: 'Jean Dupont (Votre expédition)',
+        number: '112',
+      ),
+    ];
   }
 
   Widget _buildContactItem({

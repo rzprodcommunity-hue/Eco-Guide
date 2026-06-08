@@ -1,7 +1,6 @@
 enum ServiceCategory {
   guide,
   artisan,
-  accommodation,
   restaurant,
   transport,
   equipment,
@@ -119,8 +118,6 @@ class LocalServiceModel {
         return ServiceCategory.guide;
       case 'artisan':
         return ServiceCategory.artisan;
-      case 'accommodation':
-        return ServiceCategory.accommodation;
       case 'restaurant':
         return ServiceCategory.restaurant;
       case 'transport':
@@ -138,8 +135,6 @@ class LocalServiceModel {
         return 'Guide';
       case ServiceCategory.artisan:
         return 'Artisan';
-      case ServiceCategory.accommodation:
-        return 'Hebergement';
       case ServiceCategory.restaurant:
         return 'Restaurant';
       case ServiceCategory.transport:

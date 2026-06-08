@@ -23,7 +23,7 @@ class UsersProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await UserService.getUsers(page: page, limit: 10);
+      final response = await UserService.getUsers(page: page, limit: 1000);
       _users = response['users'] as List<UserModel>;
       final meta = response['meta'] as Map<String, dynamic>?;
       if (meta != null) {

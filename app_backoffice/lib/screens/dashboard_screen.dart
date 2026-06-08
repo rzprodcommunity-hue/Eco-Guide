@@ -47,7 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => provider.loadDashboard(),
-              child: const Text('Reessayer'),
+              child: const Text('Réessayer'),
             ),
           ],
         ),
@@ -56,38 +56,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final stats = provider.data?.summary;
     final isMobile = Responsive.isMobile(context);
-    final isTablet = Responsive.isTablet(context);
 
     return SingleChildScrollView(
       padding: Responsive.pagePadding(context),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildHeader(stats),
           SizedBox(height: isMobile ? 16 : 24),
+          _buildSosAlertCard(stats?.activeSosAlerts ?? 0, isMobile: isMobile),
+          SizedBox(height: isMobile ? 16 : 24),
           _buildStatsGrid(stats, isMobile: isMobile),
           SizedBox(height: isMobile ? 16 : 24),
-          if (isMobile || isTablet)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildSosAlertCard(stats?.activeSosAlerts ?? 0, isMobile: isMobile),
-                const SizedBox(height: 16),
-                _buildChartCard(stats, isMobile: isMobile),
-              ],
-            )
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: _buildChartCard(stats, isMobile: false)),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: _buildSosAlertCard(stats?.activeSosAlerts ?? 0,
-                      isMobile: false),
-                ),
-              ],
-            ),
+          _buildChartCard(stats, isMobile: isMobile),
         ],
       ),
     );
@@ -154,13 +135,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         color: Colors.teal,
         isMobile: isMobile,
       ),
-      _buildStatCard(
-        title: 'Activités',
-        value: stats?.activities?.toString() ?? '0',
-        icon: Icons.timeline,
-        color: Colors.indigo,
-        isMobile: isMobile,
-      ),
     ];
 
     return LayoutBuilder(
@@ -169,9 +143,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         //  < 480px → 2  (true phone)
         //  480-700 → 3  (large phone / small tablet)
         //  700-1100 → 3 (tablet)
-        //  >= 1100 → 6 (desktop)
+        //  >= 1100 → 5 (desktop, one row of 5 cards, no empty gap)
         final width = constraints.maxWidth;
-        final cols = width < 480 ? 2 : (width < 1100 ? 3 : 6);
+        final cols = width < 480 ? 2 : (width < 1100 ? 3 : 5);
         const spacing = 12.0;
         final itemWidth =
             (width - spacing * (cols - 1)) / cols;
@@ -298,7 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       reservedSize: 28,
                       getTitlesWidget: (value, meta) {
                         const titles = [
-                          'Users',
+                          'Utilisateurs',
                           'Sentiers',
                           'POIs',
                           'Quiz',
