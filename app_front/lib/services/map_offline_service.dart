@@ -153,6 +153,10 @@ class MapOfflineService {
       'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
   static const String _tileUrlTemplate = standardTileUrlTemplate;
 
+  /// Satellite imagery layer (ESRI World Imagery) — matches AppMapStyle.satellite.
+  static const String satelliteTileUrlTemplate =
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+
   final http.Client _httpClient;
   static String? _sharedBaseTilePath;
   String? _baseTilePath;
@@ -181,17 +185,30 @@ class MapOfflineService {
     return File(p.join(baseDir.path, '$z', '$x', '$y.png'));
   }
 
-  File? tileFileSync({required int z, required int x, required int y}) {
+  File? tileFileSync({
+    required int z,
+    required int x,
+    required int y,
+    bool satellite = false,
+  }) {
     final base = _baseTilePath ?? _sharedBaseTilePath;
     if (base == null) return null;
 
-    final candidate = File(p.join(base, '$z', '$x', '$y.png'));
+    // Standard tiles live at the root; satellite tiles in a `sat/` subfolder.
+    final dir = satellite ? p.join(base, 'sat') : base;
+    final candidate = File(p.join(dir, '$z', '$x', '$y.png'));
     if (candidate.existsSync()) return candidate;
     return null;
   }
 
-  String tileUrl({required int z, required int x, required int y}) {
-    return _tileUrlTemplate
+  String tileUrl({
+    required int z,
+    required int x,
+    required int y,
+    bool satellite = false,
+  }) {
+    final template = satellite ? satelliteTileUrlTemplate : _tileUrlTemplate;
+    return template
         .replaceAll('{z}', '$z')
         .replaceAll('{x}', '$x')
         .replaceAll('{y}', '$y');
@@ -212,13 +229,14 @@ class MapOfflineService {
     return total;
   }
 
-  /// Rough estimate, ~25 KB / tile on Google "m" layer.
+  /// Rough estimate for BOTH layers per tile: ~25 KB (standard) + ~55 KB
+  /// (satellite) ≈ 80 KB / tile.
   int estimateSizeMb({
     required List<int> zooms,
     TileBounds bounds = TileBounds.tabarka,
   }) {
     final tiles = estimateTileCount(zooms: zooms, bounds: bounds);
-    final bytes = tiles * 25 * 1024;
+    final bytes = tiles * 80 * 1024;
     return (bytes / (1024 * 1024)).ceil();
   }
 
@@ -234,8 +252,43 @@ class MapOfflineService {
     var alreadyCached = 0;
     var failed = 0;
 
-    final totalTiles = estimateTileCount(zooms: zooms, bounds: bounds);
+    // Two layers are fetched per tile: the standard map (root) and the
+    // satellite imagery (in the `sat/` subfolder), so both work offline.
+    final totalTiles = estimateTileCount(zooms: zooms, bounds: bounds) * 2;
     var processedTiles = 0;
+
+    void report() {
+      if (onProgress != null && totalTiles > 0) {
+        onProgress(
+          processedTiles / totalTiles,
+          downloaded + alreadyCached,
+          totalTiles,
+        );
+      }
+    }
+
+    Future<void> fetch(File file, String url) async {
+      if (await file.exists()) {
+        alreadyCached++;
+        processedTiles++;
+        report();
+        return;
+      }
+      try {
+        await file.parent.create(recursive: true);
+        final response = await _httpClient.get(Uri.parse(url));
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          await file.writeAsBytes(response.bodyBytes, flush: true);
+          downloaded++;
+        } else {
+          failed++;
+        }
+      } catch (_) {
+        failed++;
+      }
+      processedTiles++;
+      report();
+    }
 
     for (final z in zooms) {
       final xMin = _lonToTileX(bounds.minLng, z);
@@ -245,44 +298,16 @@ class MapOfflineService {
 
       for (var x = xMin; x <= xMax; x++) {
         for (var y = yMin; y <= yMax; y++) {
-          final file = File(p.join(baseDir.path, '$z', '$x', '$y.png'));
-          if (await file.exists()) {
-            alreadyCached++;
-            processedTiles++;
-            if (onProgress != null && totalTiles > 0) {
-              onProgress(
-                processedTiles / totalTiles,
-                downloaded + alreadyCached,
-                totalTiles,
-              );
-            }
-            continue;
-          }
-
-          try {
-            await file.parent.create(recursive: true);
-            final response = await _httpClient.get(
-              Uri.parse(tileUrl(z: z, x: x, y: y)),
-            );
-
-            if (response.statusCode >= 200 && response.statusCode < 300) {
-              await file.writeAsBytes(response.bodyBytes, flush: true);
-              downloaded++;
-            } else {
-              failed++;
-            }
-          } catch (_) {
-            failed++;
-          }
-
-          processedTiles++;
-          if (onProgress != null && totalTiles > 0) {
-            onProgress(
-              processedTiles / totalTiles,
-              downloaded + alreadyCached,
-              totalTiles,
-            );
-          }
+          // Standard layer (root).
+          await fetch(
+            File(p.join(baseDir.path, '$z', '$x', '$y.png')),
+            tileUrl(z: z, x: x, y: y),
+          );
+          // Satellite layer (sat/).
+          await fetch(
+            File(p.join(baseDir.path, 'sat', '$z', '$x', '$y.png')),
+            tileUrl(z: z, x: x, y: y, satellite: true),
+          );
         }
       }
     }
@@ -388,11 +413,20 @@ class LocalFirstTileProvider extends TileProvider {
     final y = coordinates.y.round();
 
     final offline = forceOffline?.call() ?? false;
+    final template = options.urlTemplate ?? '';
+    final isSatellite = template.contains('World_Imagery') ||
+        template.contains('arcgisonline');
+    final isStandard = template == MapOfflineService.standardTileUrlTemplate;
 
-    // Cached tiles only exist for the standard Google "m" layer.
-    if (offline ||
-        options.urlTemplate == MapOfflineService.standardTileUrlTemplate) {
-      final cachedFile = _mapOfflineService.tileFileSync(z: z, x: x, y: y);
+    // Cached tiles exist for the standard layer (root) and the satellite layer
+    // (sat/). Serve whichever matches the layer currently displayed.
+    if (offline || isStandard || isSatellite) {
+      final cachedFile = _mapOfflineService.tileFileSync(
+        z: z,
+        x: x,
+        y: y,
+        satellite: isSatellite,
+      );
       if (cachedFile != null) {
         return FileImage(cachedFile);
       }

@@ -245,6 +245,7 @@ const Map<String, Map<String, String>> _strings = {
     'offline.download': 'Télécharger',
     'offline.delete': 'Supprimer',
     'offline.downloaded': 'Téléchargé',
+    'offline.notDownloaded': 'Non téléchargé',
     'offline.empty': 'Aucune carte téléchargée',
     'offline.downloading': 'Téléchargement...',
     // SOS
@@ -788,6 +789,7 @@ const Map<String, Map<String, String>> _strings = {
     'offline.download': 'Download',
     'offline.delete': 'Delete',
     'offline.downloaded': 'Downloaded',
+    'offline.notDownloaded': 'Not downloaded',
     'offline.empty': 'No maps downloaded',
     'offline.downloading': 'Downloading...',
     // SOS
@@ -1340,6 +1342,7 @@ const Map<String, Map<String, String>> _strings = {
     'offline.download': 'تنزيل',
     'offline.delete': 'حذف',
     'offline.downloaded': 'تم التنزيل',
+    'offline.notDownloaded': 'غير منزّل',
     'offline.empty': 'لا توجد خرائط محمّلة',
     'offline.downloading': 'جار التنزيل...',
     // SOS

@@ -703,10 +703,31 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     });
   }
 
-  Future<void> _detectUserPosition() async {
+  Future<void> _detectUserPosition({bool feedback = false}) async {
+    if (feedback && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Localisation en cours…'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+    }
     final result = await LocationService.getBestFix();
     if (!result.isSuccess) {
       debugPrint('[GPS][nav] no fix: ${result.message}');
+      if (feedback && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Localisation impossible. Activez le GPS et réessayez.'),
+              backgroundColor: Color(0xFFD54A3A),
+            ),
+          );
+      }
       return;
     }
     final fix = result.fix!;
@@ -1684,13 +1705,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             ),
             children: [
               TileLayer(
-                // Offline AND a map is downloaded → force the standard
-                // (Google "m") tiles, the only ones cached for offline use;
-                // otherwise keep the chosen style.
-                urlTemplate: (_isOffline && _hasOfflineTiles
-                        ? AppMapStyle.standard
-                        : appMapStyle.value)
-                    .urlTemplate,
+                // Always use the selected style; the tile provider serves it
+                // from the matching offline cache (standard or satellite).
+                urlTemplate: appMapStyle.value.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
                 // Real tiles up to 19; levels 20-22 are upscaled so the user
                 // can keep zooming even where no higher-res data exists.
@@ -1912,7 +1929,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
             Positioned(
               top: 8,
               left: 10,
-              right: 10,
+              // Leave room on the right for the vertical action column
+              // (fullscreen / layers / …) so they never overlap the banner.
+              right: 64,
               child: _buildInstructionBanner(destinationKm),
             ),
           if (_offTrailAlert)
@@ -1971,7 +1990,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
                 const SizedBox(height: 6),
                 _navIconButton(
                   icon: Icons.my_location,
-                  onTap: () => _detectUserPosition(),
+                  onTap: () => _detectUserPosition(feedback: true),
                 ),
                 const SizedBox(height: 6),
                 _navIconButton(

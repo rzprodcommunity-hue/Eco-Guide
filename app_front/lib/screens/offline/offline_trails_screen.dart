@@ -29,7 +29,6 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   static const _kInstalledTrailsKey = 'offline_installed_trails';
   static const _kInstalledPoisKey = 'offline_installed_pois';
   static const _kInstalledServicesKey = 'offline_installed_services';
-  static const _kAutoSyncKey = 'offline_auto_sync';
   static const _kTileModeKey = 'offline_tile_mode';
   static const _kMapInstalledKey = 'offline_map_installed';
 
@@ -41,7 +40,6 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
   late final MapOfflineService _mapOfflineService;
 
   bool _isLoading = false;
-  bool _autoSync = true;
   OfflineTileMode _tileMode = OfflineTileMode.standard;
   bool _isMapInstalled = false;
   double _mapDownloadProgress = 0;
@@ -115,16 +113,10 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
       ..clear()
       ..addAll(prefs.getStringList(_kInstalledServicesKey) ?? const <String>[]);
 
-    // Reconcile with what's actually in the SQLite cache.
-    final cachedTrails = await OfflineCacheService.instance.getOfflineTrailIds();
-    final cachedPois = await OfflineCacheService.instance.getOfflinePoiIds();
-    final cachedServices =
-        await OfflineCacheService.instance.getOfflineLocalServiceIds();
-    _installedTrailIds.addAll(cachedTrails);
-    _installedPoiIds.addAll(cachedPois);
-    _installedServiceIds.addAll(cachedServices);
+    // NOTE: the "downloaded" status reflects ONLY items the user explicitly
+    // downloaded (tracked here in SharedPreferences). We deliberately do NOT
+    // mark everything cached in SQLite for offline browsing as "downloaded".
 
-    _autoSync = prefs.getBool(_kAutoSyncKey) ?? true;
     _tileMode = OfflineTileMode.fromId(prefs.getString(_kTileModeKey));
     _isMapInstalled = prefs.getBool(_kMapInstalledKey) ?? false;
 
@@ -153,11 +145,6 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
       _kInstalledServicesKey,
       _installedServiceIds.toList(),
     );
-  }
-
-  Future<void> _persistAutoSync() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kAutoSyncKey, _autoSync);
   }
 
   Future<void> _persistTileMode() async {
@@ -653,8 +640,6 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
                   _buildDownloadAllCard(),
                   const SizedBox(height: 16),
                   _buildTabsCard(),
-                  const SizedBox(height: 16),
-                  _buildAutoSyncCard(),
                   const SizedBox(height: 14),
                   Text(
                     '${lp.t('offline.dataSources')}: OpenStreetMap + Eco-Guide',
@@ -1617,7 +1602,16 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.check_circle, color: _green, size: 24),
+          const Icon(Icons.check_circle, color: _green, size: 20),
+          const SizedBox(width: 4),
+          Text(
+            lp.t('offline.downloaded'),
+            style: const TextStyle(
+              color: _green,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 20),
             color: Colors.red[400],
@@ -1627,10 +1621,23 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
         ],
       );
     }
-    return IconButton(
-      onPressed: onDownload,
-      icon: const Icon(Icons.download_rounded, color: _green, size: 28),
-      tooltip: lp.t('offline.download'),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          lp.t('offline.notDownloaded'),
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        IconButton(
+          onPressed: onDownload,
+          icon: const Icon(Icons.download_rounded, color: _green, size: 26),
+          tooltip: lp.t('offline.download'),
+        ),
+      ],
     );
   }
 
@@ -1653,46 +1660,4 @@ class _OfflineTrailsScreenState extends State<OfflineTrailsScreen>
     );
   }
 
-  Widget _buildAutoSyncCard() {
-    final lp = context.watch<LocaleProvider>();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.sync, color: _greenDark),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lp.t('offline.autoSync'),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  lp.t('offline.autoSyncSubtitle'),
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _autoSync,
-            activeThumbColor: _green,
-            onChanged: (v) async {
-              setState(() => _autoSync = v);
-              await _persistAutoSync();
-            },
-          ),
-        ],
-      ),
-    );
-  }
 }

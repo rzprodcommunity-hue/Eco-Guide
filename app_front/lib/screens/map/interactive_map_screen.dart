@@ -45,6 +45,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
 
   final MapController _mapController = MapController();
   final MapOfflineService _mapOfflineService = MapOfflineService();
+  // Forces the tile layer to re-fetch tiles (offline cache) after a
+  // programmatic move / once the offline path is ready — flutter_map does not
+  // always refetch on its own, leaving the new area blank until a manual zoom.
+  final StreamController<void> _tileReset = StreamController<void>.broadcast();
   Timer? _gpsTimer;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   bool _isOnline = true;
@@ -78,7 +82,12 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   void initState() {
     super.initState();
     appMapStyle.addListener(_onMapStyleChanged);
-    _mapOfflineService.initialize();
+    // Once the offline tile path is resolved, force a tile refresh so already
+    // visible tiles get served from the local cache (they may have rendered
+    // blank before the path was ready).
+    _mapOfflineService.initialize().then((_) {
+      if (mounted && !_tileReset.isClosed) _tileReset.add(null);
+    });
     _activeOrigin = _currentPosition;
     _activeOriginLabel = 'Ma position';
     _activeDestination = widget.destination;
@@ -127,6 +136,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     _gpsTimer?.cancel();
     _connectivitySub?.cancel();
     _tts.stop();
+    _tileReset.close();
     super.dispose();
   }
 
@@ -187,9 +197,31 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
   }
 
   Future<void> _detectUserPosition({bool feedback = false}) async {
+    // Immediate feedback so the user knows the locate button is working
+    // (a GPS fix can take a few seconds).
+    if (feedback && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Localisation en cours…'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+    }
     final result = await LocationService.getBestFix();
     if (!result.isSuccess) {
       debugPrint('[GPS] no fix: ${result.message}');
+      if (feedback && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Localisation impossible. Activez le GPS et réessayez.'),
+              backgroundColor: Color(0xFFD54A3A),
+            ),
+          );
+      }
       return;
     }
 
@@ -203,6 +235,12 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
       _activeDestination ?? _currentPosition,
       appMapStyle.value.maxZoom.clamp(14, 18),
     );
+    // flutter_map doesn't always refetch tiles after a programmatic move, so
+    // offline tiles for the new area stay blank until a manual zoom. Force a
+    // tile-layer reset on the next frame (once the camera has moved).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_tileReset.isClosed) _tileReset.add(null);
+    });
     debugPrint(
       '[GPS] fix lat=${fix.latitude.toStringAsFixed(6)} '
       'lng=${fix.longitude.toStringAsFixed(6)} '
@@ -307,11 +345,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
               TileLayer(
                 // Rebuild (refetch) when the offline mode toggles.
                 key: ValueKey('${appMapStyle.value.label}_$_forceOffline'),
-                // Forced offline uses the standard (Google "m") layer — the
-                // only one cached on disk.
-                urlTemplate: _forceOffline
-                    ? MapOfflineService.standardTileUrlTemplate
-                    : appMapStyle.value.urlTemplate,
+                // Always use the selected style's layer; the tile provider
+                // serves it from the matching offline cache (standard or
+                // satellite) when offline.
+                urlTemplate: appMapStyle.value.urlTemplate,
                 userAgentPackageName: 'com.ecoguide.app',
                 maxZoom: appMapStyle.value.maxZoom + 3,
                 maxNativeZoom: appMapStyle.value.maxZoom.toInt(),
@@ -319,6 +356,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                   service: _mapOfflineService,
                   forceOffline: () => _forceOffline,
                 ),
+                reset: _tileReset.stream,
               ),
               if (hasDestination)
                 PolylineLayer(

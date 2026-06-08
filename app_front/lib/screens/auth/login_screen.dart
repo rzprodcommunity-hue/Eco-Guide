@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/theme_provider.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -70,6 +71,31 @@ class _LoginScreenState extends State<LoginScreen>
   // ignore: unused_element
   Future<void> _continueWithoutSignIn() async {
     await context.read<AuthProvider>().continueAsGuest();
+  }
+
+  /// Password reset is handled manually: ask the user to contact the admin.
+  void _showForgotPasswordDialog() {
+    final lp = context.read<LocaleProvider>();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: const Icon(Icons.lock_reset,
+            color: AppTheme.primaryColor, size: 40),
+        title: Text(lp.t('auth.login.forgot')),
+        content: const Text(
+          'Pour réinitialiser votre mot de passe, veuillez contacter '
+          'l\'administrateur à support@eco-guide.com.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Compris'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -156,6 +182,68 @@ class _LoginScreenState extends State<LoginScreen>
                           fontSize: 18,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ── Theme + language quick switches (top-right) ──
+                Positioned(
+                  top: 48,
+                  right: 12,
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => context.read<ThemeProvider>().setMode(
+                            isDark ? AppThemeMode.light : AppThemeMode.dark),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isDark
+                                ? Icons.light_mode_rounded
+                                : Icons.dark_mode_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      PopupMenuButton<String>(
+                        tooltip: 'Langue',
+                        onSelected: (code) =>
+                            context.read<LocaleProvider>().setLocale(code),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'fr', child: Text('Français')),
+                          PopupMenuItem(value: 'en', child: Text('English')),
+                          PopupMenuItem(value: 'ar', child: Text('العربية')),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.language,
+                                  color: Colors.white, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                lp.languageCode.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -264,7 +352,7 @@ class _LoginScreenState extends State<LoginScreen>
                         Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton(
-                            onPressed: () {},
+                            onPressed: _showForgotPasswordDialog,
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.only(top: 8, bottom: 4),
                             ),
@@ -366,29 +454,19 @@ class _LoginScreenState extends State<LoginScreen>
 
                         const SizedBox(height: 20),
 
-                        // Social buttons
-                        Row(
-                          children: [
-                            Expanded(child: _socialButton(
-                              onTap: authProvider.isLoading ? null : _continueWithGoogle,
-                              icon: Image.network(
-                                'https://www.google.com/favicon.ico',
-                                width: 20, height: 20,
-                                errorBuilder: (_, _, _) => const Icon(Icons.g_mobiledata, size: 22),
-                              ),
-                              label: 'Google',
-                            )),
-                            const SizedBox(width: 14),
-                            Expanded(child: _socialButton(
-                              onTap: () {},
-                              icon: Icon(
-                                Icons.apple,
-                                size: 22,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                              label: 'Apple',
-                            )),
-                          ],
+                        // Social button (Google only)
+                        _socialButton(
+                          onTap: authProvider.isLoading
+                              ? null
+                              : _continueWithGoogle,
+                          icon: Image.network(
+                            'https://www.google.com/favicon.ico',
+                            width: 20,
+                            height: 20,
+                            errorBuilder: (_, _, _) =>
+                                const Icon(Icons.g_mobiledata, size: 22),
+                          ),
+                          label: 'Google',
                         ),
 
                         const SizedBox(height: 28),
