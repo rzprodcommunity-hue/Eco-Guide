@@ -787,7 +787,7 @@ class _TrailFormScreenState extends State<TrailFormScreen> {
           options: MapOptions(initialCenter: loc, initialZoom: 15),
           children: [
             TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
               userAgentPackageName: 'com.ecoguide.backoffice',
             ),
             MarkerLayer(

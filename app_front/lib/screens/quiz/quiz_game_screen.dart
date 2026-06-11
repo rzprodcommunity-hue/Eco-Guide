@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/quiz_provider.dart';
+import '../../services/badge_service.dart';
 
 class QuizGameScreen extends StatefulWidget {
   final String? category;
@@ -20,6 +22,7 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
   bool _confirmed = false;
   int _score = 0;
   int _correctCount = 0;
+  bool _finished = false;
 
   late final List<_NatureQuestion> _questions;
 
@@ -71,8 +74,27 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
     });
   }
 
-  void _finish() {
+  Future<void> _finish() async {
     final lp = context.read<LocaleProvider>();
+    final isEn = lp.languageCode == 'en';
+
+    // Persist the result so points + badges actually count (offline-first).
+    List<UserBadge> earned = const [];
+    if (!_finished) {
+      _finished = true;
+      try {
+        earned = await context.read<QuizProvider>().recordResult(
+              score: _score,
+              correctAnswers: _correctCount,
+              totalQuestions: _questions.length,
+              category: 'nature',
+            );
+      } catch (_) {
+        // Persistence is best-effort; never block the result screen.
+      }
+    }
+    if (!mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -95,6 +117,7 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(lp.t('quiz.completeMsg'),
                 textAlign: TextAlign.center,
@@ -105,6 +128,40 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                 '$_correctCount/${_questions.length}'),
             _statRow(lp.t('quiz.rate'),
                 '${(_correctCount / _questions.length * 100).round()}%'),
+            if (earned.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.military_tech_rounded,
+                      color: Colors.amber, size: 20),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      isEn ? 'New badges!' : 'Nouveaux badges !',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ...earned.map(
+                (b) => Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle,
+                          color: AppTheme.primaryColor, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(b.label,
+                            style: const TextStyle(fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -124,6 +181,7 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
                 _confirmed = false;
                 _score = 0;
                 _correctCount = 0;
+                _finished = false;
               });
             },
             style: ElevatedButton.styleFrom(

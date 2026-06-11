@@ -38,7 +38,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   late Animation<double> _barAnimation;
 
 
-  final List<double> _weeklyBars = const [28, 36, 58, 48, 84, 68, 94];
+  // Computed from real progress (offline-first), never hardcoded.
+  int _localQuizzes = 0;
+  List<double> _weeklyData = const [0, 0, 0, 0, 0, 0, 0];
 
   @override
   void initState() {
@@ -76,12 +78,16 @@ class _ProfileScreenState extends State<ProfileScreen>
     final localCompleted = await offline.getCompletedTrailIds();
     final localCount = await offline.completedTrailCount();
     final localDistance = await offline.totalDistanceKm();
+    final localQuizzes = await offline.totalQuizzesCompleted();
+    final weekly = await offline.getWeeklyActivityBars();
     if (mounted) {
       setState(() {
         _badges = localBadges;
         _completedTrailIds = {..._completedTrailIds, ...localCompleted};
         _localCompleted = localCount;
         _localDistanceKm = localDistance;
+        _localQuizzes = localQuizzes;
+        _weeklyData = weekly;
       });
     }
 
@@ -121,6 +127,52 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  // ── Computed stats (offline-first, never hardcoded) ──────────────────────
+
+  /// Best known number of completed trails (server vs locally tracked).
+  int _completedCount() {
+    final server = _stats?.totalTrailsCompleted ?? 0;
+    final local = _completedTrailIds.isNotEmpty
+        ? _completedTrailIds.length
+        : _localCompleted;
+    return server > local ? server : local;
+  }
+
+  /// Best known number of quizzes completed (server vs offline store).
+  int _quizCount() {
+    final server = _stats?.totalQuizzesAnswered ?? 0;
+    return server > _localQuizzes ? server : _localQuizzes;
+  }
+
+  /// Gamified level from real progress: 2 pts/trail + 1 pt/quiz, 10 pts/level.
+  int _computedLevel() {
+    final fromProgress =
+        1 + ((_completedCount() * 2 + _quizCount()) / 10).floor();
+    final fromStats = _stats?.level ?? 1;
+    return fromStats > fromProgress ? fromStats : fromProgress;
+  }
+
+  /// Engagement tier (translation key) derived from real activity.
+  String _tierKey() {
+    final score = _completedCount() + _quizCount();
+    if (score >= 15) return 'profile.tier.expert';
+    if (score >= 5) return 'profile.tier.pro';
+    return 'profile.tier.beginner';
+  }
+
+  /// Total positive elevation gain (m) summed over completed trails. Reads the
+  /// cached trails so it works offline; 0 when none are known.
+  String _elevationText() {
+    final trails = context.read<TrailProvider>().trails;
+    var sum = 0.0;
+    for (final t in trails) {
+      if (_completedTrailIds.contains(t.id)) sum += t.elevationGain ?? 0;
+    }
+    if (sum <= 0) return '0 m';
+    if (sum >= 1000) return '${(sum / 1000).toStringAsFixed(1)}k m';
+    return '${sum.toStringAsFixed(0)} m';
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -131,7 +183,13 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
 
     if (user == null) {
-      return const Scaffold(body: Center(child: Text('Non connecte')));
+      return Scaffold(
+        body: Center(
+          child: Text(
+            context.watch<LocaleProvider>().t('profile.offlineError'),
+          ),
+        ),
+      );
     }
 
     return Scaffold(
@@ -253,9 +311,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       color: AppTheme.primaryColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'Niveau 12',
-                      style: TextStyle(
+                    child: Text(
+                      '${context.watch<LocaleProvider>().t('profile.level')} ${_computedLevel()}',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
@@ -273,9 +331,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFCFCBD0)),
                     ),
-                    child: const Text(
-                      'Pro',
-                      style: TextStyle(
+                    child: Text(
+                      context.watch<LocaleProvider>().t(_tierKey()),
+                      style: const TextStyle(
                         color: Color(0xFF2C8C39),
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
@@ -292,36 +350,33 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildStatsSection() {
+    final lp = context.watch<LocaleProvider>();
     // Prefer the server stats, but fall back to (and never under-report) the
     // locally stored offline progress.
     final distance = _stats?.distanceText ??
         (_localDistanceKm > 0
             ? '${_localDistanceKm.toStringAsFixed(_localDistanceKm < 10 ? 1 : 0)} km'
             : '0 km');
-    final serverCompleted = _stats?.totalTrailsCompleted ?? 0;
-    final localCompleted =
-        _completedTrailIds.isNotEmpty ? _completedTrailIds.length : _localCompleted;
-    final completed =
-        serverCompleted > localCompleted ? serverCompleted : localCompleted;
+    final completed = _completedCount();
 
     final cards = [
       _KpiData(
         icon: Icons.landscape,
         iconColor: AppTheme.primaryColor,
         value: distance,
-        label: 'Distance Totale',
+        label: lp.t('profile.stats.totalDistance'),
       ),
-      const _KpiData(
-        icon: Icons.help,
-        iconColor: Color(0xFFE38020),
-        value: '3.2k m',
-        label: 'Denivele Positif',
+      _KpiData(
+        icon: Icons.terrain,
+        iconColor: const Color(0xFFE38020),
+        value: _elevationText(),
+        label: lp.t('profile.stats.elevation'),
       ),
       _KpiData(
         icon: Icons.local_fire_department,
         iconColor: const Color(0xFFE53A32),
         value: '$completed',
-        label: 'Sentiers Completes',
+        label: lp.t('profile.stats.completedTrails'),
       ),
     ];
 
@@ -353,7 +408,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             Expanded(
               child: Text(
-                'Badges & Succès',
+                context.watch<LocaleProvider>().t('profile.badges'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -381,10 +436,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                   : const Color(0xFFF5F5F5),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'Complétez des quiz pour gagner des badges !',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+                context.watch<LocaleProvider>().t('profile.noBadges'),
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -501,9 +556,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Appuyez sur ♡ sur un sentier pour l\'ajouter',
-                  style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 12),
+                Text(
+                  context.watch<LocaleProvider>().t('profile.favorites.hint'),
+                  style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 12),
                 ),
               ],
             ),
@@ -531,7 +586,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             Expanded(
               child: Text(
-                'Activite Mensuelle',
+                context.watch<LocaleProvider>().t('profile.activity'),
                 style: TextStyle(
                   fontSize: 40 / 2,
                   fontWeight: FontWeight.w700,
@@ -541,9 +596,9 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
             TextButton(
               onPressed: () {},
-              child: const Text(
-                'Voir details',
-                style: TextStyle(
+              child: Text(
+                context.watch<LocaleProvider>().t('profile.activity.seeDetails'),
+                style: const TextStyle(
                   color: AppTheme.primaryColor,
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
@@ -573,17 +628,24 @@ class _ProfileScreenState extends State<ProfileScreen>
                 animation: _barAnimation,
                 builder: (context, child) {
                   final todayIndex = DateTime.now().weekday - 1;
+                  final maxVal =
+                      _weeklyData.fold<double>(0, (m, v) => v > m ? v : m);
+                  double barHeight(int i) {
+                    if (maxVal <= 0) return 6;
+                    return 10 + (_weeklyData[i] / maxVal) * 100;
+                  }
+
                   return SizedBox(
                     height: 130,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(_weeklyBars.length, (i) {
+                      children: List.generate(_weeklyData.length, (i) {
                         final isToday = i == todayIndex;
                         return Expanded(
                           child: Center(
                             child: Container(
                               width: isToday ? 28 : 24,
-                              height: _weeklyBars[i] * _barAnimation.value,
+                              height: barHeight(i) * _barAnimation.value,
                               decoration: BoxDecoration(
                                 color: isToday
                                     ? const Color(0xFFE53935)
@@ -628,7 +690,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             Expanded(
               child: Text(
-                'Historique des Randonnées',
+                context.watch<LocaleProvider>().t('profile.history'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -657,7 +719,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         .withValues(alpha: 0.4)),
                 const SizedBox(height: 12),
                 Text(
-                  'Aucune randonnée commencée',
+                  context.watch<LocaleProvider>().t('profile.history.empty'),
                   style: TextStyle(
                     color: isDark ? AppTheme.darkTextSub : AppTheme.textSecondary,
                     fontSize: 14,
@@ -716,7 +778,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               Navigator.of(context).maybePop();
             },
             icon: const Icon(Icons.settings),
-            label: const Text('Parametres'),
+            label: Text(context.watch<LocaleProvider>().t('profile.actions.settings')),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF242424),
               side: const BorderSide(color: Color(0xFFBCBCC0)),
@@ -738,7 +800,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               }
             },
             icon: const Icon(Icons.logout),
-            label: const Text('Deconnexion'),
+            label: Text(context.watch<LocaleProvider>().t('profile.actions.logout')),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF7C4D1E),
               foregroundColor: Colors.white,
@@ -754,13 +816,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   String _roleLabel(String role) {
+    final lp = context.read<LocaleProvider>();
     switch (role) {
       case 'admin':
-        return 'Administrateur';
+        return lp.t('profile.role.admin');
       case 'guide':
-        return 'Guide Expert';
+        return lp.t('profile.role.guide');
       default:
-        return 'Explorateur Passionne';
+        return lp.t('profile.role.user');
     }
   }
 

@@ -952,11 +952,16 @@ class _TrailsScreenState extends State<TrailsScreen> {
   Widget _buildStatsRow(TrailsProvider provider) {
     double totalDistance = 0;
     int easyCount = 0, modCount = 0, diffCount = 0;
+    // Trails created within the current calendar month.
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month);
+    int newThisMonth = 0;
     for (var t in provider.trails) {
       totalDistance += t.distance;
       if (t.difficulty == TrailDifficulty.easy) easyCount++;
       if (t.difficulty == TrailDifficulty.moderate) modCount++;
       if (t.difficulty == TrailDifficulty.difficult) diffCount++;
+      if (!t.createdAt.isBefore(monthStart)) newThisMonth++;
     }
     String avgDiff = 'Modérée';
     if (easyCount >= modCount && easyCount >= diffCount) avgDiff = 'Facile';
@@ -969,7 +974,12 @@ class _TrailsScreenState extends State<TrailsScreen> {
         Icons.terrain,
         AppColors.primary,
       ),
-      _statCard('Randonneurs actifs', '1 284', Icons.people, Colors.blue),
+      _statCard(
+        'Nouveaux ce mois',
+        newThisMonth.toString(),
+        Icons.fiber_new,
+        Colors.blue,
+      ),
       _statCard(
         'Distance totale',
         '${totalDistance.toStringAsFixed(0)} km',

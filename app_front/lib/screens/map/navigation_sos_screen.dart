@@ -19,8 +19,10 @@ import '../../core/utils/map_tile_url.dart';
 import '../../services/activity_service.dart';
 import '../../services/api_client.dart';
 import '../../services/map_offline_service.dart';
+import '../../services/voice_service.dart';
 import '../../services/offline_progress_service.dart';
 import '../../core/widgets/eco_page_header.dart';
+import '../../core/widgets/eco_sos_button.dart';
 import '../sos/sos_button.dart';
 import '../../models/local_service.dart';
 import '../../models/poi.dart';
@@ -166,8 +168,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     // start first; otherwise we're navigating directly to a POI/service.
     _navPhase = widget.trail != null ? _NavPhase.goToStart : _NavPhase.toPoi;
 
-    _tts.setSpeechRate(0.45);
-    _tts.setPitch(1.0);
+    // TTS rate/pitch/voice are applied per-utterance by VoiceService.configure().
 
     // Compass — rotates user marker as phone rotates (like Google Maps)
     _compassStream = FlutterCompass.events?.listen((event) {
@@ -265,7 +266,7 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   }
 
   Future<void> _speak(String text, {String? id}) async {
-    if (!_voiceEnabled) return;
+    if (!_voiceEnabled || !VoiceService.instance.isEnabled) return;
     if (id != null && id == _lastSpokenInstructionId) {
       // Avoid repeating the same instruction within 30s
       if (_lastSpokenInstructionTime != null &&
@@ -274,11 +275,8 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
         return;
       }
     }
-    final lp = context.read<LocaleProvider>();
-    final code = lp.locale.languageCode;
-    await _tts.setLanguage(
-      code == 'ar' ? 'ar-SA' : code == 'en' ? 'en-US' : 'fr-FR',
-    );
+    final code = context.read<LocaleProvider>().locale.languageCode;
+    await VoiceService.instance.configure(_tts, langTag: VoiceService.tag(code));
     await _tts.stop();
     await _tts.speak(text);
     _lastSpokenInstructionId = id;
@@ -2635,42 +2633,10 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
   }
 
   Widget _buildFloatingSosButton({bool compact = false}) {
-    final size = compact ? 54.0 : 58.0;
-    final radius = compact ? 27.0 : 16.0;
-    return GestureDetector(
+    // Shared SOS button design (same as the bottom navigation bar).
+    return EcoSosButton(
+      size: compact ? 54.0 : 58.0,
       onTap: _openSosScreen,
-      onLongPress: _openSosScreen,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFE63946), Color(0xFFC62828)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(radius),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFE63946).withValues(alpha: 0.55),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-          border: Border.all(color: Colors.white, width: 2.5),
-        ),
-        child: const Center(
-          child: Text(
-            'SOS',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ),
-      ),
     );
   }
 

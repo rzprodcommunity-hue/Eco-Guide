@@ -20,6 +20,7 @@ import '../../providers/locale_provider.dart';
 import '../../providers/poi_provider.dart';
 import '../../providers/trail_provider.dart';
 import '../../services/map_offline_service.dart';
+import '../../services/voice_service.dart';
 import 'map_search_results_screen.dart';
 import 'navigation_sos_screen.dart';
 import '../poi/poi_detail_screen.dart';
@@ -148,17 +149,27 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
       return;
     }
 
+    // Respect the global voice setting (Paramètres → Lecture vocale).
+    if (!VoiceService.instance.isEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                context.read<LocaleProvider>().t('voice.disabledHint'),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+      }
+      return;
+    }
+
     final langCode = context.read<LocaleProvider>().locale.languageCode;
     await _tts.stop();
-    await _tts.setLanguage(
-      langCode == 'ar'
-          ? 'ar-SA'
-          : langCode == 'en'
-              ? 'en-US'
-              : 'fr-FR',
-    );
-    await _tts.setSpeechRate(0.45);
-    await _tts.setPitch(1.0);
+    await VoiceService.instance
+        .configure(_tts, langTag: VoiceService.tag(langCode));
 
     String text = item.name;
     if (item.poi != null) {

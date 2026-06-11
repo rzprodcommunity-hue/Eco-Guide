@@ -99,4 +99,9 @@ class UserStats {
     }
     return '${totalDistance.toStringAsFixed(1)}km';
   }
+
+  /// Gamified level derived from real progress (offline-safe): every completed
+  /// trail is worth 2 points, every answered quiz 1 point, 10 points per level.
+  int get level =>
+      1 + ((totalTrailsCompleted * 2 + totalQuizzesAnswered) / 10).floor();
 }

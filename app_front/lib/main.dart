@@ -25,6 +25,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'core/services/offline_sos_service.dart';
 import 'services/sos_service.dart';
 import 'services/socket_service.dart';
+import 'services/voice_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,8 @@ Future<void> main() async {
   // One-time: unpack the bundled offline pack (tiles + data) into the local
   // cache so a fresh install works without any connection.
   await OfflineSeedService.seedIfNeeded();
+  // Load the global voice (text-to-speech) on/off preference.
+  await VoiceService.instance.init();
   runApp(const EcoGuideApp());
 }
 

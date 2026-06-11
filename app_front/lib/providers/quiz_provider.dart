@@ -284,6 +284,57 @@ class QuizProvider extends ChangeNotifier {
     await loadUserScores();
   }
 
+  /// Persists a result produced by an EXTERNAL quiz UI (e.g. the built-in
+  /// offline "Nature Quiz" screen) so points and badges actually count.
+  /// Offline-first: records locally first, then best-effort syncs online.
+  /// Returns the badges newly earned during this call.
+  Future<List<UserBadge>> recordResult({
+    required int score,
+    required int correctAnswers,
+    required int totalQuestions,
+    String? category,
+  }) async {
+    // 1) Always persist locally (works fully offline).
+    await _offline.recordScore(
+      category: category,
+      score: score,
+      correctAnswers: correctAnswers,
+      totalQuestions: totalQuestions,
+    );
+    final completed = await _offline.totalQuizzesCompleted();
+    _newlyEarnedBadges = await _offline.awardBadges(
+      score: score,
+      correctAnswers: correctAnswers,
+      totalQuestions: totalQuestions,
+      quizzesCompleted: completed,
+      category: category,
+    );
+    notifyListeners();
+
+    // 2) Best-effort sync to the backend when connected.
+    try {
+      await _service.submitScore(
+        category: category,
+        score: score,
+        correctAnswers: correctAnswers,
+        totalQuestions: totalQuestions,
+      );
+      await BadgeService.checkAndAward(
+        score: score,
+        correctAnswers: correctAnswers,
+        totalQuestions: totalQuestions,
+        quizzesCompleted: completed,
+        category: category,
+      );
+      await _offline.mergeServerBadges(await BadgeService.getMyBadges());
+    } catch (e) {
+      debugPrint('Quiz online sync skipped (offline?): $e');
+    }
+
+    await loadUserScores();
+    return _newlyEarnedBadges;
+  }
+
   void _resetQuiz() {
     _currentIndex = 0;
     _score = 0;

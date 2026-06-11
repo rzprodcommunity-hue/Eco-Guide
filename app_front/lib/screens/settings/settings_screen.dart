@@ -8,6 +8,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/map_tile_url.dart';
 import '../../core/widgets/logout_dialog.dart';
+import '../../services/voice_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -72,6 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showGpsPrecisionPicker(BuildContext context) {
+    final lp = context.read<LocaleProvider>();
     final options = ['Haute', 'Normale', 'Économie'];
     showModalBottomSheet(
       context: context,
@@ -97,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 18),
               Text(
-                'Précision GPS',
+                lp.t('settings.gpsPrecision.modal.title'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -106,7 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Choisissez selon votre besoin et autonomie batterie',
+                lp.t('settings.gpsPrecision.modal.subtitle'),
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.55),
@@ -158,7 +160,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  opt,
+                                  opt == 'Haute'
+                                      ? lp.t('settings.gpsPrecision.high')
+                                      : opt == 'Normale'
+                                          ? lp.t('settings.gpsPrecision.normal')
+                                          : lp.t('settings.gpsPrecision.battery'),
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
@@ -167,10 +173,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                                 Text(
                                   opt == 'Haute'
-                                      ? 'Meilleure précision, plus de batterie'
+                                      ? lp.t('settings.gpsPrecision.high.desc')
                                       : opt == 'Normale'
-                                          ? 'Bon équilibre précision/batterie'
-                                          : 'Économise la batterie, moins précis',
+                                          ? lp.t('settings.gpsPrecision.normal.desc')
+                                          : lp.t('settings.gpsPrecision.battery.desc'),
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.55),
@@ -287,21 +293,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleClearCache() async {
+    final lp = context.read<LocaleProvider>();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Vider le cache ?'),
-        content: const Text(
-          'Cela supprimera la carte hors ligne. Vous devrez la retélécharger avec une connexion Internet.',
+        title: Text(lp.t('settings.clearCache.dialog.title')),
+        content: Text(
+          lp.t('settings.clearCache.dialog.content'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(lp.t('settings.clearCache.dialog.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+            child: Text(lp.t('settings.clearCache.dialog.delete'),
+                style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -311,9 +319,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _mapOfflineService.clearTabarkaTiles();
     await _checkOfflineMap();
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Cache vidé avec succès')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(lp.t('settings.clearCache.success'))),
+      );
     }
   }
 
@@ -421,6 +429,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
+                    const SizedBox(height: 10),
+                    // Global voice (text-to-speech) on/off — governs POIs, the
+                    // chatbot, trail instructions and alerts. Works offline.
+                    ValueListenableBuilder<bool>(
+                      valueListenable: VoiceService.instance.enabled,
+                      builder: (context, voiceOn, _) {
+                        final lp = context.watch<LocaleProvider>();
+                        return Column(
+                          children: [
+                            _SettingTile(
+                              icon: Icons.volume_up,
+                              iconColor: AppTheme.primaryColor,
+                              title: lp.t('settings.voice'),
+                              subtitle: lp.t('settings.voice.subtitle'),
+                              trailing: _buildSwitch(
+                                value: voiceOn,
+                                onChanged: (value) =>
+                                    VoiceService.instance.setEnabled(value),
+                              ),
+                            ),
+                            // Voice type (féminine / masculine / …) — only when
+                            // voice is enabled. Plays a sample on change.
+                            if (voiceOn) ...[
+                              const SizedBox(height: 10),
+                              ValueListenableBuilder<String>(
+                                valueListenable: VoiceService.instance.profile,
+                                builder: (context, prof, __) {
+                                  return _SettingTile(
+                                    icon: Icons.record_voice_over,
+                                    iconColor: AppTheme.primaryColor,
+                                    title: lp.t('settings.voiceType'),
+                                    subtitle: VoiceService.displayName(prof),
+                                    trailing: DropdownButton<String>(
+                                      value: prof,
+                                      underline: const SizedBox.shrink(),
+                                      items: VoiceService.profiles
+                                          .map(
+                                            (id) => DropdownMenuItem(
+                                              value: id,
+                                              child: Text(
+                                                  VoiceService.displayName(id)),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (v) {
+                                        if (v == null) return;
+                                        VoiceService.instance.setProfile(v);
+                                        VoiceService.instance
+                                            .preview(lp.locale.languageCode);
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -483,8 +550,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.location_on,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Localisation GPS',
-                      subtitle: 'Nécessaire pour la navigation',
+                      title: lp.t('settings.gps'),
+                      subtitle: lp.t('settings.gps.subtitle'),
                       trailing: _buildSwitch(
                         value: _gpsEnabled,
                         onChanged: (value) {
@@ -497,8 +564,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.gps_fixed,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Précision GPS',
-                      subtitle: 'Équilibre entre batterie et précision',
+                      title: lp.t('settings.gpsPrecision'),
+                      subtitle: lp.t('settings.gpsPrecision.subtitle'),
                       onTap: () => _showGpsPrecisionPicker(context),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -522,8 +589,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.battery_charging_full,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Économie d\'énergie',
-                      subtitle: 'Active le mode sombre + réduit le GPS',
+                      title: lp.t('settings.powerSaving'),
+                      subtitle: lp.t('settings.powerSaving.subtitle'),
                       trailing: _buildSwitch(
                         value: _powerSaving,
                         onChanged: (value) {
@@ -537,8 +604,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingTile(
                       icon: Icons.qr_code_scanner,
                       iconColor: AppTheme.primaryColor,
-                      title: 'Déverrouiller un sentier (QR)',
-                      subtitle: 'Scannez le QR du guide pour activer « Démarrer »',
+                      title: lp.t('settings.qrUnlock'),
+                      subtitle: lp.t('settings.qrUnlock.subtitle'),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const QrUnlockScreen(),
@@ -553,7 +620,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildSectionTitle('STOCKAGE'),
+              _buildSectionTitle(lp.t('settings.storage')),
               const SizedBox(height: 10),
               _SettingCard(
                 child: Column(

@@ -11,6 +11,7 @@ import 'package:video_player/video_player.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/map_tile_url.dart';
+import '../../services/voice_service.dart';
 import '../../core/widgets/eco_shortcut_badge.dart';
 import '../../core/widgets/fullscreen_image_viewer.dart';
 import '../../models/poi.dart';
@@ -70,11 +71,25 @@ class _PoiDetailScreenState extends State<PoiDetailScreen> {
       setState(() => _ttsPlaying = false);
       return;
     }
-    final lp = context.read<LocaleProvider>();
-    final langCode = lp.locale.languageCode;
-    await _tts.setLanguage(langCode == 'ar' ? 'ar-SA' : langCode == 'en' ? 'en-US' : 'fr-FR');
-    await _tts.setSpeechRate(0.45);
-    await _tts.setPitch(1.0);
+    // Respect the global voice setting (Paramètres → Lecture vocale).
+    if (!VoiceService.instance.isEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                context.read<LocaleProvider>().t('voice.disabledHint'),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+      }
+      return;
+    }
+    final langCode = context.read<LocaleProvider>().locale.languageCode;
+    await VoiceService.instance
+        .configure(_tts, langTag: VoiceService.tag(langCode));
     final text = '${widget.poi.name}. ${widget.poi.description}';
     setState(() => _ttsPlaying = true);
     await _tts.speak(text);

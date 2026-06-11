@@ -63,8 +63,16 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo.png"
+  # Green lotus centered on a WHITE background (square, used for legacy
+  # Android + iOS — logo_white.png is opaque white so the icon has a white bg).
+  image_path: "assets/images/logo_white.png"
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
   min_sdk_android: 21
+  # Android 8+ adaptive icon: white background + green lotus foreground
+  # (logo_fg.png keeps a transparent margin so the lotus isn't clipped).
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo_fg.png"
   web:
     generate: false
 

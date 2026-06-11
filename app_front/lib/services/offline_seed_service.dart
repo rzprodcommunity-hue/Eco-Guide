@@ -26,12 +26,31 @@ import 'offline_cache_service.dart';
 /// skipped, so the app builds and runs even before the packs are added.
 class OfflineSeedService {
   static const String _seededKey = 'offline_assets_seeded_v1';
+  // One-shot migration flag: older installs used to download tiles from
+  // tile.openstreetmap.org, which now returns the "403 Access blocked" abuse
+  // image. Those stale tiles are still served from the local cache, so we
+  // wipe them once per device on next launch. Bumping this constant forces a
+  // new wipe.
+  static const String _tileMigrationKey = 'offline_tile_cache_migrated_v2';
 
   static Future<void> seedIfNeeded({MapOfflineService? mapService}) async {
     final prefs = await SharedPreferences.getInstance();
+    final service = mapService ?? MapOfflineService();
+
+    // Migrate stale OSM tiles on existing installs (runs at most once).
+    if (prefs.getBool(_tileMigrationKey) != true) {
+      try {
+        await service.clearTabarkaTiles();
+        debugPrint('[Seed] Cleared stale tile cache (OSM → Google migration).');
+      } catch (e) {
+        debugPrint('[Seed] Tile cache wipe failed ($e).');
+      }
+      await prefs.setBool(_tileMigrationKey, true);
+    }
+
     if (prefs.getBool(_seededKey) == true) return;
 
-    await _seedTiles(mapService ?? MapOfflineService());
+    await _seedTiles(service);
     await _seedData();
 
     await prefs.setBool(_seededKey, true);

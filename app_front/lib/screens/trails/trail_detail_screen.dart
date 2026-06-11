@@ -21,7 +21,7 @@ import '../map/navigation_sos_screen.dart';
 import '../offline/offline_trails_screen.dart';
 import '../poi/poi_detail_screen.dart';
 import '../settings/qr_unlock_screen.dart';
-import '../sos/sos_button.dart';
+import '../../core/widgets/eco_sos_button.dart';
 
 class TrailDetailScreen extends StatefulWidget {
   final Trail trail;
@@ -1560,7 +1560,7 @@ class _TrailDetailScreenState extends State<TrailDetailScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            const _TrailSosButton(),
+            const EcoSosButton(size: 56),
           ],
         ),
       ),
@@ -1964,198 +1964,5 @@ class _AddCommentSheetState extends State<_AddCommentSheet> {
   }
 }
 
-/// Compact SOS button reproducing the main SOS screen design:
-/// pulsing halo + three nested radial-gradient shells. Opens [SosScreen].
-class _TrailSosButton extends StatefulWidget {
-  const _TrailSosButton();
-
-  @override
-  State<_TrailSosButton> createState() => _TrailSosButtonState();
-}
-
-class _TrailSosButtonState extends State<_TrailSosButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  void _openSos() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const SosScreen(),
-        fullscreenDialog: true,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _openSos,
-      child: AnimatedBuilder(
-        animation: _pulseController,
-        builder: (context, _) {
-          final t = _pulseController.value; // 0 → 1 → 0
-          return SizedBox(
-            width: 60,
-            height: 60,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // ── Halo 1 — outer ──────────────────────────────────────
-                Transform.scale(
-                  scale: 1.0 + t * 0.18,
-                  child: Opacity(
-                    opacity: (0.85 - t * 0.50).clamp(0.0, 1.0),
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFE53935).withValues(alpha: 0.10),
-                      ),
-                    ),
-                  ),
-                ),
-                // ── Halo 2 — inner ──────────────────────────────────────
-                Transform.scale(
-                  scale: 1.0 + t * 0.10,
-                  child: Opacity(
-                    opacity: (0.80 - t * 0.35).clamp(0.0, 1.0),
-                    child: Container(
-                      width: 51,
-                      height: 51,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFE53935).withValues(alpha: 0.16),
-                      ),
-                    ),
-                  ),
-                ),
-                // ── Outer shell — animated glow ─────────────────────────
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const RadialGradient(
-                      center: Alignment(0, -0.36),
-                      radius: 0.75,
-                      colors: [
-                        Color(0xFFFF7065),
-                        Color(0xFFE53935),
-                        Color(0xFFBD2723),
-                      ],
-                      stops: [0.0, 0.55, 1.0],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFE53935)
-                            .withValues(alpha: 0.30 + t * 0.22),
-                        blurRadius: 10 + t * 10,
-                        offset: const Offset(0, 4),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.16),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    // ── Middle shell ────────────────────────────────────
-                    child: Container(
-                      width: 49,
-                      height: 49,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const RadialGradient(
-                          center: Alignment(0, -0.30),
-                          radius: 0.65,
-                          colors: [
-                            Color(0xFFC42924),
-                            Color(0xFFC62828),
-                            Color(0xFFBC2724),
-                          ],
-                          stops: [0.0, 0.70, 1.0],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.22),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
-                            spreadRadius: -2,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        // ── Inner face ──────────────────────────────────
-                        child: Container(
-                          width: 45,
-                          height: 45,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const RadialGradient(
-                              center: Alignment(0, -0.40),
-                              radius: 0.65,
-                              colors: [
-                                Color(0xFFFF8C81),
-                                Color(0xFFEF4945),
-                                Color(0xFFC62828),
-                              ],
-                              stops: [0.0, 0.40, 1.0],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.16),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'SOS',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.0,
-                                height: 1,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black38,
-                                    blurRadius: 0,
-                                    offset: Offset(0, 1),
-                                  ),
-                                  Shadow(color: Colors.black26, blurRadius: 8),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
+// The trail-detail SOS button now uses the shared `EcoSosButton` widget
+// (core/widgets/eco_sos_button.dart) so it matches every other SOS button.

@@ -307,4 +307,20 @@ class OfflineProgressService {
         .compareTo(a['completedAt'] as String? ?? ''));
     return list;
   }
+
+  /// Activity magnitude per weekday (index 0 = Monday … 6 = Sunday), expressed
+  /// as the total distance (km) travelled on completed trails that weekday.
+  /// Used to draw the weekly activity bars on the profile — fully offline.
+  Future<List<double>> getWeeklyActivityBars() async {
+    final bars = List<double>.filled(7, 0);
+    final map = await _completedMap();
+    for (final v in map.values) {
+      final m = v as Map;
+      final at = DateTime.tryParse((m['completedAt'] as String?) ?? '');
+      if (at == null) continue;
+      final idx = (at.weekday - 1).clamp(0, 6); // Mon=0 … Sun=6
+      bars[idx] += (m['distanceKm'] as num?)?.toDouble() ?? 0.0;
+    }
+    return bars;
+  }
 }
