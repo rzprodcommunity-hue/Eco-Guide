@@ -1243,25 +1243,9 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
     required List<Poi> pois,
     required List<LocalService> services,
   }) {
+    // During navigation we only surface the SINGLE NEAREST POI — no trails and
+    // no local services — to keep the map focused on one target.
     final points = <_NavPoint>[];
-
-    for (final trail in trails) {
-      if (trail.startLatitude == null || trail.startLongitude == null) continue;
-      final point = LatLng(trail.startLatitude!, trail.startLongitude!);
-      final km = _distance.as(LengthUnit.Kilometer, _currentPosition, point);
-      if (km > 5) continue;
-      points.add(
-        _NavPoint(
-          id: 'trail_${trail.id}',
-          name: trail.name,
-          subtitle: 'Trail nearby',
-          point: point,
-          icon: Icons.hiking,
-          color: Colors.green,
-          distanceKm: km,
-        ),
-      );
-    }
 
     for (final poi in pois) {
       final point = LatLng(poi.latitude, poi.longitude);
@@ -1280,30 +1264,14 @@ class _NavigationSosScreenState extends State<NavigationSosScreen> {
       );
     }
 
-    for (final service in services) {
-      if (service.latitude == null || service.longitude == null) continue;
-      final point = LatLng(service.latitude!, service.longitude!);
-      final km = _distance.as(LengthUnit.Kilometer, _currentPosition, point);
-      if (km > 5) continue;
-      points.add(
-        _NavPoint(
-          id: 'service_${service.id}',
-          name: service.name,
-          subtitle: 'Local service nearby',
-          point: point,
-          icon: Icons.storefront,
-          color: const Color(0xFF1E9A35),
-          distanceKm: km,
-        ),
-      );
-    }
-
     points.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+    // Keep only the closest POI.
+    final nearest = points.isEmpty ? <_NavPoint>[] : <_NavPoint>[points.first];
 
     if (!mounted) return;
     setState(() {
-      _nearbyPoints = points;
-      _featuredPoint = points.isEmpty ? null : points.first;
+      _nearbyPoints = nearest;
+      _featuredPoint = nearest.isEmpty ? null : nearest.first;
       _activeDestination ??= _featuredPoint?.point;
       _activeDestinationLabel ??= _featuredPoint?.name;
     });

@@ -427,16 +427,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                               ),
                               label: 'Google',
                             )),
-                            const SizedBox(width: 14),
-                            Expanded(child: _socialButton(
-                              onTap: () {},
-                              icon: Icon(
-                                Icons.apple,
-                                size: 22,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                              label: 'Apple',
-                            )),
+                           
                           ],
                         ),
 

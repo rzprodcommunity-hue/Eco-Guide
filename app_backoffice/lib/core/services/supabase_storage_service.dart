@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,7 +11,9 @@ class SupabaseStorageService {
     required String contentType,
   }) async {
     final safeName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-    final path = '${DateTime.now().millisecondsSinceEpoch}_$safeName';
+    // Keep max strictly > 0 and web-safe (no 1 << 32 overflow on JS).
+    final randomSuffix = Random().nextInt(0x7fffffff).toRadixString(16);
+    final path = '${DateTime.now().microsecondsSinceEpoch}_${randomSuffix}_$safeName';
     final client = Supabase.instance.client;
 
     await client.storage
@@ -18,7 +21,7 @@ class SupabaseStorageService {
         .uploadBinary(
           path,
           bytes,
-          fileOptions: FileOptions(contentType: contentType, upsert: true),
+          fileOptions: FileOptions(contentType: contentType, upsert: false),
         );
 
     return client.storage.from(bucket).getPublicUrl(path);

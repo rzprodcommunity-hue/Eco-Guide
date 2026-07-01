@@ -18,22 +18,22 @@ class VoiceService {
   static const String _profileKey = 'voice_profile';
 
   /// Selectable named voices (ids). Display names come from [displayName].
-  static const List<String> profiles = ['charlot', 'mohamed'];
+  static const List<String> profiles = ['voice1', 'voice2'];
 
   static String displayName(String id) {
     switch (id) {
-      case 'mohamed':
-        return 'Mohamed';
-      case 'charlot':
+      case 'voice2':
+        return 'Voice2';
+      case 'voice1':
       default:
-        return 'Charlot';
+        return 'Voice1';
     }
   }
 
   final ValueNotifier<bool> enabled = ValueNotifier<bool>(true);
 
   /// One of [profiles].
-  final ValueNotifier<String> profile = ValueNotifier<String>('charlot');
+  final ValueNotifier<String> profile = ValueNotifier<String>('voice1');
 
   final FlutterTts _previewTts = FlutterTts();
 
@@ -62,9 +62,9 @@ class VoiceService {
   // ── Per-voice tuning ───────────────────────────────────────────────────────
   double get _pitch {
     switch (profile.value) {
-      case 'mohamed':
+      case 'voice2':
         return 1.0; // neutral
-      case 'charlot':
+      case 'voice1':
       default:
         return 1.25; // brighter / higher
     }
@@ -73,9 +73,9 @@ class VoiceService {
   // Speech rate — kept fast so the spoken response feels snappy.
   double get _rate {
     switch (profile.value) {
-      case 'mohamed':
+      case 'voice2':
         return 0.66;
-      case 'charlot':
+      case 'voice1':
       default:
         return 0.70;
     }
@@ -85,9 +85,9 @@ class VoiceService {
   /// so the two names map to different actual voices when possible.
   int get _voiceIndex {
     switch (profile.value) {
-      case 'mohamed':
+      case 'voice2':
         return 1;
-      case 'charlot':
+      case 'voice1':
       default:
         return 0;
     }
@@ -132,6 +132,14 @@ class VoiceService {
       if (voices is List) {
         for (final raw in voices) {
           if (raw is! Map) continue;
+          
+          // Exclude network voices that cause latency (fetching audio from servers)
+          final isNetwork = raw['isNetworkConnectionRequired'];
+          if (isNetwork == true || isNetwork == 'true') continue;
+          
+          final name = (raw['name'] ?? '').toString().toLowerCase();
+          if (name.contains('network') || name.contains('online')) continue;
+
           final loc = (raw['locale'] ?? '').toString().toLowerCase();
           if (loc.startsWith(lang)) result.add(raw);
         }

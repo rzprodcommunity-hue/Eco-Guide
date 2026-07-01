@@ -21,3 +21,12 @@ rad.json
 #Test results file
 TestResults.xml
 .vercel
+
+# Flutter generated artifacts
+app_backoffice/build/
+app_front/build/
+app_geo/build/
+
+# Local tools / archives
+.pgtools/
+*.zip

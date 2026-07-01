@@ -1,0 +1,25 @@
+tablename,indexname,indexdef
+trail_reviews,trail_reviews_pkey,CREATE UNIQUE INDEX trail_reviews_pkey ON public.trail_reviews USING btree (id)
+emergency_contacts,emergency_contacts_pkey,CREATE UNIQUE INDEX emergency_contacts_pkey ON public.emergency_contacts USING btree (id)
+spatial_ref_sys,spatial_ref_sys_pkey,CREATE UNIQUE INDEX spatial_ref_sys_pkey ON public.spatial_ref_sys USING btree (srid)
+user_badges,user_badges_pkey,CREATE UNIQUE INDEX user_badges_pkey ON public.user_badges USING btree (id)
+user_badges,user_badges_user_id_badge_key_key,"CREATE UNIQUE INDEX user_badges_user_id_badge_key_key ON public.user_badges USING btree (user_id, badge_key)"
+trails,trails_pkey,CREATE UNIQUE INDEX trails_pkey ON public.trails USING btree (id)
+trails,trails_start_gist,"CREATE INDEX trails_start_gist ON public.trails USING gist (st_setsrid(st_makepoint((""startLongitude"")::double precision, (""startLatitude"")::double precision), 4326)) WHERE ((""startLatitude"" IS NOT NULL) AND (""startLongitude"" IS NOT NULL))"
+pois,pois_pkey,CREATE UNIQUE INDEX pois_pkey ON public.pois USING btree (id)
+pois,pois_location_gist,"CREATE INDEX pois_location_gist ON public.pois USING gist (st_setsrid(st_makepoint((longitude)::double precision, (latitude)::double precision), 4326))"
+pois,pois_trailid_idx,"CREATE INDEX pois_trailid_idx ON public.pois USING btree (""trailId"")"
+quiz_badges,quiz_badges_pkey,CREATE UNIQUE INDEX quiz_badges_pkey ON public.quiz_badges USING btree (id)
+quiz_badges,quiz_badges_userId_key_key,"CREATE UNIQUE INDEX ""quiz_badges_userId_key_key"" ON public.quiz_badges USING btree (""userId"", key)"
+quizzes,quizzes_pkey,CREATE UNIQUE INDEX quizzes_pkey ON public.quizzes USING btree (id)
+quiz_scores,quiz_scores_pkey,CREATE UNIQUE INDEX quiz_scores_pkey ON public.quiz_scores USING btree (id)
+quiz_scores,quiz_scores_user_category_unique,"CREATE UNIQUE INDEX quiz_scores_user_category_unique ON public.quiz_scores USING btree (""userId"", category) WHERE (category IS NOT NULL)"
+quiz_scores,quiz_scores_user_general_unique,"CREATE UNIQUE INDEX quiz_scores_user_general_unique ON public.quiz_scores USING btree (""userId"") WHERE (category IS NULL)"
+local_services,local_services_pkey,CREATE UNIQUE INDEX local_services_pkey ON public.local_services USING btree (id)
+local_services,local_services_location_gist,"CREATE INDEX local_services_location_gist ON public.local_services USING gist (st_setsrid(st_makepoint((longitude)::double precision, (latitude)::double precision), 4326)) WHERE ((latitude IS NOT NULL) AND (longitude IS NOT NULL))"
+profiles,profiles_pkey,CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)
+profiles,profiles_email_key,CREATE UNIQUE INDEX profiles_email_key ON public.profiles USING btree (email)
+activities,activities_pkey,CREATE UNIQUE INDEX activities_pkey ON public.activities USING btree (id)
+sos_alerts,sos_alerts_pkey,CREATE UNIQUE INDEX sos_alerts_pkey ON public.sos_alerts USING btree (id)
+offline_cache,offline_cache_pkey,CREATE UNIQUE INDEX offline_cache_pkey ON public.offline_cache USING btree (id)
+partner_requests,partner_requests_pkey,CREATE UNIQUE INDEX partner_requests_pkey ON public.partner_requests USING btree (id)

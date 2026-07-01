@@ -343,69 +343,69 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.06),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.2),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Identifiants administrateur',
-                                        style: TextStyle(
-                                          color: AppColors.primary,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      SelectableText(
-                                        'admin@ecoguide.com',
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.6),
-                                          fontSize: 12,
-                                          fontFamily: 'monospace',
-                                        ),
-                                      ),
-                                      SelectableText(
-                                        'EcoAdmin2026!',
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.6),
-                                          fontSize: 12,
-                                          fontFamily: 'monospace',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          // const SizedBox(height: 20),
+                          // Container(
+                          //   padding: const EdgeInsets.symmetric(
+                          //     horizontal: 14,
+                          //     vertical: 10,
+                          //   ),
+                          //   decoration: BoxDecoration(
+                          //     color: AppColors.primary.withValues(alpha: 0.06),
+                          //     borderRadius: BorderRadius.circular(10),
+                          //     border: Border.all(
+                          //       color: AppColors.primary.withValues(alpha: 0.2),
+                          //     ),
+                          //   ),
+                          //   child: Row(
+                          //     children: [
+                          //       Icon(
+                          //         Icons.info_outline,
+                          //         size: 18,
+                          //         color: AppColors.primary,
+                          //       ),
+                          //       const SizedBox(width: 10),
+                          //       Expanded(
+                          //         child: Column(
+                          //           crossAxisAlignment:
+                          //               CrossAxisAlignment.start,
+                          //           children: [
+                          //             const Text(
+                          //               'Identifiants administrateur',
+                          //               style: TextStyle(
+                          //                 color: AppColors.primary,
+                          //                 fontWeight: FontWeight.w700,
+                          //                 fontSize: 12,
+                          //               ),
+                          //             ),
+                          //             const SizedBox(height: 2),
+                          //             SelectableText(
+                          //               'admin@ecoguide.com',
+                          //               style: TextStyle(
+                          //                 color: Theme.of(context)
+                          //                     .colorScheme
+                          //                     .onSurface
+                          //                     .withValues(alpha: 0.6),
+                          //                 fontSize: 12,
+                          //                 fontFamily: 'monospace',
+                          //               ),
+                          //             ),
+                          //             SelectableText(
+                          //               'EcoAdmin2026!',
+                          //               style: TextStyle(
+                          //                 color: Theme.of(context)
+                          //                     .colorScheme
+                          //                     .onSurface
+                          //                     .withValues(alpha: 0.6),
+                          //                 fontSize: 12,
+                          //                 fontFamily: 'monospace',
+                          //               ),
+                          //             ),
+                          //           ],
+                          //         ),
+                          //       ),
+                          //     ],
+                          //   ),
+                          // ),
                         ],
                       ),
                     ),

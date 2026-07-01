@@ -1,0 +1,69 @@
+tablename,policyname,cmd,roles,qual
+profiles,profiles select own or admin,SELECT,{authenticated},((id = auth.uid()) OR is_admin())
+profiles,profiles update own or admin,UPDATE,{authenticated},((id = auth.uid()) OR is_admin())
+trails,public read active trails,SELECT,"{anon,authenticated}","((""isActive"" = true) OR is_admin())"
+trails,admin write trails,ALL,{authenticated},is_admin()
+pois,public read active pois,SELECT,"{anon,authenticated}","((""isActive"" = true) OR is_admin())"
+pois,admin write pois,ALL,{authenticated},is_admin()
+quizzes,public read active quizzes,SELECT,"{anon,authenticated}","((""isActive"" = true) OR is_admin())"
+quizzes,admin write quizzes,ALL,{authenticated},is_admin()
+local_services,public read active verified local services,SELECT,"{anon,authenticated}","(((""isActive"" = true) AND (""isVerified"" = true)) OR is_admin())"
+local_services,admin write local services,ALL,{authenticated},is_admin()
+quiz_scores,users read own quiz scores or admin,SELECT,{authenticated},"((""userId"" = auth.uid()) OR is_admin())"
+quiz_scores,users insert own quiz scores,INSERT,{authenticated},
+quiz_scores,users update own quiz scores,UPDATE,{authenticated},"((""userId"" = auth.uid()) OR is_admin())"
+quiz_badges,users read own badges or admin,SELECT,{authenticated},"((""userId"" = auth.uid()) OR is_admin())"
+activities,users read own activities or admin,SELECT,{authenticated},"((""userId"" = auth.uid()) OR is_admin())"
+activities,users insert own activities,INSERT,{authenticated},
+sos_alerts,users read own sos or admin,SELECT,{authenticated},"((""userId"" = auth.uid()) OR is_admin())"
+sos_alerts,users create own sos,INSERT,{authenticated},
+sos_alerts,admin resolve sos,UPDATE,{authenticated},is_admin()
+offline_cache,users manage own offline cache,ALL,{authenticated},"((""userId"" = auth.uid()) OR is_admin())"
+trail_reviews,Anyone can read reviews,SELECT,{public},true
+trail_reviews,Users can insert own reviews,INSERT,{public},
+user_badges,Users see own badges,SELECT,{public},(auth.uid() = user_id)
+user_badges,Users insert own badges,INSERT,{public},
+partner_requests,Users insert own requests,INSERT,{public},
+partner_requests,Users see own requests,SELECT,{public},(auth.uid() = user_id)
+trails,Anyone can read trails,SELECT,{public},true
+trails,Anyone can insert trails,INSERT,{public},
+trails,Anyone can update trails,UPDATE,{public},true
+trails,Anyone can delete trails,DELETE,{public},true
+pois,Public read pois,SELECT,{public},true
+pois,Public insert pois,INSERT,{public},
+pois,Public update pois,UPDATE,{public},true
+pois,Public delete pois,DELETE,{public},true
+trails,Public read trails,SELECT,{public},true
+trails,Public insert trails,INSERT,{public},
+trails,Public update trails,UPDATE,{public},true
+trails,Public delete trails,DELETE,{public},true
+quizzes,Public read quizzes,SELECT,{public},true
+quizzes,Public insert quizzes,INSERT,{public},
+quizzes,Public update quizzes,UPDATE,{public},true
+quizzes,Public delete quizzes,DELETE,{public},true
+quiz_scores,Public read quiz_scores,SELECT,{public},true
+quiz_scores,Public insert quiz_scores,INSERT,{public},
+quiz_scores,Public update quiz_scores,UPDATE,{public},true
+quiz_scores,Public delete quiz_scores,DELETE,{public},true
+local_services,Public read local_services,SELECT,{public},true
+local_services,Public insert local_services,INSERT,{public},
+local_services,Public update local_services,UPDATE,{public},true
+local_services,Public delete local_services,DELETE,{public},true
+profiles,Public read profiles,SELECT,{public},true
+profiles,Public insert profiles,INSERT,{public},
+profiles,Public update profiles,UPDATE,{public},true
+profiles,Public delete profiles,DELETE,{public},true
+activities,Public read activities,SELECT,{public},true
+activities,Public insert activities,INSERT,{public},
+activities,Public update activities,UPDATE,{public},true
+activities,Public delete activities,DELETE,{public},true
+sos_alerts,Public read sos_alerts,SELECT,{public},true
+sos_alerts,Public insert sos_alerts,INSERT,{public},
+sos_alerts,Public update sos_alerts,UPDATE,{public},true
+sos_alerts,Public delete sos_alerts,DELETE,{public},true
+offline_cache,Public read offline_cache,SELECT,{public},true
+offline_cache,Public insert offline_cache,INSERT,{public},
+offline_cache,Public update offline_cache,UPDATE,{public},true
+offline_cache,Public delete offline_cache,DELETE,{public},true
+emergency_contacts,emergency_contacts_read,SELECT,{public},true
+emergency_contacts,emergency_contacts_write,ALL,"{anon,authenticated}",true

@@ -40,6 +40,7 @@ class _PoisScreenState extends State<PoisScreen> {
     45.4215,
     -75.6972,
   ); // Default to Ottawa
+  int _imageUploadNonce = 0;
   String? _mediaUrl;
   Uint8List? _pickedImageBytes;
   String? _videoUrl;
@@ -143,6 +144,15 @@ class _PoisScreenState extends State<PoisScreen> {
   }
 
   void _resetForm() {
+    if (_isUploading || _isUploadingVideo || _isSaving) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Attendez la fin du televersement/enregistrement.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     setState(() {
       _editingPoi = null;
       _nameController.clear();
@@ -158,6 +168,16 @@ class _PoisScreenState extends State<PoisScreen> {
   }
 
   void _editPoi(PoiModel poi) {
+    if (_isUploading || _isUploadingVideo || _isSaving) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Attendez la fin du televersement/enregistrement.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _editingPoi = poi;
       _selectedLocation = LatLng(poi.latitude, poi.longitude);
@@ -281,6 +301,8 @@ class _PoisScreenState extends State<PoisScreen> {
     if (result == null || result.files.single.bytes == null) return;
 
     final file = result.files.single;
+    final uploadNonce = ++_imageUploadNonce;
+    final targetPoiId = _editingPoi?.id;
     setState(() {
       _pickedImageBytes = file.bytes;
       _isUploading = true;
@@ -300,6 +322,23 @@ class _PoisScreenState extends State<PoisScreen> {
         bytes: file.bytes!,
         contentType: contentType,
       );
+
+      if (!mounted) return;
+      final formChangedWhileUploading =
+          uploadNonce != _imageUploadNonce || _editingPoi?.id != targetPoiId;
+      if (formChangedWhileUploading) {
+        setState(() => _isUploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Image televersee, mais ignoree car la fiche POI a change.',
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _mediaUrl = url;
         _isUploading = false;
@@ -432,6 +471,7 @@ class _PoisScreenState extends State<PoisScreen> {
 
       final editingId = _editingPoi?.id;
       final selectedTrail = _selectedTrailId;
+      final wasEditing = editingId != null;
 
       bool success;
       if (editingId != null) {
@@ -459,7 +499,7 @@ class _PoisScreenState extends State<PoisScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _editingPoi != null
+              wasEditing
                   ? 'Point d\'intérêt mis à jour avec succès !'
                   : 'Point d\'intérêt créé avec succès !',
             ),

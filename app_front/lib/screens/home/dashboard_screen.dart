@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -385,10 +386,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: ClipOval(
                         child: user?.avatarUrl != null &&
                                 (user!.avatarUrl as String).isNotEmpty
-                            ? Image.network(
-                                user.avatarUrl as String,
+                            ? CachedNetworkImage(
+                                imageUrl: user.avatarUrl as String,
                                 fit: BoxFit.cover,
-                                errorBuilder: (ctx, err, st) =>
+                                errorWidget: (ctx, url, err) =>
                                     _avatarInitials(initials, isDark),
                               )
                             : _avatarInitials(initials, isDark),
@@ -924,23 +925,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 height: 100,
                 width: double.infinity,
                 child: hasImage
-                    ? Image.network(
-                        poi.mediaUrl!,
+                    ? CachedNetworkImage(
+                        imageUrl: poi.mediaUrl!,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
+                        placeholder: (context, url) => const Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                  : null,
                               color: AppTheme.primaryColor,
                             ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) =>
+                          ),
+                        ),
+                        errorWidget: (context, url, error) =>
                             _buildPoiImagePlaceholder(),
                       )
                     : _buildPoiImagePlaceholder(),
@@ -1186,24 +1184,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: double.infinity,
                     color: Colors.grey[300],
                     child: hasImage
-                        ? Image.network(
-                            imageUrl!,
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl!,
                             fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
+                            placeholder: (context, url) => const Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  value:
-                                      loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                      : null,
                                   color: AppTheme.primaryColor,
                                 ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) =>
+                              ),
+                            ),
+                            errorWidget: (context, url, error) =>
                                 _buildPlaceholderImage(),
                           )
                         : _buildPlaceholderImage(),
@@ -1639,10 +1633,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: 100,
                 height: 100,
                 child: hasImage
-                    ? Image.network(
-                        poi.mediaUrl!,
+                    ? CachedNetworkImage(
+                        imageUrl: poi.mediaUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
+                        errorWidget: (context, url, error) =>
                             _buildPoiImagePlaceholder(),
                       )
                     : _buildPoiImagePlaceholder(),
