@@ -1,0 +1,63 @@
+name: app_geo
+description: "Application de tracking GPS avec export/import GPX."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # GPS / Location
+  geolocator: ^13.0.4
+  permission_handler: ^11.3.1
+
+  # Map (OpenStreetMap)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # GPX parsing / generation
+  gpx: ^2.3.0
+
+  # Files / Storage / Sharing
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  share_plus: ^10.1.2
+  file_picker: ^8.1.4
+
+  # Offline map tiles (download / cache)
+  http: ^1.2.2
+
+  # QR code generation + payload signing
+  qr_flutter: ^4.1.0
+  crypto: ^3.0.3
+
+  # Formatting
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # Generates the Android / iOS launcher icons (the one shown by the device's
+  # app manager / home screen) from assets/logo.png.
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.png"
+  remove_alpha_ios: true
+  min_sdk_android: 21
+  adaptive_icon_background: "#22B53A"
+  adaptive_icon_foreground: "assets/logo.png"
